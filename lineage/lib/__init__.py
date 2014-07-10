@@ -337,7 +337,7 @@ class Lineage(object):
         self.frames = Frames(frames)
 
     def guess_lineage(self):
-        """Naive guess at lineages using XY positions only.
+        """Naive guess at lineages using XY positions and cell length only.
 
         Updates the following attributes:
 
@@ -346,6 +346,20 @@ class Lineage(object):
 
         Returns:
             None
+
+        Similarly to :func:`interactive_track`, start from all "progenitor"
+        cells in frame 1. For each of these cells, select a cell in the next
+        frame which is spatially closest, if the closest cell is significantly
+        smaller in length, then choose the two closest cells as daughter
+        cells.
+
+        Note:
+            Improvements planned:
+
+            - ensuring daughters have similar cell
+              length (e.g. within 20% tolerance?)
+            - using cell morphology in some clever way to determine
+              division events
         """
         pass
 
