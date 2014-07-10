@@ -1,0 +1,22 @@
+#!/usr/bin/env python
+
+"""Executable to run lineage assignment routine
+
+Extensively uses :class:`lib.Lineage`
+"""
+
+import lib
+import logging
+
+
+def main():
+    L = lib.Lineage()
+    L.interactive_track()
+
+if __name__ == "__main__":
+    logging.basicConfig(
+        format="[%(asctime)s] %(levelname) 10s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+        level=logging.INFO
+    )
+    main()
