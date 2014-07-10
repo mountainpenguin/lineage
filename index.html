@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Welcome to Lineage’s documentation! &mdash; Lineage 0.1 documentation</title>
+    <title>Lineage - Extension from MicrobeTracker for cell growth time-lapses &mdash; Lineage 0.1 documentation</title>
     
     <link rel="stylesheet" href="_static/default.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -44,8 +44,10 @@
         <div class="bodywrapper">
           <div class="body">
             
-  <div class="section" id="welcome-to-lineage-s-documentation">
-<h1>Welcome to Lineage&#8217;s documentation!<a class="headerlink" href="#welcome-to-lineage-s-documentation" title="Permalink to this headline">¶</a></h1>
+  <div class="section" id="lineage-extension-from-microbetracker-for-cell-growth-time-lapses">
+<h1>Lineage - Extension from MicrobeTracker for cell growth time-lapses<a class="headerlink" href="#lineage-extension-from-microbetracker-for-cell-growth-time-lapses" title="Permalink to this headline">¶</a></h1>
+<p>Optimised for mycobacteria (<em>M. smegmatis</em> especially).</p>
+<p>Code: <a class="reference external" href="https://github.com/mountainpenguin/lineage">https://github.com/mountainpenguin/lineage</a></p>
 <p>Contents:</p>
 <div class="toctree-wrapper compound">
 <ul class="simple">
@@ -244,7 +246,7 @@ descriptions of these attributes</p>
 <dl class="method">
 <dt id="lib.Lineage.guess_lineage">
 <tt class="descname">guess_lineage</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/lib.html#Lineage.guess_lineage"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lib.Lineage.guess_lineage" title="Permalink to this definition">¶</a></dt>
-<dd><p>Naive guess at lineages using XY positions only.</p>
+<dd><p>Naive guess at lineages using XY positions and cell length only.</p>
 <p>Updates the following attributes:</p>
 <dl class="attribute">
 <dt id="lib.Lineage.lineages">
@@ -261,6 +263,21 @@ descriptions of these attributes</p>
 </tr>
 </tbody>
 </table>
+<p>Similarly to <a class="reference internal" href="#lib.Lineage.interactive_track" title="lib.Lineage.interactive_track"><tt class="xref py py-func docutils literal"><span class="pre">interactive_track()</span></tt></a>, start from all &#8220;progenitor&#8221;
+cells in frame 1. For each of these cells, select a cell in the next
+frame which is spatially closest, if the closest cell is significantly
+smaller in length, then choose the two closest cells as daughter
+cells.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p>Improvements planned:</p>
+<ul class="last simple">
+<li>ensuring daughters have similar cell
+length (e.g. within 20% tolerance?)</li>
+<li>using cell morphology in some clever way to determine
+division events</li>
+</ul>
+</div>
 </dd></dl>
 
 <dl class="method">
@@ -500,7 +517,7 @@ above</li>
         <div class="sphinxsidebarwrapper">
   <h3><a href="#">Table Of Contents</a></h3>
   <ul>
-<li><a class="reference internal" href="#">Welcome to Lineage&#8217;s documentation!</a></li>
+<li><a class="reference internal" href="#">Lineage - Extension from MicrobeTracker for cell growth time-lapses</a></li>
 <li><a class="reference internal" href="#indices-and-tables">Indices and tables</a></li>
 </ul>
 
