@@ -1,0 +1,538 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Welcome to Lineage’s documentation! &mdash; Lineage 0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="Lineage 0.1 documentation" href="#" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="#">Lineage 0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="welcome-to-lineage-s-documentation">
+<h1>Welcome to Lineage&#8217;s documentation!<a class="headerlink" href="#welcome-to-lineage-s-documentation" title="Permalink to this headline">¶</a></h1>
+<p>Contents:</p>
+<div class="toctree-wrapper compound">
+<ul class="simple">
+</ul>
+</div>
+<span class="target" id="module-lib"></span><p>This module is designed to provide tools that allow assignment of cell
+lineages from MicrobeTracker results.</p>
+<dl class="class">
+<dt id="lib.Cell">
+<em class="property">class </em><tt class="descclassname">lib.</tt><tt class="descname">Cell</tt><big>(</big><em>cell</em><big>)</big><a class="reference internal" href="_modules/lib.html#Cell"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lib.Cell" title="Permalink to this definition">¶</a></dt>
+<dd><p>Simple class that holds arbritrary information about a cell.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>cell</strong> (<em>numpy.ndarray</em>) &#8211; input data from MATLAB file.</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">No attributes are guaranteed, they depend only on the inputted <cite>numpy</cite>
+array structure (via <cite>dtype.names</cite>). However, attributes that are
+automatically included by other methods in this module are listed
+below.</p>
+</div>
+<dl class="attribute">
+<dt id="lib.Cell.id">
+<tt class="descname">id</tt><a class="headerlink" href="#lib.Cell.id" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>str</em></p>
+<p>unique UUID that identifies the cell.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="lib.Cell.frame">
+<tt class="descname">frame</tt><a class="headerlink" href="#lib.Cell.frame" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>int</em></p>
+<p>frame number of the cell</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="lib.Cell.mt_idx">
+<tt class="descname">mt_idx</tt><a class="headerlink" href="#lib.Cell.mt_idx" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>int</em></p>
+<p>cell number that MicrobeTracker assigns</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="lib.Cell.py_idx">
+<tt class="descname">py_idx</tt><a class="headerlink" href="#lib.Cell.py_idx" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>int</em></p>
+<p>cell number that Lineage assigns</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="lib.Cell.parent">
+<tt class="descname">parent</tt><a class="headerlink" href="#lib.Cell.parent" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>str, None</em></p>
+<p><cite>id</cite> of the parent cell from the previous frame (i.e. does not
+imply a division event).</p>
+<p><em>None</em> if no linked parent.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="lib.Cell.children">
+<tt class="descname">children</tt><a class="headerlink" href="#lib.Cell.children" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>str, tuple, None</em></p>
+<p>if <em>str</em>: <cite>id</cite> of the same cell in the next frame.</p>
+<dl class="docutils">
+<dt>if <em>tuple</em>:</dt>
+<dd><cite>id</cite> of both daughter cells in the next frame.</dd>
+</dl>
+<p><em>None</em> if no linked child (may imply that the cell has died, moved
+out of the field of view, or that the frame is the final frame).</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="lib.Frame">
+<em class="property">class </em><tt class="descclassname">lib.</tt><tt class="descname">Frame</tt><big>(</big><em>frame</em>, <em>cells</em><big>)</big><a class="reference internal" href="_modules/lib.html#Frame"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lib.Frame" title="Permalink to this definition">¶</a></dt>
+<dd><p>Container class for all cells in a single image frame.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>frame</strong> (<em>int</em>) &#8211; frame number.</li>
+<li><strong>cells</strong> (<em>list</em>) &#8211; list of <a class="reference internal" href="#lib.Cell" title="lib.Cell"><tt class="xref py py-class docutils literal"><span class="pre">Cell</span></tt></a> objects.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="attribute">
+<dt id="lib.Frame.frame">
+<tt class="descname">frame</tt><a class="headerlink" href="#lib.Frame.frame" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>int</em></p>
+<p>frame number (should be 0-indexed).</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="lib.Frame.cells">
+<tt class="descname">cells</tt><a class="headerlink" href="#lib.Frame.cells" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>list</em></p>
+<p>list of <a class="reference internal" href="#lib.Cell" title="lib.Cell"><tt class="xref py py-class docutils literal"><span class="pre">Cell</span></tt></a> objects.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="lib.Frame.cell">
+<tt class="descname">cell</tt><big>(</big><em>id</em><big>)</big><a class="reference internal" href="_modules/lib.html#Frame.cell"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lib.Frame.cell" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a <a class="reference internal" href="#lib.Cell" title="lib.Cell"><tt class="xref py py-class docutils literal"><span class="pre">Cell</span></tt></a> object with corresponding <cite>id</cite>, searching
+within the cells in the frame.</p>
+<p>Searches for cells within the current frame only, use
+<a class="reference internal" href="#lib.Frames.cell" title="lib.Frames.cell"><tt class="xref py py-func docutils literal"><span class="pre">Frames.cell()</span></tt></a> for searching all frames simultaneously.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>id</strong> (<em>str</em>) &#8211; id (uuid) of cell</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><a class="reference internal" href="#lib.Cell" title="lib.Cell"><tt class="xref py py-class docutils literal"><span class="pre">Cell</span></tt></a>: if <cite>id</cite> is found, None otherwise.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="lib.Frames">
+<em class="property">class </em><tt class="descclassname">lib.</tt><tt class="descname">Frames</tt><big>(</big><em>frames</em><big>)</big><a class="reference internal" href="_modules/lib.html#Frames"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lib.Frames" title="Permalink to this definition">¶</a></dt>
+<dd><p>Very basic container class for all frames in an image sequence</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>frames</strong> (<em>list</em>) &#8211; list of <a class="reference internal" href="#lib.Frame" title="lib.Frame"><tt class="xref py py-class docutils literal"><span class="pre">Frame</span></tt></a> objects.</td>
+</tr>
+</tbody>
+</table>
+<dl class="attribute">
+<dt id="lib.Frames.frames">
+<tt class="descname">frames</tt><a class="headerlink" href="#lib.Frames.frames" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>list</em></p>
+<p>list of <a class="reference internal" href="#lib.Frame" title="lib.Frame"><tt class="xref py py-class docutils literal"><span class="pre">Frame</span></tt></a> objects.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="lib.Frames.cell">
+<tt class="descname">cell</tt><big>(</big><em>id</em><big>)</big><a class="reference internal" href="_modules/lib.html#Frames.cell"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lib.Frames.cell" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a <a class="reference internal" href="#lib.Cell" title="lib.Cell"><tt class="xref py py-class docutils literal"><span class="pre">Cell</span></tt></a> object with corresponding <cite>id</cite>, searching
+all frames within the stack.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>id</strong> (<em>str</em>) &#8211; id (uuid) of cell</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><a class="reference internal" href="#lib.Cell" title="lib.Cell"><tt class="xref py py-class docutils literal"><span class="pre">Cell</span></tt></a>: if <cite>id</cite> is found, None otherwise.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="lib.Lineage">
+<em class="property">class </em><tt class="descclassname">lib.</tt><tt class="descname">Lineage</tt><big>(</big><em>cellmat='mt/mt.mat'</em>, <em>uuidfile='uuids.json'</em>, <em>lineagefile='lineages.json'</em>, <em>alignmat='mt/alignment.mat'</em><big>)</big><a class="reference internal" href="_modules/lib.html#Lineage"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lib.Lineage" title="Permalink to this definition">¶</a></dt>
+<dd><p>Contains methods for analysing and assigning lineages</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>cellmat</strong> (<em>str</em>) &#8211; path to MicrobeTracker meshes file, defaults to
+<cite>mt/mt.mat</cite></li>
+<li><strong>uuidfile</strong> (<em>str</em>) &#8211; path to uuid file created by Lineage, defaults to
+<cite>uuids.json</cite></li>
+<li><strong>lineagefile</strong> (<em>str</em>) &#8211; path to lineages file created by Lineage, defaults
+to <cite>lineages.json</cite></li>
+<li><strong>alignmat</strong> (<em>str</em>) &#8211; path to MicrobeTracker alignment file, defaults to
+<cite>mt/alignment.mat</cite></li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Attributes are set by the methods <a class="reference internal" href="#lib.Lineage.load_alignment" title="lib.Lineage.load_alignment"><tt class="xref py py-func docutils literal"><span class="pre">load_alignment()</span></tt></a> and
+<a class="reference internal" href="#lib.Lineage.load_cells" title="lib.Lineage.load_cells"><tt class="xref py py-func docutils literal"><span class="pre">load_cells()</span></tt></a> which are called on init. See below for
+descriptions of these attributes</p>
+</div>
+<dl class="method">
+<dt id="lib.Lineage.guess_lineage">
+<tt class="descname">guess_lineage</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/lib.html#Lineage.guess_lineage"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lib.Lineage.guess_lineage" title="Permalink to this definition">¶</a></dt>
+<dd><p>Naive guess at lineages using only positions as a guide</p>
+<p>Updates the following attributes:</p>
+<dl class="attribute">
+<dt id="lib.Lineage.lineages">
+<tt class="descname">lineages</tt><a class="headerlink" href="#lib.Lineage.lineages" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>dict</em></p>
+<p>As per <a class="reference internal" href="#lib.Lineage.load_cells" title="lib.Lineage.load_cells"><tt class="xref py py-func docutils literal"><span class="pre">load_cells()</span></tt></a></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="method">
+<dt id="lib.Lineage.interactive_track">
+<tt class="descname">interactive_track</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/lib.html#Lineage.interactive_track"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lib.Lineage.interactive_track" title="Permalink to this definition">¶</a></dt>
+<dd><p>Launch manual lineage tracker.</p>
+<p>Initiates a <a class="reference internal" href="#lib.LineageMaker" title="lib.LineageMaker"><tt class="xref py py-class docutils literal"><span class="pre">LineageMaker</span></tt></a> instance, and proceeds through
+the assignment process.</p>
+<p>Updates the following attributes:</p>
+<dl class="attribute">
+<dt>
+<tt class="descname">lineages</tt></dt>
+<dd><p><em>dict</em></p>
+<p>As per <a class="reference internal" href="#lib.Lineage.load_cells" title="lib.Lineage.load_cells"><tt class="xref py py-func docutils literal"><span class="pre">load_cells()</span></tt></a></p>
+</dd></dl>
+
+<p>Once launced, a matplotlib figure will open showing three
+images, N - 1, N, and N + 1 where N is the current frame.</p>
+<p>The parent of the current cell will be outlined in blue
+on the left-hand image, the current cell (the &#8220;mother&#8221;)
+will be displayed on the centre image, and any daughter
+cells will be highlighted in green on the right-hand image.
+All cells defined by MicrobeTracker will be highlighted in
+yellow on the right-hand image if they are not set as
+daughter cells.</p>
+<p>Daughter cells can be selected by clicking on them, selected
+cells will be highlighted in green, and can be toggled by
+clicking again. The next frame can be progressed to by
+pressing <cite>Enter</cite>.</p>
+<p>If no cells are selected, a death event will be initiated,
+which must be confirmed by pressing the <cite>y</cite> key.</p>
+<p>If one cell is selected, the next frame will be progressed
+to without further input.</p>
+<p>If two cells are selected, a division event will be registered
+and the figure will close, and the next &#8220;progenitor&#8221; cell
+will be displayed in the new figure.</p>
+<p>The window can be maximised by pressing the <cite>m</cite> key, in which
+case the entire field will be displayed. The matplotlib
+zoom and pan tools can be used to narrow down the field.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">None</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="lib.Lineage.load_alignment">
+<tt class="descname">load_alignment</tt><big>(</big><em>alignmat='mt/alignment.mat'</em><big>)</big><a class="reference internal" href="_modules/lib.html#Lineage.load_alignment"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lib.Lineage.load_alignment" title="Permalink to this definition">¶</a></dt>
+<dd><p>Loads alignment files as created by MicrobeTracker</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">This will be improved in the future to refine these
+alignments.</p>
+</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>alignmat</strong> (<em>str</em>) &#8211; path to MicrobeTracker alignment file,
+defaults to <cite>mt/alignment.mat</cite></td>
+</tr>
+</tbody>
+</table>
+<p>Sets the following attributes:</p>
+<dl class="attribute">
+<dt id="lib.Lineage.alignment">
+<tt class="descname">alignment</tt><a class="headerlink" href="#lib.Lineage.alignment" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>numpy.ndarray</em></p>
+<p>2 x N array containing X and Y offsets
+for each of N frames.</p>
+<p>Currently, these values are pulled directly from
+MicrobeTracker, but will be improved in the future.</p>
+</dd></dl>
+
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">None</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><tt class="xref py py-exc docutils literal"><span class="pre">IOError</span></tt> &#8211; 
+if alignment file is not found</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="lib.Lineage.load_cells">
+<tt class="descname">load_cells</tt><big>(</big><em>cellmat='mt/mt.mat'</em>, <em>uuidfile='uuids.json'</em>, <em>lineagefile='lineages.json'</em><big>)</big><a class="reference internal" href="_modules/lib.html#Lineage.load_cells"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lib.Lineage.load_cells" title="Permalink to this definition">¶</a></dt>
+<dd><p>Loads meshes created my MicrobeTracker, and any lineages previously
+created by Lineage</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>cellmat</strong> (<em>str</em>) &#8211; path to MicrobeTracker meshes file, defaults to
+<cite>mt/mt.mat</cite></li>
+<li><strong>uuidfile</strong> (<em>str</em>) &#8211; path to uuid file created by Lineage, defaults to
+<cite>uuids.json</cite></li>
+<li><strong>lineagefile</strong> (<em>str</em>) &#8211; path to lineages file created by Lineage,
+defaults to <cite>lineages.json</cite></li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Sets the following attributes:</p>
+<dl class="attribute">
+<dt id="lib.Lineage.frames">
+<tt class="descname">frames</tt><a class="headerlink" href="#lib.Lineage.frames" title="Permalink to this definition">¶</a></dt>
+<dd><p><a class="reference internal" href="#lib.Frames" title="lib.Frames"><tt class="xref py py-class docutils literal"><span class="pre">Frames</span></tt></a></p>
+<p>Contains all data from MicrobeTracker</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="lib.Lineage.uuids">
+<tt class="descname">uuids</tt><a class="headerlink" href="#lib.Lineage.uuids" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>dict</em></p>
+<p>References all cell UUIDs according to
+MicrobeTracker&#8217;s cell numbering system</p>
+<dl class="docutils">
+<dt>Cells are referenced with the following key structure:</dt>
+<dd><cite>frame</cite>:<cite>mt_idx</cite></dd>
+</dl>
+<p>Where <cite>frame</cite> is the frame number of the cell, and <cite>mt_idx</cite>
+is the cell number assigned by MicrobeTracker</p>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">If cell numbers are changed by subsequent runs of
+MicrobeTracker, these UUIDs will no longer be valid.</p>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt>
+<tt class="descname">lineages</tt></dt>
+<dd><p><em>dict</em></p>
+<p>Links each cell <cite>id</cite> with its parent from the
+previous frame, and any children in the subsequent frame</p>
+<p>The key is the cell <cite>id</cite> and the value is a tuple with
+structure:</p>
+<blockquote>
+<div>(<cite>parent_id</cite>, <cite>child_id</cite>)</div></blockquote>
+<p><cite>parent_id</cite> (str, None) is the id of the parent cell or None,
+and <cite>child_id</cite> (str, tuple, None) is the id of the child (str),
+both child ids (tuple), or None</p>
+<p class="rubric">Example</p>
+<dl class="docutils">
+<dt>If no division has occured:</dt>
+<dd>(<cite>parent</cite>, <cite>child</cite>)</dd>
+<dt>If a division has occured:</dt>
+<dd>(<cite>parent</cite>, (<cite>child1</cite>, <cite>child2</cite>))</dd>
+<dt>If a death has occured:</dt>
+<dd>(<cite>parent</cite>, None)</dd>
+</dl>
+</dd></dl>
+
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">None</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><tt class="xref py py-exc docutils literal"><span class="pre">IOError</span></tt> &#8211; 
+if meshes file is not found</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="lib.LineageMaker">
+<em class="property">class </em><tt class="descclassname">lib.</tt><tt class="descname">LineageMaker</tt><big>(</big><em>progenitor</em>, <em>files</em>, <em>alignment</em>, <em>frames</em><big>)</big><a class="reference internal" href="_modules/lib.html#LineageMaker"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lib.LineageMaker" title="Permalink to this definition">¶</a></dt>
+<dd><p>Assignment of lineages via manual graphical selection.</p>
+<p>Extensively uses <tt class="xref py py-mod docutils literal"><span class="pre">matplotlib</span></tt> and user input to
+determine cell lineages.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>progenitor</strong> (<a class="reference internal" href="#lib.Cell" title="lib.Cell"><tt class="xref py py-class docutils literal"><span class="pre">Cell</span></tt></a>) &#8211; Initial cell to track</li>
+<li><strong>files</strong> (<em>list</em>) &#8211; list of image files sorted by frame number, each
+frame must be in a separate file (for now)</li>
+<li><strong>alignment</strong> (<em>numpy.ndarray</em>) &#8211; As per <a class="reference internal" href="#lib.Lineage.load_alignment" title="lib.Lineage.load_alignment"><tt class="xref py py-func docutils literal"><span class="pre">Lineage.load_alignment()</span></tt></a>
+above</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="lib.LineageMaker.maximise_frame">
+<tt class="descname">maximise_frame</tt><big>(</big><em>ax</em>, <em>frame</em>, <em>fn_idx</em>, <em>frame_offset</em><big>)</big><a class="reference internal" href="_modules/lib.html#LineageMaker.maximise_frame"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lib.LineageMaker.maximise_frame" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>ax</strong> (<em>axis</em>) &#8211; Axes object for frame in question</li>
+<li><strong>frame</strong> (<a class="reference internal" href="#lib.Frame" title="lib.Frame"><tt class="xref py py-class docutils literal"><span class="pre">Frame</span></tt></a>) &#8211; The data for the frame</li>
+<li><strong>fn_idx</strong> (<em>int</em>) &#8211; File index for self.files
+(e.g. frame_idx + 1 for n2)</li>
+<li><strong>frame_offset</strong> (<em>int</em>) &#8211; offset for title (e.g. 2 for n2)</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="indices-and-tables">
+<h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline">¶</a></h1>
+<ul class="simple">
+<li><a class="reference internal" href="genindex.html"><em>Index</em></a></li>
+<li><a class="reference internal" href="py-modindex.html"><em>Module Index</em></a></li>
+<li><a class="reference internal" href="search.html"><em>Search Page</em></a></li>
+</ul>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="#">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Welcome to Lineage&#8217;s documentation!</a></li>
+<li><a class="reference internal" href="#indices-and-tables">Indices and tables</a></li>
+</ul>
+
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/index.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="#">Lineage 0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Miles Priestman.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>
