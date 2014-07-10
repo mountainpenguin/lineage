@@ -11,7 +11,8 @@ import logging
 
 def main():
     L = lib.Lineage()
-    L.interactive_track()
+    L.guess_lineage()
+    #L.interactive_track()
 
 if __name__ == "__main__":
     logging.basicConfig(
