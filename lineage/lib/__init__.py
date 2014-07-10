@@ -52,8 +52,8 @@ class Cell(object):
 
             *None* if no linked child (may imply that the cell has died, moved
             out of the field of view, or that the frame is the final frame).
-
-
+        centre (tuple):
+            tuple of XY cell centre coordinates, both as `float`.
     """
     def __init__(self, cell):
         for d in range(len(cell.dtype)):
@@ -318,6 +318,8 @@ class Lineage(object):
                             cell.parent = None
                             cell.children = None
 
+                        cell.centre = self._centre(cell)
+
                         py_cell_idx += 1
                         cell_total += 1
                         frame_cells.append(cell)
@@ -335,6 +337,23 @@ class Lineage(object):
         logging.info(">>> saved")
 
         self.frames = Frames(frames)
+
+    def _centre(self, cell):
+        """Return the coordinates for cell centre of the given cell.
+
+        Args:
+            cell (:class:`Cell`): Cell in question.
+
+        Returns:
+            X, Y (tuple, float): X and Y coordinates for cell centre
+        """
+        xl = cell.mesh[:, 0]
+        yl = cell.mesh[:, 1]
+        xr = cell.mesh[:, 2]
+        yr = cell.mesh[:, 3]
+        c_x = np.mean([xl.mean(), xr.mean()])
+        c_y = np.mean([yl.mean(), yr.mean()])
+        return c_x, c_y
 
     def guess_lineage(self):
         """Naive guess at lineages using XY positions and cell length only.
@@ -361,7 +380,74 @@ class Lineage(object):
             - using cell morphology in some clever way to determine
               division events
         """
-        pass
+        temp_lineage = {}
+        progenitors = self.frames[0].cells
+        for progenitor in progenitors:
+            # use mesh to determine bounding circle
+            # this is a circle centred on the cell centre, with a diameter
+            # of the cell length
+
+            # cell centre
+            c_x, c_y = progenitor.centre
+            # radius
+            radius = progenitor.length[0][0] / 2
+
+            USE OFFSETS!
+
+            n1_frame = self.frames[progenitor.frame + 1]
+            # search n1 frame for cells > 60% within bounding circle
+            for pot in n1_frame.cells:
+                pot_radius = pot.length[0][0] / 2
+                pot_x, pot_y = pot.centre
+
+                print(
+                    "c_x:", c_x,
+                    "c_y:", c_y,
+                    "r:", radius,
+                )
+                print(
+                    "p_x:", pot_x,
+                    "p_y:", pot_y,
+                    "p_r:", pot_radius
+                )
+
+                # distance between cell centres
+                dist = np.sqrt(
+                    ((c_x - pot_x) ** 2) +
+                    ((c_y - pot_y) ** 2)
+                )
+                print("dist:", dist)
+
+                if dist > 50:
+                    continue
+
+                # half angle of the top intersection
+                ang1 = np.arccos(
+                    ((pot_radius ** 2) +
+                     (dist ** 2) -
+                     (radius ** 2)) /
+                    (2 * pot_radius * dist)
+                )
+                print("ang1:", ang1)
+
+                ang2 = np.arccos(
+                    ((radius ** 2) +
+                     (dist ** 2) -
+                     (pot_radius ** 2)) /
+                    (2 * radius * dist)
+                )
+                print("ang2:", ang2)
+
+                # intersection area
+                a = (ang1 * (pot_radius ** 2) -
+                     0.5 * (pot_radius ** 2) * np.sin(2 * ang1) +
+                     ang2 * (radius ** 2) -
+                     0.5 * (radius ** 2) * np.sin(2 * ang2))
+
+                print(a)
+                break
+
+            break
 
     def interactive_track(self):
         """Launch manual lineage tracker.
