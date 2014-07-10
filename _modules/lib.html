@@ -1,0 +1,1041 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>lib &mdash; Lineage 0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="Lineage 0.1 documentation" href="../index.html" />
+    <link rel="up" title="Module code" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../index.html">Lineage 0.1 documentation</a> &raquo;</li>
+          <li><a href="index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for lib</h1><div class="highlight"><pre>
+<span class="c">#!/usr/bin/env python</span>
+
+<span class="sd">&quot;&quot;&quot;This module is designed to provide tools that allow assignment of cell</span>
+<span class="sd">   lineages from MicrobeTracker results.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">print_function</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="kn">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">matplotlib.patches</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">scipy.io</span>
+<span class="kn">import</span> <span class="nn">scipy.misc</span>
+<span class="kn">import</span> <span class="nn">uuid</span>
+<span class="c"># import glob</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">glob</span>
+
+<span class="n">__version__</span> <span class="o">=</span> <span class="s">&quot;0.1&quot;</span>
+<span class="n">__author__</span> <span class="o">=</span> <span class="s">&quot;Miles Priestman &lt;priestman.miles@gmail.com&gt;&quot;</span>
+
+
+<div class="viewcode-block" id="Cell"><a class="viewcode-back" href="../index.html#lib.Cell">[docs]</a><span class="k">class</span> <span class="nc">Cell</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Simple class that holds arbritrary information about a cell.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      cell (numpy.ndarray): input data from MATLAB file.</span>
+
+<span class="sd">    Note:</span>
+<span class="sd">        No attributes are guaranteed, they depend only on the inputted `numpy`</span>
+<span class="sd">        array structure (via `dtype.names`). However, attributes that are</span>
+<span class="sd">        automatically included by other methods in this module are listed</span>
+<span class="sd">        below.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        id (str): unique UUID that identifies the cell.</span>
+<span class="sd">        frame (int): frame number of the cell</span>
+<span class="sd">        mt_idx (int): cell number that MicrobeTracker assigns</span>
+<span class="sd">        py_idx (int): cell number that Lineage assigns</span>
+<span class="sd">        parent (str, None):</span>
+<span class="sd">            `id` of the parent cell from the previous frame (i.e. does not</span>
+<span class="sd">            imply a division event).</span>
+
+<span class="sd">            *None* if no linked parent.</span>
+
+<span class="sd">        children (str, tuple, None):</span>
+<span class="sd">            if *str*: `id` of the same cell in the next frame.</span>
+
+<span class="sd">            if *tuple*:</span>
+<span class="sd">                `id` of both daughter cells in the next frame.</span>
+
+<span class="sd">            *None* if no linked child (may imply that the cell has died, moved</span>
+<span class="sd">            out of the field of view, or that the frame is the final frame).</span>
+
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cell</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">cell</span><span class="o">.</span><span class="n">dtype</span><span class="p">)):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__dict__</span><span class="p">[</span><span class="n">cell</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">names</span><span class="p">[</span><span class="n">d</span><span class="p">]]</span> <span class="o">=</span> <span class="n">cell</span><span class="p">[</span><span class="n">d</span><span class="p">]</span>
+
+</div>
+<div class="viewcode-block" id="Frames"><a class="viewcode-back" href="../index.html#lib.Frames">[docs]</a><span class="k">class</span> <span class="nc">Frames</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Very basic container class for all frames in an image sequence</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        frames (list): list of :class:`Frame` objects.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        frames (list): list of :class:`Frame` objects.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">frames</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">frames</span> <span class="o">=</span> <span class="n">frames</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_idx</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">frames</span><span class="p">:</span>
+            <span class="k">for</span> <span class="nb">id</span> <span class="ow">in</span> <span class="n">f</span><span class="o">.</span><span class="n">_idx</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_idx</span><span class="p">[</span><span class="nb">id</span><span class="p">]</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">frame</span>
+
+<div class="viewcode-block" id="Frames.cell"><a class="viewcode-back" href="../index.html#lib.Frames.cell">[docs]</a>    <span class="k">def</span> <span class="nf">cell</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return a :class:`Cell` object with corresponding `id`, searching</span>
+<span class="sd">        all frames within the stack.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            id (str): id (uuid) of cell</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            :class:`Cell`: if `id` is found, None otherwise.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_idx</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">frames</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_idx</span><span class="p">[</span><span class="nb">id</span><span class="p">]]</span><span class="o">.</span><span class="n">cell</span><span class="p">(</span><span class="nb">id</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">idx</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">frames</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frames</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="Frame"><a class="viewcode-back" href="../index.html#lib.Frame">[docs]</a><span class="k">class</span> <span class="nc">Frame</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Container class for all cells in a single image frame.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        frame (int): frame number.</span>
+<span class="sd">        cells (list): list of :class:`Cell` objects.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">      frame (int): frame number (should be 0-indexed).</span>
+<span class="sd">      cells (list): list of :class:`Cell` objects.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">frame</span><span class="p">,</span> <span class="n">cells</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">frame</span> <span class="o">=</span> <span class="n">frame</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cells</span> <span class="o">=</span> <span class="n">cells</span>
+        <span class="c"># make cell id index</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_idx</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cells</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_idx</span><span class="p">[</span><span class="n">c</span><span class="o">.</span><span class="n">id</span><span class="p">]</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="n">py_idx</span>
+
+<div class="viewcode-block" id="Frame.cell"><a class="viewcode-back" href="../index.html#lib.Frame.cell">[docs]</a>    <span class="k">def</span> <span class="nf">cell</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return a :class:`Cell` object with corresponding `id`, searching</span>
+<span class="sd">        within the cells in the frame.</span>
+
+<span class="sd">        Searches for cells within the current frame only, use</span>
+<span class="sd">        :func:`Frames.cell` for searching all frames simultaneously.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            id (str): id (uuid) of cell</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            :class:`Cell`: if `id` is found, None otherwise.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_idx</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cells</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_idx</span><span class="p">[</span><span class="nb">id</span><span class="p">]]</span>
+
+</div></div>
+<span class="k">class</span> <span class="nc">EmptyFrame</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">frame</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cells</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">def</span> <span class="nf">cell</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">id</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">None</span>
+
+
+<div class="viewcode-block" id="Lineage"><a class="viewcode-back" href="../index.html#lib.Lineage">[docs]</a><span class="k">class</span> <span class="nc">Lineage</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Contains methods for analysing and assigning lineages</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        cellmat (str): path to MicrobeTracker meshes file, defaults to</span>
+<span class="sd">            `mt/mt.mat`</span>
+<span class="sd">        uuidfile (str): path to uuid file created by Lineage, defaults to</span>
+<span class="sd">            `uuids.json`</span>
+<span class="sd">        lineagefile (str): path to lineages file created by Lineage, defaults</span>
+<span class="sd">            to `lineages.json`</span>
+<span class="sd">        alignmat (str): path to MicrobeTracker alignment file, defaults to</span>
+<span class="sd">            `mt/alignment.mat`</span>
+
+<span class="sd">    Note:</span>
+<span class="sd">        Attributes are set by the methods :func:`load_alignment` and</span>
+<span class="sd">        :func:`load_cells` which are called on init. See below for</span>
+<span class="sd">        descriptions of these attributes</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cellmat</span><span class="o">=</span><span class="s">&quot;mt/mt.mat&quot;</span><span class="p">,</span> <span class="n">uuidfile</span><span class="o">=</span><span class="s">&quot;uuids.json&quot;</span><span class="p">,</span>
+                 <span class="n">lineagefile</span><span class="o">=</span><span class="s">&quot;lineages.json&quot;</span><span class="p">,</span> <span class="n">alignmat</span><span class="o">=</span><span class="s">&quot;mt/alignment.mat&quot;</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">load_alignment</span><span class="p">(</span><span class="n">alignmat</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">load_cells</span><span class="p">(</span><span class="n">cellmat</span><span class="p">,</span> <span class="n">uuidfile</span><span class="p">,</span> <span class="n">lineagefile</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Lineage.load_alignment"><a class="viewcode-back" href="../index.html#lib.Lineage.load_alignment">[docs]</a>    <span class="k">def</span> <span class="nf">load_alignment</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">alignmat</span><span class="o">=</span><span class="s">&quot;mt/alignment.mat&quot;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Loads alignment files as created by MicrobeTracker</span>
+
+<span class="sd">        Note:</span>
+<span class="sd">            This will be improved in the future to refine these</span>
+<span class="sd">            alignments.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            alignmat (str): path to MicrobeTracker alignment file,</span>
+<span class="sd">                defaults to `mt/alignment.mat`</span>
+
+<span class="sd">        Sets the following attributes:</span>
+
+<span class="sd">        Attributes:</span>
+<span class="sd">            alignment (numpy.ndarray): 2 x N array containing X and Y offsets</span>
+<span class="sd">                for each of N frames.</span>
+
+<span class="sd">                Currently, these values are pulled directly from</span>
+<span class="sd">                MicrobeTracker, but will be improved in the future.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            None</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            IOError: if alignment file is not found</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Loading alignment data...&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">alignmat</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="s">&quot;Alignment file not found ({0})&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">alignmat</span><span class="p">))</span>
+
+        <span class="n">alignment</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">loadmat</span><span class="p">(</span><span class="n">alignmat</span><span class="p">)</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;&gt;&gt;&gt; loaded&quot;</span><span class="p">)</span>
+        <span class="n">alignment</span> <span class="o">=</span> <span class="n">alignment</span><span class="p">[</span><span class="s">&quot;shiftframes&quot;</span><span class="p">]</span>
+        <span class="n">alignment_x</span> <span class="o">=</span> <span class="n">alignment</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">alignment_y</span> <span class="o">=</span> <span class="n">alignment</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">alignment</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">alignment_x</span><span class="p">,</span> <span class="n">alignment_y</span><span class="p">])</span><span class="o">.</span><span class="n">T</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;&gt;&gt;&gt; parsed&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">alignment</span> <span class="o">=</span> <span class="n">alignment</span>
+</div>
+<div class="viewcode-block" id="Lineage.load_cells"><a class="viewcode-back" href="../index.html#lib.Lineage.load_cells">[docs]</a>    <span class="k">def</span> <span class="nf">load_cells</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cellmat</span><span class="o">=</span><span class="s">&quot;mt/mt.mat&quot;</span><span class="p">,</span> <span class="n">uuidfile</span><span class="o">=</span><span class="s">&quot;uuids.json&quot;</span><span class="p">,</span>
+                   <span class="n">lineagefile</span><span class="o">=</span><span class="s">&quot;lineages.json&quot;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Loads meshes created my MicrobeTracker, and any lineages previously</span>
+<span class="sd">        created by Lineage</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            cellmat (str): path to MicrobeTracker meshes file, defaults to</span>
+<span class="sd">                `mt/mt.mat`</span>
+<span class="sd">            uuidfile (str): path to uuid file created by Lineage, defaults to</span>
+<span class="sd">                `uuids.json`</span>
+<span class="sd">            lineagefile (str): path to lineages file created by Lineage,</span>
+<span class="sd">                defaults to `lineages.json`</span>
+
+<span class="sd">        Sets the following attributes:</span>
+
+<span class="sd">        Attributes:</span>
+<span class="sd">            frames (:class:`Frames`): Contains all data from MicrobeTracker</span>
+<span class="sd">            uuids (dict): References all cell UUIDs according to</span>
+<span class="sd">                MicrobeTracker&#39;s cell numbering system</span>
+
+<span class="sd">                Cells are referenced with the following key structure:</span>
+<span class="sd">                    `frame`:`mt_idx`</span>
+<span class="sd">                Where `frame` is the frame number of the cell, and `mt_idx`</span>
+<span class="sd">                is the cell number assigned by MicrobeTracker</span>
+
+<span class="sd">                Warning:</span>
+<span class="sd">                    If cell numbers are changed by subsequent runs of</span>
+<span class="sd">                    MicrobeTracker, these UUIDs will no longer be valid.</span>
+
+<span class="sd">            lineages (dict): Links each cell `id` with its parent from the</span>
+<span class="sd">                previous frame, and any children in the subsequent frame</span>
+
+<span class="sd">                The key is the cell `id` and the value is a tuple with</span>
+<span class="sd">                structure:</span>
+<span class="sd">                    (`parent_id`, `child_id`)</span>
+<span class="sd">                `parent_id` (str, None) is the id of the parent cell or None,</span>
+<span class="sd">                and `child_id` (str, tuple, None) is the id of the child (str),</span>
+<span class="sd">                both child ids (tuple), or None</span>
+
+<span class="sd">                Example:</span>
+<span class="sd">                    If no division has occured:</span>
+<span class="sd">                        (`parent`, `child`)</span>
+<span class="sd">                    If a division has occured:</span>
+<span class="sd">                        (`parent`, (`child1`, `child2`))</span>
+<span class="sd">                    If a death has occured:</span>
+<span class="sd">                        (`parent`, None)</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            None</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            IOError: if meshes file is not found</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">cellmat</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span>
+                <span class="s">&quot;Meshes file couldn&#39;t be found ({0})&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">cellmat</span><span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Loading cell data...&quot;</span><span class="p">)</span>
+        <span class="n">cells</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">loadmat</span><span class="p">(</span><span class="n">cellmat</span><span class="p">)</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;&gt;&gt;&gt; loaded&quot;</span><span class="p">)</span>
+        <span class="n">cellList</span> <span class="o">=</span> <span class="n">cells</span><span class="p">[</span><span class="s">&quot;cellList&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="n">cell_total</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">pos_idx</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">frames</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Loading UUIDs...&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">uuidfile</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">uuids</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="n">uuidfile</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">uuids</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="c"># &quot;frame:mt_idx&quot;: uuid</span>
+
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">lineagefile</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">lineages</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="n">lineagefile</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">lineages</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="c"># uuid: parent, child</span>
+
+        <span class="k">for</span> <span class="n">pos</span> <span class="ow">in</span> <span class="n">cellList</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">pos</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">pos_idx</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">continue</span>
+            <span class="n">cell_idx</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">py_cell_idx</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">frame_cells</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">pos</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="n">c</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">):</span>
+                    <span class="n">cell</span> <span class="o">=</span> <span class="n">Cell</span><span class="p">(</span><span class="n">c</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+                    <span class="k">if</span> <span class="s">&quot;length&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">cell</span><span class="o">.</span><span class="n">__dict__</span><span class="p">:</span>
+                        <span class="nb">input</span><span class="p">(</span><span class="s">&quot;Please reselect Cell {0} in Frame {1}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                            <span class="n">cell_idx</span><span class="p">,</span> <span class="n">pos_idx</span>
+                        <span class="p">))</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">cell</span><span class="o">.</span><span class="n">frame</span> <span class="o">=</span> <span class="n">pos_idx</span> <span class="o">+</span> <span class="mi">1</span>
+                        <span class="n">cell</span><span class="o">.</span><span class="n">mt_idx</span> <span class="o">=</span> <span class="n">cell_idx</span> <span class="o">+</span> <span class="mi">1</span>
+                        <span class="n">cell</span><span class="o">.</span><span class="n">py_idx</span> <span class="o">=</span> <span class="n">py_cell_idx</span>
+                        <span class="n">uuid_chk</span> <span class="o">=</span> <span class="s">&quot;frame:{0}:{1}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                            <span class="n">cell</span><span class="o">.</span><span class="n">frame</span><span class="p">,</span> <span class="n">cell</span><span class="o">.</span><span class="n">mt_idx</span>
+                        <span class="p">)</span>
+                        <span class="k">if</span> <span class="n">uuid_chk</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">uuids</span><span class="p">:</span>
+                            <span class="n">cell</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">uuids</span><span class="p">[</span><span class="n">uuid_chk</span><span class="p">]</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="n">cell</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()</span><span class="o">.</span><span class="n">urn</span><span class="p">[</span><span class="mi">9</span><span class="p">:]</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">uuids</span><span class="p">[</span><span class="n">uuid_chk</span><span class="p">]</span> <span class="o">=</span> <span class="n">cell</span><span class="o">.</span><span class="n">id</span>
+
+                        <span class="c"># check for lineages</span>
+                        <span class="k">if</span> <span class="n">cell</span><span class="o">.</span><span class="n">id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">lineages</span><span class="p">:</span>
+                            <span class="n">cell</span><span class="o">.</span><span class="n">parent</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lineages</span><span class="p">[</span><span class="n">cell</span><span class="o">.</span><span class="n">id</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+                            <span class="n">cell</span><span class="o">.</span><span class="n">children</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lineages</span><span class="p">[</span><span class="n">cell</span><span class="o">.</span><span class="n">id</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="n">cell</span><span class="o">.</span><span class="n">parent</span> <span class="o">=</span> <span class="bp">None</span>
+                            <span class="n">cell</span><span class="o">.</span><span class="n">children</span> <span class="o">=</span> <span class="bp">None</span>
+
+                        <span class="n">py_cell_idx</span> <span class="o">+=</span> <span class="mi">1</span>
+                        <span class="n">cell_total</span> <span class="o">+=</span> <span class="mi">1</span>
+                        <span class="n">frame_cells</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cell</span><span class="p">)</span>
+                <span class="n">cell_idx</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">frame</span> <span class="o">=</span> <span class="n">Frame</span><span class="p">(</span><span class="n">pos_idx</span><span class="p">,</span> <span class="n">frame_cells</span><span class="p">)</span>
+            <span class="n">frames</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">frame</span><span class="p">)</span>
+            <span class="n">pos_idx</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;&gt;&gt;&gt; parsed&quot;</span><span class="p">)</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;&gt;&gt;&gt; {0} frames, {1} cells&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">pos_idx</span><span class="p">,</span> <span class="n">cell_total</span>
+        <span class="p">))</span>
+
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Saving UUIDs...&quot;</span><span class="p">)</span>
+        <span class="nb">open</span><span class="p">(</span><span class="s">&quot;uuids.json&quot;</span><span class="p">,</span> <span class="s">&quot;w&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">uuids</span><span class="p">))</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;&gt;&gt;&gt; saved&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">frames</span> <span class="o">=</span> <span class="n">Frames</span><span class="p">(</span><span class="n">frames</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Lineage.guess_lineage"><a class="viewcode-back" href="../index.html#lib.Lineage.guess_lineage">[docs]</a>    <span class="k">def</span> <span class="nf">guess_lineage</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Naive guess at lineages using XY positions only.</span>
+
+<span class="sd">        Updates the following attributes:</span>
+
+<span class="sd">        Attributes:</span>
+<span class="sd">            lineages (dict): As per :func:`load_cells`</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="Lineage.interactive_track"><a class="viewcode-back" href="../index.html#lib.Lineage.interactive_track">[docs]</a>    <span class="k">def</span> <span class="nf">interactive_track</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Launch manual lineage tracker.</span>
+
+<span class="sd">        Initiates a :class:`LineageMaker` instance, and proceeds through</span>
+<span class="sd">        the assignment process.</span>
+
+<span class="sd">        Updates the following attributes:</span>
+
+<span class="sd">        Attributes:</span>
+<span class="sd">            lineages (dict): As per :func:`load_cells`</span>
+
+<span class="sd">        Once launced, a matplotlib figure will open showing three</span>
+<span class="sd">        images, N - 1, N, and N + 1 where N is the current frame.</span>
+
+<span class="sd">        The parent of the current cell will be outlined in blue</span>
+<span class="sd">        on the left-hand image, the current cell (the &quot;mother&quot;)</span>
+<span class="sd">        will be displayed on the centre image, and any daughter</span>
+<span class="sd">        cells will be highlighted in green on the right-hand image.</span>
+<span class="sd">        All cells defined by MicrobeTracker will be highlighted in</span>
+<span class="sd">        yellow on the right-hand image if they are not set as</span>
+<span class="sd">        daughter cells.</span>
+
+<span class="sd">        Daughter cells can be selected by clicking on them, selected</span>
+<span class="sd">        cells will be highlighted in green, and can be toggled by</span>
+<span class="sd">        clicking again. The next frame can be progressed to by</span>
+<span class="sd">        pressing `Enter`.</span>
+
+<span class="sd">        If no cells are selected, a death event will be initiated,</span>
+<span class="sd">        which must be confirmed by pressing the `y` key.</span>
+
+<span class="sd">        If one cell is selected, the next frame will be progressed</span>
+<span class="sd">        to without further input.</span>
+
+<span class="sd">        If two cells are selected, a division event will be registered</span>
+<span class="sd">        and the figure will close, and the next &quot;progenitor&quot; cell</span>
+<span class="sd">        will be displayed in the new figure.</span>
+
+<span class="sd">        The window can be maximised by pressing the `m` key, in which</span>
+<span class="sd">        case the entire field will be displayed. The matplotlib</span>
+<span class="sd">        zoom and pan tools can be used to narrow down the field.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">final_lineage</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">files</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s">&quot;*.tif&quot;</span><span class="p">))</span>
+        <span class="n">progenitors</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">frames</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">cells</span>
+        <span class="k">for</span> <span class="n">progenitor</span> <span class="ow">in</span> <span class="n">progenitors</span><span class="p">:</span>
+            <span class="n">l</span> <span class="o">=</span> <span class="n">LineageMaker</span><span class="p">(</span>
+                <span class="n">progenitor</span><span class="p">,</span> <span class="n">files</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">alignment</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">frames</span>
+            <span class="p">)</span>
+            <span class="n">l</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+            <span class="n">lineage</span> <span class="o">=</span> <span class="n">l</span><span class="o">.</span><span class="n">lineage</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Lineage completed, </span><span class="si">%i</span><span class="s"> members&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">lineage</span><span class="p">))</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Lineage members: </span><span class="si">%r</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">lineage</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">lineage</span><span class="p">)):</span>
+                <span class="n">lin_</span> <span class="o">=</span> <span class="n">lineage</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+                <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">lin_</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">tuple</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">lin</span> <span class="ow">in</span> <span class="n">lin_</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">lin</span> <span class="ow">in</span> <span class="n">final_lineage</span> <span class="ow">and</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">lineage</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+                            <span class="n">parent</span> <span class="o">=</span> <span class="n">final_lineage</span><span class="p">[</span><span class="n">lin</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+                            <span class="n">final_lineage</span><span class="p">[</span><span class="n">lin</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">parent</span><span class="p">,</span> <span class="n">lineage</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]]</span>
+                        <span class="k">elif</span> <span class="n">lin</span> <span class="ow">in</span> <span class="n">final_lineage</span> <span class="ow">and</span> <span class="n">i</span> <span class="o">&gt;=</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">lineage</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+                            <span class="n">parent</span> <span class="o">=</span> <span class="n">final_lineage</span><span class="p">[</span><span class="n">lin</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+                            <span class="n">final_lineage</span><span class="p">[</span><span class="n">lin</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">parent</span><span class="p">,</span> <span class="bp">None</span><span class="p">]</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">lineage</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+                                <span class="n">final_lineage</span><span class="p">[</span><span class="n">lin</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="bp">None</span><span class="p">,</span> <span class="n">lineage</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]]</span>
+                            <span class="k">elif</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">i</span> <span class="o">&gt;=</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">lineage</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+                                <span class="n">final_lineage</span><span class="p">[</span><span class="n">lin</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="bp">None</span><span class="p">,</span> <span class="bp">None</span><span class="p">]</span>
+                            <span class="k">elif</span> <span class="n">i</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">lineage</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+                                <span class="n">final_lineage</span><span class="p">[</span><span class="n">lin</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+                                    <span class="n">lineage</span><span class="p">[</span><span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">],</span> <span class="n">lineage</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+                                <span class="p">]</span>
+                            <span class="k">elif</span> <span class="n">i</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">i</span> <span class="o">&gt;=</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">lineage</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+                                <span class="n">final_lineage</span><span class="p">[</span><span class="n">lin</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">lineage</span><span class="p">[</span><span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">],</span> <span class="bp">None</span><span class="p">]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">lin</span> <span class="o">=</span> <span class="n">lin_</span>
+                    <span class="k">if</span> <span class="n">lin</span> <span class="ow">in</span> <span class="n">final_lineage</span> <span class="ow">and</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">lineage</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+                        <span class="n">parent</span> <span class="o">=</span> <span class="n">final_lineage</span><span class="p">[</span><span class="n">lin</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+                        <span class="n">final_lineage</span><span class="p">[</span><span class="n">lin</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">parent</span><span class="p">,</span> <span class="n">lineage</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]]</span>
+                    <span class="k">elif</span> <span class="n">lin</span> <span class="ow">in</span> <span class="n">final_lineage</span> <span class="ow">and</span> <span class="n">i</span> <span class="o">&gt;=</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">lineage</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+                        <span class="n">parent</span> <span class="o">=</span> <span class="n">final_lineage</span><span class="p">[</span><span class="n">lin</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+                        <span class="n">final_lineage</span><span class="p">[</span><span class="n">lin</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">parent</span><span class="p">,</span> <span class="bp">None</span><span class="p">]</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">lineage</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+                            <span class="n">final_lineage</span><span class="p">[</span><span class="n">lin</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="bp">None</span><span class="p">,</span> <span class="n">lineage</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]]</span>
+                        <span class="k">elif</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">i</span> <span class="o">&gt;=</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">lineage</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+                            <span class="n">final_lineage</span><span class="p">[</span><span class="n">lin</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="bp">None</span><span class="p">,</span> <span class="bp">None</span><span class="p">]</span>
+                        <span class="k">elif</span> <span class="n">i</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">lineage</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+                            <span class="n">final_lineage</span><span class="p">[</span><span class="n">lin</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+                                <span class="n">lineage</span><span class="p">[</span><span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">],</span>
+                                <span class="n">lineage</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+                            <span class="p">]</span>
+                        <span class="k">elif</span> <span class="n">i</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">i</span> <span class="o">&gt;=</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">lineage</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+                            <span class="n">final_lineage</span><span class="p">[</span><span class="n">lin</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">lineage</span><span class="p">[</span><span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">],</span> <span class="bp">None</span><span class="p">]</span>
+
+            <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s">&quot;Backing up temporary lineage file to &lt;</span><span class="si">%s</span><span class="s">&gt;&quot;</span><span class="p">,</span>
+                <span class="s">&quot;lineages.json.tmp&quot;</span>
+            <span class="p">)</span>
+            <span class="nb">open</span><span class="p">(</span><span class="s">&quot;lineages.json.tmp&quot;</span><span class="p">,</span> <span class="s">&quot;w&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">final_lineage</span><span class="p">))</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">lineage</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="n">daughter1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">frames</span><span class="o">.</span><span class="n">cell</span><span class="p">(</span><span class="n">lineage</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+                <span class="n">daughter2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">frames</span><span class="o">.</span><span class="n">cell</span><span class="p">(</span><span class="n">lineage</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">])</span>
+                <span class="n">progenitors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">daughter1</span><span class="p">)</span>
+                <span class="n">progenitors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">daughter2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lineages</span> <span class="o">=</span> <span class="n">final_lineage</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Writing lineage file to &lt;lineages.json&gt;&quot;</span><span class="p">)</span>
+        <span class="nb">open</span><span class="p">(</span><span class="s">&quot;lineages.json&quot;</span><span class="p">,</span> <span class="s">&quot;w&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">final_lineage</span><span class="p">))</span>
+
+</div></div>
+<div class="viewcode-block" id="LineageMaker"><a class="viewcode-back" href="../index.html#lib.LineageMaker">[docs]</a><span class="k">class</span> <span class="nc">LineageMaker</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Assignment of lineages via manual graphical selection.</span>
+
+<span class="sd">    Extensively uses :mod:`matplotlib` and user input to</span>
+<span class="sd">    determine cell lineages.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        progenitor (:class:`Cell`): Initial cell to track</span>
+<span class="sd">        files (list): list of image files sorted by frame number, each</span>
+<span class="sd">            frame must be in a separate file (for now)</span>
+<span class="sd">        alignment (numpy.ndarray): As per :func:`Lineage.load_alignment`</span>
+<span class="sd">            above</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">progenitor</span><span class="p">,</span> <span class="n">files</span><span class="p">,</span> <span class="n">alignment</span><span class="p">,</span> <span class="n">frames</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">progenitor</span> <span class="o">=</span> <span class="n">progenitor</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">files</span> <span class="o">=</span> <span class="n">files</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">align</span> <span class="o">=</span> <span class="n">alignment</span>
+        <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">progenitor</span><span class="o">.</span><span class="n">frame</span> <span class="o">-</span> <span class="mi">2</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">n0_frame</span> <span class="o">=</span> <span class="n">frames</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">progenitor</span><span class="o">.</span><span class="n">frame</span> <span class="o">-</span> <span class="mi">2</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">n0_frame</span> <span class="o">=</span> <span class="n">EmptyFrame</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n1_frame</span> <span class="o">=</span> <span class="n">frames</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">progenitor</span><span class="o">.</span><span class="n">frame</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n2_frame</span> <span class="o">=</span> <span class="n">frames</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">progenitor</span><span class="o">.</span><span class="n">frame</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">frames</span> <span class="o">=</span> <span class="n">frames</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">daughters</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mother</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">progenitor</span><span class="o">.</span><span class="n">id</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parent</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">progenitor</span><span class="o">.</span><span class="n">parent</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lineage</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">mother</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">death</span> <span class="o">=</span> <span class="bp">False</span>
+
+<div class="viewcode-block" id="LineageMaker.maximise_frame"><a class="viewcode-back" href="../index.html#lib.LineageMaker.maximise_frame">[docs]</a>    <span class="k">def</span> <span class="nf">maximise_frame</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ax</span><span class="p">,</span> <span class="n">frame</span><span class="p">,</span> <span class="n">fn_idx</span><span class="p">,</span> <span class="n">frame_offset</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            ax (axis): Axes object for frame in question</span>
+<span class="sd">            frame (:class:`Frame`): The data for the frame</span>
+<span class="sd">            fn_idx (int): File index for self.files</span>
+<span class="sd">                (e.g. frame_idx + 1 for n2)</span>
+<span class="sd">            frame_offset (int): offset for title (e.g. 2 for n2)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># maximise n2_frame</span>
+        <span class="k">if</span> <span class="n">frame</span><span class="o">.</span><span class="n">frame</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">img</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">1024</span><span class="p">,</span> <span class="mi">1344</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">img</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">misc</span><span class="o">.</span><span class="n">imread</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">[</span><span class="n">fn_idx</span><span class="p">]</span>
+            <span class="p">)</span>
+
+        <span class="n">ax</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s">&quot;off&quot;</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">plt</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">gray</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s">&quot;Frame {0}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frame_idx</span> <span class="o">+</span> <span class="n">frame_offset</span><span class="p">))</span>
+
+        <span class="n">offset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">align</span><span class="p">[</span><span class="n">fn_idx</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">frame_offset</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="c"># draw grandmother (parent)</span>
+            <span class="n">parent</span> <span class="o">=</span> <span class="n">frame</span><span class="o">.</span><span class="n">cell</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">parent</span><span class="p">:</span>
+                <span class="n">xs_l</span> <span class="o">=</span> <span class="n">parent</span><span class="o">.</span><span class="n">mesh</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">offset</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                <span class="n">ys_l</span> <span class="o">=</span> <span class="n">parent</span><span class="o">.</span><span class="n">mesh</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">offset</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">xs_r</span> <span class="o">=</span> <span class="n">parent</span><span class="o">.</span><span class="n">mesh</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">offset</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                <span class="n">ys_r</span> <span class="o">=</span> <span class="n">parent</span><span class="o">.</span><span class="n">mesh</span><span class="p">[:,</span> <span class="mi">3</span><span class="p">]</span> <span class="o">-</span> <span class="n">offset</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">xs_l</span><span class="p">,</span> <span class="n">ys_l</span><span class="p">,</span> <span class="s">&quot;b&quot;</span><span class="p">)</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">xs_r</span><span class="p">,</span> <span class="n">ys_r</span><span class="p">,</span> <span class="s">&quot;b&quot;</span><span class="p">)</span>
+
+        <span class="k">elif</span> <span class="n">frame_offset</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="c"># draw mother (mother)</span>
+            <span class="n">mother</span> <span class="o">=</span> <span class="n">frame</span><span class="o">.</span><span class="n">cell</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mother</span><span class="p">)</span>
+            <span class="n">xs_l</span> <span class="o">=</span> <span class="n">mother</span><span class="o">.</span><span class="n">mesh</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">offset</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">ys_l</span> <span class="o">=</span> <span class="n">mother</span><span class="o">.</span><span class="n">mesh</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">offset</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">xs_r</span> <span class="o">=</span> <span class="n">mother</span><span class="o">.</span><span class="n">mesh</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">offset</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">ys_r</span> <span class="o">=</span> <span class="n">mother</span><span class="o">.</span><span class="n">mesh</span><span class="p">[:,</span> <span class="mi">3</span><span class="p">]</span> <span class="o">-</span> <span class="n">offset</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">xs_l</span><span class="p">,</span> <span class="n">ys_l</span><span class="p">,</span> <span class="s">&quot;r&quot;</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">xs_r</span><span class="p">,</span> <span class="n">ys_r</span><span class="p">,</span> <span class="s">&quot;r&quot;</span><span class="p">)</span>
+
+        <span class="k">elif</span> <span class="n">frame_offset</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">cells</span> <span class="o">=</span> <span class="n">frame</span><span class="o">.</span><span class="n">cells</span>
+            <span class="k">for</span> <span class="n">cell</span> <span class="ow">in</span> <span class="n">cells</span><span class="p">:</span>
+                <span class="n">xs_l</span> <span class="o">=</span> <span class="n">cell</span><span class="o">.</span><span class="n">mesh</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">offset</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                <span class="n">ys_l</span> <span class="o">=</span> <span class="n">cell</span><span class="o">.</span><span class="n">mesh</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">offset</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">xs_r</span> <span class="o">=</span> <span class="n">cell</span><span class="o">.</span><span class="n">mesh</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">offset</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                <span class="n">ys_r</span> <span class="o">=</span> <span class="n">cell</span><span class="o">.</span><span class="n">mesh</span><span class="p">[:,</span> <span class="mi">3</span><span class="p">]</span> <span class="o">-</span> <span class="n">offset</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+                <span class="n">left</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">xs_l</span><span class="p">,</span> <span class="n">ys_l</span><span class="p">])</span><span class="o">.</span><span class="n">T</span>
+                <span class="n">right</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">xs_r</span><span class="p">,</span> <span class="n">ys_r</span><span class="p">])</span><span class="o">.</span><span class="n">T</span>
+                <span class="n">poly_xy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+                    <span class="nb">list</span><span class="p">(</span><span class="n">left</span><span class="p">)</span> <span class="o">+</span>
+                    <span class="nb">list</span><span class="p">(</span><span class="nb">reversed</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">right</span><span class="p">)))</span>
+                <span class="p">)</span>
+                <span class="n">poly</span> <span class="o">=</span> <span class="n">matplotlib</span><span class="o">.</span><span class="n">patches</span><span class="o">.</span><span class="n">Polygon</span><span class="p">(</span>
+                    <span class="n">poly_xy</span><span class="p">,</span>
+                    <span class="n">color</span><span class="o">=</span><span class="s">&quot;y&quot;</span><span class="p">,</span>
+                    <span class="n">picker</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+                    <span class="n">alpha</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="n">poly</span><span class="o">.</span><span class="n">set_picker</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+                <span class="n">poly</span><span class="o">.</span><span class="n">gid</span> <span class="o">=</span> <span class="n">cell</span><span class="o">.</span><span class="n">id</span>
+                <span class="n">poly</span><span class="o">.</span><span class="n">selected</span> <span class="o">=</span> <span class="bp">False</span>
+                <span class="k">if</span> <span class="n">cell</span><span class="o">.</span><span class="n">parent</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">mother</span><span class="p">:</span>
+                    <span class="n">poly</span><span class="o">.</span><span class="n">set_color</span><span class="p">(</span><span class="s">&quot;g&quot;</span><span class="p">)</span>
+                    <span class="n">poly</span><span class="o">.</span><span class="n">selected</span> <span class="o">=</span> <span class="bp">True</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">add_patch</span><span class="p">(</span><span class="n">poly</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">next_frame</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parent</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mother</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mother</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">daughters</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">daughters</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">frame_idx</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">n0_frame</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">frames</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">frame_idx</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n1_frame</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">frames</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">frame_idx</span><span class="p">]</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">frame_idx</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frames</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">n2_frame</span> <span class="o">=</span> <span class="n">EmptyFrame</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">n2_frame</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">frames</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">frame_idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+
+        <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;n0_frame: </span><span class="si">%r</span><span class="s">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n0_frame</span><span class="o">.</span><span class="n">frame</span><span class="p">)</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;n1_frame: </span><span class="si">%r</span><span class="s">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n1_frame</span><span class="o">.</span><span class="n">frame</span><span class="p">)</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;n2_frame: </span><span class="si">%r</span><span class="s">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n2_frame</span><span class="o">.</span><span class="n">frame</span><span class="p">)</span>
+
+        <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;parent: </span><span class="si">%s</span><span class="s">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="p">)</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;n0: </span><span class="si">%r</span><span class="s">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n0_frame</span><span class="o">.</span><span class="n">cell</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="p">))</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;n1: </span><span class="si">%r</span><span class="s">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n1_frame</span><span class="o">.</span><span class="n">cell</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="p">))</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;n2: </span><span class="si">%r</span><span class="s">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n2_frame</span><span class="o">.</span><span class="n">cell</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="p">))</span>
+
+        <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;mother: </span><span class="si">%s</span><span class="s">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mother</span><span class="p">)</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;n0: </span><span class="si">%r</span><span class="s">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n0_frame</span><span class="o">.</span><span class="n">cell</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mother</span><span class="p">))</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;n1: </span><span class="si">%r</span><span class="s">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n1_frame</span><span class="o">.</span><span class="n">cell</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mother</span><span class="p">))</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;n2: </span><span class="si">%r</span><span class="s">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n2_frame</span><span class="o">.</span><span class="n">cell</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mother</span><span class="p">))</span>
+
+        <span class="n">c_x</span><span class="p">,</span> <span class="n">c_y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_centre</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">n1_frame</span><span class="o">.</span><span class="n">cell</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mother</span><span class="p">)</span><span class="o">.</span><span class="n">mesh</span>
+        <span class="p">)</span>
+        <span class="n">x_lower</span> <span class="o">=</span> <span class="n">c_x</span> <span class="o">-</span> <span class="mi">100</span>
+        <span class="n">y_lower</span> <span class="o">=</span> <span class="n">c_y</span> <span class="o">-</span> <span class="mi">100</span>
+        <span class="n">width</span> <span class="o">=</span> <span class="mi">200</span>
+
+<span class="c">#        x_upper, y_upper, width, height = self.n1_frame.cell(</span>
+<span class="c">#            self.mother</span>
+<span class="c">#        ).box[0]</span>
+<span class="c">#        x_lower = int(x_upper - width)</span>
+<span class="c">#        y_lower = int(y_upper - height)</span>
+<span class="c">#        max_dim = max(width, height)</span>
+<span class="c">#        dim = max_dim * 3</span>
+
+        <span class="n">n0_img</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">misc</span><span class="o">.</span><span class="n">imread</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">frame_idx</span> <span class="o">-</span> <span class="mi">1</span><span class="p">])</span>
+        <span class="n">offset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">align</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">frame_idx</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">n0_crop</span> <span class="o">=</span> <span class="n">n0_img</span><span class="p">[</span>
+            <span class="n">y_lower</span> <span class="o">-</span> <span class="n">offset</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span><span class="n">y_lower</span> <span class="o">-</span> <span class="n">offset</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">width</span><span class="p">,</span>
+            <span class="n">x_lower</span> <span class="o">-</span> <span class="n">offset</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span><span class="n">x_lower</span> <span class="o">-</span> <span class="n">offset</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">width</span>
+        <span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">n0</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n0</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s">&quot;off&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n0</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">n0_crop</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">plt</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">gray</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n0</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s">&quot;Frame {0}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frame_idx</span><span class="p">))</span>
+
+        <span class="n">parent</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n0_frame</span><span class="o">.</span><span class="n">cell</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="p">)</span>
+        <span class="n">xs_l</span> <span class="o">=</span> <span class="n">parent</span><span class="o">.</span><span class="n">mesh</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">x_lower</span>
+        <span class="n">ys_l</span> <span class="o">=</span> <span class="n">parent</span><span class="o">.</span><span class="n">mesh</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">y_lower</span>
+        <span class="n">xs_r</span> <span class="o">=</span> <span class="n">parent</span><span class="o">.</span><span class="n">mesh</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">x_lower</span>
+        <span class="n">ys_r</span> <span class="o">=</span> <span class="n">parent</span><span class="o">.</span><span class="n">mesh</span><span class="p">[:,</span> <span class="mi">3</span><span class="p">]</span> <span class="o">-</span> <span class="n">y_lower</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n0</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">xs_l</span><span class="p">,</span> <span class="n">ys_l</span><span class="p">,</span> <span class="s">&quot;b&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n0</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">xs_r</span><span class="p">,</span> <span class="n">ys_r</span><span class="p">,</span> <span class="s">&quot;b&quot;</span><span class="p">)</span>
+
+        <span class="n">n1_img</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">misc</span><span class="o">.</span><span class="n">imread</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">frame_idx</span><span class="p">])</span>
+        <span class="n">offset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">align</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">frame_idx</span><span class="p">]</span>
+        <span class="n">n1_crop</span> <span class="o">=</span> <span class="n">n1_img</span><span class="p">[</span>
+            <span class="n">y_lower</span> <span class="o">-</span> <span class="n">offset</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span><span class="n">y_lower</span> <span class="o">-</span> <span class="n">offset</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">width</span><span class="p">,</span>
+            <span class="n">x_lower</span> <span class="o">-</span> <span class="n">offset</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span><span class="n">x_lower</span> <span class="o">-</span> <span class="n">offset</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">width</span>
+        <span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n1</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n1</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s">&quot;off&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n1</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">n1_crop</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">plt</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">gray</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n1</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s">&quot;Frame {0}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frame_idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+
+        <span class="n">mother</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n1_frame</span><span class="o">.</span><span class="n">cell</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mother</span><span class="p">)</span>
+        <span class="n">xs_l</span> <span class="o">=</span> <span class="n">mother</span><span class="o">.</span><span class="n">mesh</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">x_lower</span>
+        <span class="n">ys_l</span> <span class="o">=</span> <span class="n">mother</span><span class="o">.</span><span class="n">mesh</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">y_lower</span>
+        <span class="n">xs_r</span> <span class="o">=</span> <span class="n">mother</span><span class="o">.</span><span class="n">mesh</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">x_lower</span>
+        <span class="n">ys_r</span> <span class="o">=</span> <span class="n">mother</span><span class="o">.</span><span class="n">mesh</span><span class="p">[:,</span> <span class="mi">3</span><span class="p">]</span> <span class="o">-</span> <span class="n">y_lower</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n1</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">xs_l</span><span class="p">,</span> <span class="n">ys_l</span><span class="p">,</span> <span class="s">&quot;r&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n1</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">xs_r</span><span class="p">,</span> <span class="n">ys_r</span><span class="p">,</span> <span class="s">&quot;r&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">n2_frame</span><span class="o">.</span><span class="n">frame</span><span class="p">:</span>
+            <span class="n">n2_img</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">misc</span><span class="o">.</span><span class="n">imread</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">frame_idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span>
+            <span class="n">offset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">align</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">frame_idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">n2_img</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">1024</span><span class="p">,</span> <span class="mi">1344</span><span class="p">))</span>
+            <span class="n">offset</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">y_lower</span> <span class="o">-</span> <span class="n">offset</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">offset</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="n">x_lower</span> <span class="o">-</span> <span class="n">offset</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">offset</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+
+        <span class="n">n2_crop</span> <span class="o">=</span> <span class="n">n2_img</span><span class="p">[</span>
+            <span class="n">y_lower</span> <span class="o">-</span> <span class="n">offset</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span><span class="n">y_lower</span> <span class="o">-</span> <span class="n">offset</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">width</span><span class="p">,</span>
+            <span class="n">x_lower</span> <span class="o">-</span> <span class="n">offset</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span><span class="n">x_lower</span> <span class="o">-</span> <span class="n">offset</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">width</span>
+        <span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">n2</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n2</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s">&quot;off&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n2</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">n2_crop</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">plt</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">gray</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n2</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s">&quot;Frame {0}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frame_idx</span> <span class="o">+</span> <span class="mi">2</span><span class="p">))</span>
+
+        <span class="n">n2_cells</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n2_frame</span><span class="o">.</span><span class="n">cells</span>
+        <span class="k">for</span> <span class="n">n2_cell</span> <span class="ow">in</span> <span class="n">n2_cells</span><span class="p">:</span>
+            <span class="n">xs_l</span> <span class="o">=</span> <span class="n">n2_cell</span><span class="o">.</span><span class="n">mesh</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">x_lower</span>
+            <span class="n">ys_l</span> <span class="o">=</span> <span class="n">n2_cell</span><span class="o">.</span><span class="n">mesh</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">y_lower</span>
+            <span class="n">xs_r</span> <span class="o">=</span> <span class="n">n2_cell</span><span class="o">.</span><span class="n">mesh</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">x_lower</span>
+            <span class="n">ys_r</span> <span class="o">=</span> <span class="n">n2_cell</span><span class="o">.</span><span class="n">mesh</span><span class="p">[:,</span> <span class="mi">3</span><span class="p">]</span> <span class="o">-</span> <span class="n">y_lower</span>
+
+            <span class="k">if</span> <span class="p">((</span><span class="n">xs_l</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">or</span>
+                    <span class="p">(</span><span class="n">xs_l</span> <span class="o">&gt;</span> <span class="n">width</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">or</span>
+                    <span class="p">(</span><span class="n">xs_r</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">or</span>
+                    <span class="p">(</span><span class="n">xs_r</span> <span class="o">&gt;</span> <span class="n">width</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">or</span>
+                    <span class="p">(</span><span class="n">ys_l</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">or</span>
+                    <span class="p">(</span><span class="n">ys_l</span> <span class="o">&gt;</span> <span class="n">width</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">or</span>
+                    <span class="p">(</span><span class="n">ys_r</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">or</span>
+                    <span class="p">(</span><span class="n">ys_r</span> <span class="o">&gt;</span> <span class="n">width</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">):</span>
+                <span class="k">pass</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">left</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">xs_l</span><span class="p">,</span> <span class="n">ys_l</span><span class="p">])</span><span class="o">.</span><span class="n">T</span>
+                <span class="n">right</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">xs_r</span><span class="p">,</span> <span class="n">ys_r</span><span class="p">])</span><span class="o">.</span><span class="n">T</span>
+                <span class="n">poly_xy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+                    <span class="nb">list</span><span class="p">(</span><span class="n">left</span><span class="p">)</span> <span class="o">+</span>
+                    <span class="nb">list</span><span class="p">(</span><span class="nb">reversed</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">right</span><span class="p">)))</span>
+                <span class="p">)</span>
+                <span class="n">poly</span> <span class="o">=</span> <span class="n">matplotlib</span><span class="o">.</span><span class="n">patches</span><span class="o">.</span><span class="n">Polygon</span><span class="p">(</span>
+                    <span class="n">poly_xy</span><span class="p">,</span>
+                    <span class="n">color</span><span class="o">=</span><span class="s">&quot;y&quot;</span><span class="p">,</span>
+                    <span class="n">picker</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+                    <span class="n">alpha</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="n">poly</span><span class="o">.</span><span class="n">set_picker</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+                <span class="n">poly</span><span class="o">.</span><span class="n">gid</span> <span class="o">=</span> <span class="n">n2_cell</span><span class="o">.</span><span class="n">id</span>
+                <span class="n">poly</span><span class="o">.</span><span class="n">selected</span> <span class="o">=</span> <span class="bp">False</span>
+                <span class="k">if</span> <span class="n">n2_cell</span><span class="o">.</span><span class="n">parent</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">mother</span><span class="p">:</span>
+                    <span class="n">poly</span><span class="o">.</span><span class="n">set_color</span><span class="p">(</span><span class="s">&quot;g&quot;</span><span class="p">)</span>
+                    <span class="n">poly</span><span class="o">.</span><span class="n">selected</span> <span class="o">=</span> <span class="bp">True</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">daughters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">n2_cell</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">n2</span><span class="o">.</span><span class="n">add_patch</span><span class="p">(</span><span class="n">poly</span><span class="p">)</span>
+
+        <span class="n">info_msg1</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="p">)</span><span class="o">.</span><span class="n">ljust</span><span class="p">(</span><span class="mi">36</span><span class="p">)</span>
+        <span class="n">info_msg2</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mother</span><span class="p">)</span><span class="o">.</span><span class="n">ljust</span><span class="p">(</span><span class="mi">36</span><span class="p">)</span>
+        <span class="n">info_msg3</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">daughters</span> <span class="ow">and</span>
+                     <span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">ljust</span><span class="p">(</span><span class="mi">49</span><span class="p">)</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">daughters</span><span class="p">)</span>
+                     <span class="ow">or</span> <span class="s">&quot;None&quot;</span><span class="o">.</span><span class="n">ljust</span><span class="p">(</span><span class="mi">36</span><span class="p">))</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s">&quot;Grand-mother: </span><span class="si">%s</span><span class="s"> (frame: </span><span class="si">% 2i</span><span class="s">)&quot;</span><span class="p">,</span>
+            <span class="n">info_msg1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">frame_idx</span>
+        <span class="p">)</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s">&quot;Mother      : </span><span class="si">%s</span><span class="s"> (frame: </span><span class="si">% 2i</span><span class="s">)&quot;</span><span class="p">,</span>
+            <span class="n">info_msg2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">frame_idx</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="p">)</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s">&quot;Daughters   : </span><span class="si">%s</span><span class="s"> (frame: </span><span class="si">% 2i</span><span class="s">)&quot;</span><span class="p">,</span>
+            <span class="n">info_msg3</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">frame_idx</span> <span class="o">+</span> <span class="mi">2</span>
+        <span class="p">)</span>
+
+        <span class="n">plt</span><span class="o">.</span><span class="n">draw</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">get_centre</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mesh</span><span class="p">):</span>
+        <span class="n">xl</span> <span class="o">=</span> <span class="n">mesh</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="n">yl</span> <span class="o">=</span> <span class="n">mesh</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">xr</span> <span class="o">=</span> <span class="n">mesh</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span>
+        <span class="n">yr</span> <span class="o">=</span> <span class="n">mesh</span><span class="p">[:,</span> <span class="mi">3</span><span class="p">]</span>
+
+        <span class="n">c_x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">([</span><span class="n">xl</span><span class="o">.</span><span class="n">mean</span><span class="p">(),</span> <span class="n">xr</span><span class="o">.</span><span class="n">mean</span><span class="p">()])</span>
+        <span class="n">c_y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">([</span><span class="n">yl</span><span class="o">.</span><span class="n">mean</span><span class="p">(),</span> <span class="n">yr</span><span class="o">.</span><span class="n">mean</span><span class="p">()])</span>
+
+        <span class="k">return</span> <span class="n">c_x</span><span class="p">,</span> <span class="n">c_y</span>
+
+    <span class="k">def</span> <span class="nf">preview</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c"># run through lineage</span>
+        <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">frame_idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">progenitor</span><span class="o">.</span><span class="n">frame</span> <span class="o">-</span> <span class="mi">1</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Initial frame_idx: </span><span class="si">%i</span><span class="s">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">frame_idx</span><span class="p">)</span>
+
+        <span class="n">c_x</span><span class="p">,</span> <span class="n">c_y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_centre</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">progenitor</span><span class="o">.</span><span class="n">mesh</span><span class="p">)</span>
+        <span class="n">x_lower</span> <span class="o">=</span> <span class="n">c_x</span> <span class="o">-</span> <span class="mi">100</span>
+        <span class="n">y_lower</span> <span class="o">=</span> <span class="n">c_y</span> <span class="o">-</span> <span class="mi">100</span>
+        <span class="n">width</span> <span class="o">=</span> <span class="mi">200</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">n0</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="mi">131</span><span class="p">)</span>  <span class="c"># previous frame, i.e. blank</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s">&quot;off&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">frame_idx</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">n0_img</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">1024</span><span class="p">,</span> <span class="mi">1344</span><span class="p">))</span>
+            <span class="n">offset</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">n0_img</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">misc</span><span class="o">.</span><span class="n">imread</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">frame_idx</span> <span class="o">-</span> <span class="mi">1</span><span class="p">])</span>
+            <span class="n">offset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">align</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">frame_idx</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">n0_crop</span> <span class="o">=</span> <span class="n">n0_img</span><span class="p">[</span>
+            <span class="n">y_lower</span> <span class="o">-</span> <span class="n">offset</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span><span class="n">y_lower</span> <span class="o">-</span> <span class="n">offset</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">width</span><span class="p">,</span>
+            <span class="n">x_lower</span> <span class="o">-</span> <span class="n">offset</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span><span class="n">x_lower</span> <span class="o">-</span> <span class="n">offset</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">width</span>
+        <span class="p">]</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">n0_crop</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">plt</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">gray</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s">&quot;Frame {0}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frame_idx</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">n1</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="mi">132</span><span class="p">,</span> <span class="n">sharex</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n0</span><span class="p">,</span> <span class="n">sharey</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n0</span><span class="p">)</span>  <span class="c"># the frame</span>
+        <span class="n">n1_img</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">misc</span><span class="o">.</span><span class="n">imread</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">frame_idx</span><span class="p">])</span>
+        <span class="n">offset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">align</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">frame_idx</span><span class="p">]</span>
+        <span class="n">n1_crop</span> <span class="o">=</span> <span class="n">n1_img</span><span class="p">[</span>
+            <span class="n">y_lower</span> <span class="o">-</span> <span class="n">offset</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span><span class="n">y_lower</span> <span class="o">-</span> <span class="n">offset</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">width</span><span class="p">,</span>
+            <span class="n">x_lower</span> <span class="o">-</span> <span class="n">offset</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span><span class="n">x_lower</span> <span class="o">-</span> <span class="n">offset</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">width</span>
+        <span class="p">]</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">n1_crop</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">plt</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">gray</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s">&quot;Frame {0}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frame_idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s">&quot;off&quot;</span><span class="p">)</span>
+
+        <span class="n">cell_xs_l</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">progenitor</span><span class="o">.</span><span class="n">mesh</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">x_lower</span>
+        <span class="n">cell_ys_l</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">progenitor</span><span class="o">.</span><span class="n">mesh</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">y_lower</span>
+        <span class="n">cell_xs_r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">progenitor</span><span class="o">.</span><span class="n">mesh</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">x_lower</span>
+        <span class="n">cell_ys_r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">progenitor</span><span class="o">.</span><span class="n">mesh</span><span class="p">[:,</span> <span class="mi">3</span><span class="p">]</span> <span class="o">-</span> <span class="n">y_lower</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">cell_xs_l</span><span class="p">,</span> <span class="n">cell_ys_l</span><span class="p">,</span> <span class="s">&quot;r&quot;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">cell_xs_r</span><span class="p">,</span> <span class="n">cell_ys_r</span><span class="p">,</span> <span class="s">&quot;r&quot;</span><span class="p">)</span>
+
+        <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s">&quot;Frame {0}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frame_idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s">&quot;off&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">n2</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="mi">133</span><span class="p">,</span> <span class="n">sharex</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n0</span><span class="p">,</span> <span class="n">sharey</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n0</span><span class="p">)</span>
+        <span class="c"># next frame</span>
+        <span class="n">n2_img</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">misc</span><span class="o">.</span><span class="n">imread</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">frame_idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span>
+        <span class="c"># use alignment to offset</span>
+        <span class="n">offset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">align</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">frame_idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">n2_crop</span> <span class="o">=</span> <span class="n">n2_img</span><span class="p">[</span>
+            <span class="n">y_lower</span> <span class="o">-</span> <span class="n">offset</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span><span class="n">y_lower</span> <span class="o">-</span> <span class="n">offset</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">width</span><span class="p">,</span>
+            <span class="n">x_lower</span> <span class="o">-</span> <span class="n">offset</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span><span class="n">x_lower</span> <span class="o">-</span> <span class="n">offset</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">width</span>
+        <span class="p">]</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">n2_crop</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">plt</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">gray</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s">&quot;Frame {0}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frame_idx</span> <span class="o">+</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s">&quot;off&quot;</span><span class="p">)</span>
+
+        <span class="c"># display all cells on n2</span>
+        <span class="n">n2_cells</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n2_frame</span><span class="o">.</span><span class="n">cells</span>
+        <span class="k">for</span> <span class="n">n2_cell</span> <span class="ow">in</span> <span class="n">n2_cells</span><span class="p">:</span>
+            <span class="n">xs_l</span> <span class="o">=</span> <span class="n">n2_cell</span><span class="o">.</span><span class="n">mesh</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">x_lower</span>
+            <span class="n">xs_r</span> <span class="o">=</span> <span class="n">n2_cell</span><span class="o">.</span><span class="n">mesh</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">x_lower</span>
+
+            <span class="n">ys_l</span> <span class="o">=</span> <span class="n">n2_cell</span><span class="o">.</span><span class="n">mesh</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">y_lower</span>
+            <span class="n">ys_r</span> <span class="o">=</span> <span class="n">n2_cell</span><span class="o">.</span><span class="n">mesh</span><span class="p">[:,</span> <span class="mi">3</span><span class="p">]</span> <span class="o">-</span> <span class="n">y_lower</span>
+
+            <span class="k">if</span> <span class="p">((</span><span class="n">xs_l</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">or</span>
+                    <span class="p">(</span><span class="n">xs_l</span> <span class="o">&gt;</span> <span class="n">width</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">or</span>
+                    <span class="p">(</span><span class="n">xs_r</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">or</span>
+                    <span class="p">(</span><span class="n">xs_r</span> <span class="o">&gt;</span> <span class="n">width</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">or</span>
+                    <span class="p">(</span><span class="n">ys_l</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">or</span>
+                    <span class="p">(</span><span class="n">ys_l</span> <span class="o">&gt;</span> <span class="n">width</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">or</span>
+                    <span class="p">(</span><span class="n">ys_r</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">or</span>
+                    <span class="p">(</span><span class="n">ys_r</span> <span class="o">&gt;</span> <span class="n">width</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">):</span>
+                <span class="k">pass</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">left</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">xs_l</span><span class="p">,</span> <span class="n">ys_l</span><span class="p">])</span><span class="o">.</span><span class="n">T</span>
+                <span class="n">right</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">xs_r</span><span class="p">,</span> <span class="n">ys_r</span><span class="p">])</span><span class="o">.</span><span class="n">T</span>
+                <span class="n">poly_xy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+                    <span class="nb">list</span><span class="p">(</span><span class="n">left</span><span class="p">)</span> <span class="o">+</span>
+                    <span class="nb">list</span><span class="p">(</span><span class="nb">reversed</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">right</span><span class="p">)))</span>
+                <span class="p">)</span>
+                <span class="n">poly</span> <span class="o">=</span> <span class="n">matplotlib</span><span class="o">.</span><span class="n">patches</span><span class="o">.</span><span class="n">Polygon</span><span class="p">(</span>
+                    <span class="n">poly_xy</span><span class="p">,</span>
+                    <span class="n">color</span><span class="o">=</span><span class="s">&quot;y&quot;</span><span class="p">,</span>
+                    <span class="n">picker</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+                    <span class="n">alpha</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="n">poly</span><span class="o">.</span><span class="n">set_picker</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+                <span class="n">poly</span><span class="o">.</span><span class="n">gid</span> <span class="o">=</span> <span class="n">n2_cell</span><span class="o">.</span><span class="n">id</span>
+                <span class="n">poly</span><span class="o">.</span><span class="n">selected</span> <span class="o">=</span> <span class="bp">False</span>
+
+                <span class="k">if</span> <span class="n">n2_cell</span><span class="o">.</span><span class="n">parent</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">mother</span><span class="p">:</span>
+                    <span class="n">poly</span><span class="o">.</span><span class="n">set_color</span><span class="p">(</span><span class="s">&quot;g&quot;</span><span class="p">)</span>
+                    <span class="n">poly</span><span class="o">.</span><span class="n">selected</span> <span class="o">=</span> <span class="bp">True</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">daughters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">n2_cell</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">n2</span><span class="o">.</span><span class="n">add_patch</span><span class="p">(</span><span class="n">poly</span><span class="p">)</span>
+
+        <span class="n">fig</span><span class="o">.</span><span class="n">canvas</span><span class="o">.</span><span class="n">mpl_connect</span><span class="p">(</span>
+            <span class="s">&quot;key_press_event&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">plotkey</span>
+        <span class="p">)</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">canvas</span><span class="o">.</span><span class="n">mpl_connect</span><span class="p">(</span>
+            <span class="s">&quot;pick_event&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">plotpick</span>
+        <span class="p">)</span>
+
+        <span class="n">info_msg1</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="p">)</span><span class="o">.</span><span class="n">ljust</span><span class="p">(</span><span class="mi">36</span><span class="p">)</span>
+        <span class="n">info_msg2</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mother</span><span class="p">)</span><span class="o">.</span><span class="n">ljust</span><span class="p">(</span><span class="mi">36</span><span class="p">)</span>
+        <span class="n">info_msg3</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">daughters</span> <span class="ow">and</span>
+                     <span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">ljust</span><span class="p">(</span><span class="mi">49</span><span class="p">)</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">daughters</span><span class="p">)</span>
+                     <span class="ow">or</span> <span class="s">&quot;None&quot;</span><span class="o">.</span><span class="n">ljust</span><span class="p">(</span><span class="mi">36</span><span class="p">))</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s">&quot;Grand-mother: </span><span class="si">%s</span><span class="s"> (frame: </span><span class="si">% 2i</span><span class="s">)&quot;</span><span class="p">,</span>
+            <span class="n">info_msg1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">frame_idx</span>
+        <span class="p">)</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s">&quot;Mother      : </span><span class="si">%s</span><span class="s"> (frame: </span><span class="si">% 2i</span><span class="s">)&quot;</span><span class="p">,</span>
+            <span class="n">info_msg2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">frame_idx</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="p">)</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s">&quot;Daughters   : </span><span class="si">%s</span><span class="s"> (frame: </span><span class="si">% 2i</span><span class="s">)&quot;</span><span class="p">,</span>
+            <span class="n">info_msg3</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">frame_idx</span> <span class="o">+</span> <span class="mi">2</span>
+        <span class="p">)</span>
+
+        <span class="n">plt</span><span class="o">.</span><span class="n">draw</span><span class="p">()</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">plotkey</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">e</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">key</span> <span class="o">==</span> <span class="s">&quot;enter&quot;</span><span class="p">:</span>
+            <span class="c"># submit lineage change and move frame</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">daughters</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">death</span><span class="p">:</span>
+                    <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Death event awaiting confirmation&quot;</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">death</span> <span class="o">=</span> <span class="bp">True</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">n2</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s">&quot;Press y to confirm cell death&quot;</span><span class="p">)</span>
+                    <span class="n">plt</span><span class="o">.</span><span class="n">draw</span><span class="p">()</span>
+
+            <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">daughters</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">death</span> <span class="o">=</span> <span class="bp">False</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Growth event&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">lineage</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">daughters</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="c"># move to next frame</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">next_frame</span><span class="p">()</span>
+
+            <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">daughters</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">death</span> <span class="o">=</span> <span class="bp">False</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Division event&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">lineage</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">daughters</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                     <span class="bp">self</span><span class="o">.</span><span class="n">daughters</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+                <span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">death</span> <span class="o">=</span> <span class="bp">False</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s">&quot;Too many daughters&quot;</span><span class="p">)</span>
+
+        <span class="k">elif</span> <span class="n">e</span><span class="o">.</span><span class="n">key</span> <span class="o">==</span> <span class="s">&quot;escape&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">death</span> <span class="o">=</span> <span class="bp">False</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">n2</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s">&quot;Death averted&quot;</span><span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">draw</span><span class="p">()</span>
+
+        <span class="k">elif</span> <span class="n">e</span><span class="o">.</span><span class="n">key</span> <span class="o">==</span> <span class="s">&quot;y&quot;</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">death</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">daughters</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Death event confirmed&quot;</span><span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+        <span class="k">elif</span> <span class="n">e</span><span class="o">.</span><span class="n">key</span> <span class="o">==</span> <span class="s">&quot;m&quot;</span><span class="p">:</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Maximising frames&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">maximise_frame</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">n0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n0_frame</span><span class="p">,</span>
+                <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frame_idx</span> <span class="o">-</span> <span class="mi">1</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">maximise_frame</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">n1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n1_frame</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">frame_idx</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">maximise_frame</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">n2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n2_frame</span><span class="p">,</span>
+                <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frame_idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">),</span> <span class="mi">2</span>
+            <span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">draw</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">plotpick</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">e</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">e</span><span class="o">.</span><span class="n">artist</span><span class="o">.</span><span class="n">selected</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">daughters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">artist</span><span class="o">.</span><span class="n">gid</span><span class="p">)</span>
+            <span class="n">e</span><span class="o">.</span><span class="n">artist</span><span class="o">.</span><span class="n">selected</span> <span class="o">=</span> <span class="bp">True</span>
+            <span class="n">e</span><span class="o">.</span><span class="n">artist</span><span class="o">.</span><span class="n">set_color</span><span class="p">(</span><span class="s">&quot;g&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">daughters</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">artist</span><span class="o">.</span><span class="n">gid</span><span class="p">)</span>
+            <span class="n">e</span><span class="o">.</span><span class="n">artist</span><span class="o">.</span><span class="n">selected</span> <span class="o">=</span> <span class="bp">False</span>
+            <span class="n">e</span><span class="o">.</span><span class="n">artist</span><span class="o">.</span><span class="n">set_color</span><span class="p">(</span><span class="s">&quot;y&quot;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">draw</span><span class="p">()</span>
+
+</div>
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&quot;__main__&quot;</span><span class="p">:</span>
+<span class="c">#    logging.basicConfig(</span>
+<span class="c">#        format=&quot;[%(asctime)s] %(levelname) 10s: %(message)s&quot;,</span>
+<span class="c">#        datefmt=&quot;%Y-%m-%d %H:%M:%S&quot;,</span>
+<span class="c">#        level=logging.DEBUG</span>
+<span class="c">#    )</span>
+<span class="c">#    l = Lineage()</span>
+    <span class="k">print</span><span class="p">(</span><span class="s">&quot;You should probably import this as a module&quot;</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../index.html">Lineage 0.1 documentation</a> &raquo;</li>
+          <li><a href="index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Miles Priestman.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>
