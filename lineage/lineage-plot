@@ -1,0 +1,54 @@
+#!/usr/bin/env python
+
+import lib
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+def main():
+    L = lib.Lineage()
+
+    def iterate_cell(cell, gen=0):
+        frame_idx = cell.frame - 1
+        end_type = None
+
+        lineage = [
+            (cell.frame, cell.length)
+        ]
+        # (frame, length)
+        while True:
+            if type(cell.children) is str:
+                # print(">", end="")
+                frame_idx += 1
+                cell = L.frames[frame_idx].cell(cell.children)
+                lineage.append((cell.frame, cell.length))
+            elif type(cell.children) is list:
+                # print(". {0}".format(cell.frame))
+                end_type = 1
+                break
+            else:
+                # print("] {0}".format(cell.frame))
+                end_type = 2
+                break
+
+        l = np.array(lineage)
+        plt.plot(l[:, 0], l[:, 1] * 0.077, marker=".")
+        if end_type == 1:
+            new_gen = gen + 1
+            iterate_cell(L.frames[frame_idx + 1].cell(cell.children[0]), new_gen)
+            iterate_cell(L.frames[frame_idx + 1].cell(cell.children[1]), new_gen)
+            return (2, None)
+        elif end_type == 2:
+            return (1, None)
+        else:
+            return (0, None)
+
+    plt.figure()
+    parent_cells = L.frames[0].cells
+    for cell in parent_cells:
+        iterate_cell(cell)
+    plt.show()
+
+
+if __name__ == "__main__":
+    main()

@@ -255,6 +255,7 @@ class Lineage(object):
 
         Raises:
             IOError: if meshes file is not found
+            SysError: if there is a problem with the cell data
         """
         if not os.path.exists(cellmat):
             raise IOError(
@@ -291,12 +292,14 @@ class Lineage(object):
             py_cell_idx = 0
             frame_cells = []
             for c in pos[0]:
-                if c.shape != (0, 0):
+                if c.shape[0] != 0 and c.shape[1] != 0:
                     cell = Cell(c[0][0])
                     if "length" not in cell.__dict__:
-                        input("Please reselect Cell {0} in Frame {1}".format(
-                            cell_idx, pos_idx
+                        raise SystemError("Please reselect Cell {0} in Frame {1}".format(
+                            cell_idx + 1, pos_idx + 1
                         ))
+                    elif cell.mesh.shape == (1, 1):
+                        pass
                     else:
                         cell.frame = pos_idx + 1
                         cell.mt_idx = cell_idx + 1
@@ -391,8 +394,6 @@ class Lineage(object):
             c_x, c_y = progenitor.centre
             # radius
             radius = progenitor.length[0][0] / 2
-
-            USE OFFSETS!
 
             n1_frame = self.frames[progenitor.frame + 1]
             # search n1 frame for cells > 60% within bounding circle
