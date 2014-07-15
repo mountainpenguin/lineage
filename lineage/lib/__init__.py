@@ -397,7 +397,6 @@ class Lineage(object):
 
         return np.mean([middle_x1, middle_x2]), np.mean([middle_y1, middle_y2])
 
-
     def get_box_centre(self, cell):
         """Return the coordinates for cell centre of the given cell.
 
@@ -747,7 +746,7 @@ class Lineage(object):
                     ending = "death"
                     break
 
-                minimum = min(distances, key=lambda x:x[0])
+                minimum = min(distances, key=lambda x: x[0])
                 child = n1_frame.cells[minimum[1]]
 
                 # check for cell length change
@@ -948,6 +947,7 @@ class Lineage(object):
         """
         logging.info("Writing lineage file to <%s>", fn)
         open(fn, "w").write(json.dumps(self.lineages))
+
 
 class LineageMaker(object):
     """Assignment of lineages via manual graphical selection.
@@ -1245,7 +1245,6 @@ class LineageMaker(object):
             cell = self.frames.cell(child)
 
         num_frames = len(lin)
-        first_frame_idx = self.progenitor.frame - 1
 
         sqrt = np.sqrt(num_frames)
         if sqrt.is_integer():
