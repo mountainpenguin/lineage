@@ -524,15 +524,15 @@ class Lineage(object):
         Determines distance by calculating the average distance between three
         points on each cell: the cell centre, and each pole.
 
-        The distance is modified by an angle factor, which biases distances
+        The distance is multiplied by an angle factor, which biases distances
         against cells which are rotated.
         The angle of the cell axis is determined by constructing a line between
         the cell poles, and determining the difference in rotation from the
         X-axis.
 
         Angle factors:
-            - 90deg rotation => 1.5
-            - 45deg rotation => 1.25
+            - 90deg rotation => 2
+            - 45deg rotation => 1.5
             - 0deg rotation => 1
 
         Poles are arranged to ensure pole reversal doesn't occur.
