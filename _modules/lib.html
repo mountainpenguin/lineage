@@ -445,7 +445,6 @@
             <span class="p">])</span>
 
         <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">([</span><span class="n">middle_x1</span><span class="p">,</span> <span class="n">middle_x2</span><span class="p">]),</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">([</span><span class="n">middle_y1</span><span class="p">,</span> <span class="n">middle_y2</span><span class="p">])</span>
-
 </div>
 <div class="viewcode-block" id="Lineage.get_box_centre"><a class="viewcode-back" href="../index.html#lib.Lineage.get_box_centre">[docs]</a>    <span class="k">def</span> <span class="nf">get_box_centre</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cell</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Return the coordinates for cell centre of the given cell.</span>
@@ -574,15 +573,15 @@
 <span class="sd">        Determines distance by calculating the average distance between three</span>
 <span class="sd">        points on each cell: the cell centre, and each pole.</span>
 
-<span class="sd">        The distance is modified by an angle factor, which biases distances</span>
+<span class="sd">        The distance is multiplied by an angle factor, which biases distances</span>
 <span class="sd">        against cells which are rotated.</span>
 <span class="sd">        The angle of the cell axis is determined by constructing a line between</span>
 <span class="sd">        the cell poles, and determining the difference in rotation from the</span>
 <span class="sd">        X-axis.</span>
 
 <span class="sd">        Angle factors:</span>
-<span class="sd">            - 90deg rotation =&gt; 1.5</span>
-<span class="sd">            - 45deg rotation =&gt; 1.25</span>
+<span class="sd">            - 90deg rotation =&gt; 2</span>
+<span class="sd">            - 45deg rotation =&gt; 1.5</span>
 <span class="sd">            - 0deg rotation =&gt; 1</span>
 
 <span class="sd">        Poles are arranged to ensure pole reversal doesn&#39;t occur.</span>
@@ -796,7 +795,7 @@
                     <span class="n">ending</span> <span class="o">=</span> <span class="s">&quot;death&quot;</span>
                     <span class="k">break</span>
 
-                <span class="n">minimum</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">distances</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="n">minimum</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">distances</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
                 <span class="n">child</span> <span class="o">=</span> <span class="n">n1_frame</span><span class="o">.</span><span class="n">cells</span><span class="p">[</span><span class="n">minimum</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
 
                 <span class="c"># check for cell length change</span>
@@ -997,6 +996,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Writing lineage file to &lt;</span><span class="si">%s</span><span class="s">&gt;&quot;</span><span class="p">,</span> <span class="n">fn</span><span class="p">)</span>
         <span class="nb">open</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="s">&quot;w&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lineages</span><span class="p">))</span>
+
 </div></div>
 <div class="viewcode-block" id="LineageMaker"><a class="viewcode-back" href="../index.html#lib.LineageMaker">[docs]</a><span class="k">class</span> <span class="nc">LineageMaker</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Assignment of lineages via manual graphical selection.</span>
@@ -1294,7 +1294,6 @@
             <span class="n">cell</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">frames</span><span class="o">.</span><span class="n">cell</span><span class="p">(</span><span class="n">child</span><span class="p">)</span>
 
         <span class="n">num_frames</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">lin</span><span class="p">)</span>
-        <span class="n">first_frame_idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">progenitor</span><span class="o">.</span><span class="n">frame</span> <span class="o">-</span> <span class="mi">1</span>
 
         <span class="n">sqrt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">num_frames</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">sqrt</span><span class="o">.</span><span class="n">is_integer</span><span class="p">():</span>

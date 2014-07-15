@@ -273,7 +273,7 @@ are called on init. See below for descriptions of these attributes</p>
 <dd><p>Return modified distance between two cells</p>
 <p>Determines distance by calculating the average distance between three
 points on each cell: the cell centre, and each pole.</p>
-<p>The distance is modified by an angle factor, which biases distances
+<p>The distance is multiplied by an angle factor, which biases distances
 against cells which are rotated.
 The angle of the cell axis is determined by constructing a line between
 the cell poles, and determining the difference in rotation from the
@@ -281,8 +281,8 @@ X-axis.</p>
 <dl class="docutils">
 <dt>Angle factors:</dt>
 <dd><ul class="first last simple">
-<li>90deg rotation =&gt; 1.5</li>
-<li>45deg rotation =&gt; 1.25</li>
+<li>90deg rotation =&gt; 2</li>
+<li>45deg rotation =&gt; 1.5</li>
 <li>0deg rotation =&gt; 1</li>
 </ul>
 </dd>
