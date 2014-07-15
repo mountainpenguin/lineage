@@ -246,10 +246,130 @@ to <cite>lineages.json</cite></li>
 </table>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
-<p class="last">Attributes are set by the methods <a class="reference internal" href="#lib.Lineage.load_alignment" title="lib.Lineage.load_alignment"><tt class="xref py py-func docutils literal"><span class="pre">load_alignment()</span></tt></a> and
-<a class="reference internal" href="#lib.Lineage.load_cells" title="lib.Lineage.load_cells"><tt class="xref py py-func docutils literal"><span class="pre">load_cells()</span></tt></a> which are called on init. See below for
-descriptions of these attributes</p>
+<p class="last">Attributes are set by the methods <a class="reference internal" href="#lib.Lineage.load_alignment" title="lib.Lineage.load_alignment"><tt class="xref py py-func docutils literal"><span class="pre">load_alignment()</span></tt></a>,
+<a class="reference internal" href="#lib.Lineage.load_uuids" title="lib.Lineage.load_uuids"><tt class="xref py py-func docutils literal"><span class="pre">load_uuids()</span></tt></a>, <a class="reference internal" href="#lib.Lineage.load_lineages" title="lib.Lineage.load_lineages"><tt class="xref py py-func docutils literal"><span class="pre">load_lineages()</span></tt></a>, and <a class="reference internal" href="#lib.Lineage.load_cells" title="lib.Lineage.load_cells"><tt class="xref py py-func docutils literal"><span class="pre">load_cells()</span></tt></a> which
+are called on init. See below for descriptions of these attributes</p>
 </div>
+<dl class="method">
+<dt id="lib.Lineage.get_box_centre">
+<tt class="descname">get_box_centre</tt><big>(</big><em>cell</em><big>)</big><a class="reference internal" href="_modules/lib.html#Lineage.get_box_centre"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lib.Lineage.get_box_centre" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the coordinates for cell centre of the given cell.</p>
+<p>Averages all the outline coordinates.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>cell</strong> (<a class="reference internal" href="#lib.Cell" title="lib.Cell"><tt class="xref py py-class docutils literal"><span class="pre">Cell</span></tt></a>) &#8211; Cell in question.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">(numpy.float64, numpy.float64): X and Y coordinates for cell centre</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="lib.Lineage.get_distance">
+<tt class="descname">get_distance</tt><big>(</big><em>c1</em>, <em>c2</em>, <em>max_dist=50</em><big>)</big><a class="reference internal" href="_modules/lib.html#Lineage.get_distance"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lib.Lineage.get_distance" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return modified distance between two cells</p>
+<p>Determines distance by calculating the average distance between three
+points on each cell: the cell centre, and each pole.</p>
+<p>The distance is modified by an angle factor, which biases distances
+against cells which are rotated.
+The angle of the cell axis is determined by constructing a line between
+the cell poles, and determining the difference in rotation from the
+X-axis.</p>
+<dl class="docutils">
+<dt>Angle factors:</dt>
+<dd><ul class="first last simple">
+<li>90deg rotation =&gt; 1.5</li>
+<li>45deg rotation =&gt; 1.25</li>
+<li>0deg rotation =&gt; 1</li>
+</ul>
+</dd>
+</dl>
+<p>Poles are arranged to ensure pole reversal doesn&#8217;t occur.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>c1</strong> (<a class="reference internal" href="#lib.Cell" title="lib.Cell"><tt class="xref py py-class docutils literal"><span class="pre">Cell</span></tt></a>) &#8211; Reference cell</li>
+<li><strong>c2</strong> (<a class="reference internal" href="#lib.Cell" title="lib.Cell"><tt class="xref py py-class docutils literal"><span class="pre">Cell</span></tt></a>) &#8211; Candidate cell</li>
+<li><strong>max_dist</strong> &#8211; Maximum distance permitted between two cells to be
+considered, if over this limit, function returns -1</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Average distance between <cite>c1</cite> and <cite>c2</cite></p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">float</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="lib.Lineage.get_mesh_centre">
+<tt class="descname">get_mesh_centre</tt><big>(</big><em>cell</em><big>)</big><a class="reference internal" href="_modules/lib.html#Lineage.get_mesh_centre"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lib.Lineage.get_mesh_centre" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the coordinates for cell centre using the mesh of the given
+cell.</p>
+<p>Uses the midpoint of the middle mesh coordinates.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>cell</strong> (<a class="reference internal" href="#lib.Cell" title="lib.Cell"><tt class="xref py py-class docutils literal"><span class="pre">Cell</span></tt></a>) &#8211; Cell in question</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">(numpy.float64, numpy.float64): X and Y coordinates for cell centre</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="lib.Lineage.get_overlap">
+<tt class="descname">get_overlap</tt><big>(</big><em>c1</em>, <em>c2</em><big>)</big><a class="reference internal" href="_modules/lib.html#Lineage.get_overlap"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lib.Lineage.get_overlap" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return area of overlap between two cells</p>
+<p>Constructs two circles centred on each cell, with the same diameter as
+the cell length, and calculates the area of overlap between the two
+cells.</p>
+<p>If the distance between the two cell centres is greater than 50px,
+the match is rejected without constructing any circles.</p>
+<p>The area of overlap is multipled by an angle factor, which biases
+overlaps against rotation, i.e. if a potential child cell is
+significantly rotated, its returned overlap area will be reduced.
+The angle of the cell axis is determined by constructing a line between
+the cell poles, and determining the rotation from the X-axis. They are
+normalised to ensure that the greatest possible angle of rotation is
+90 degrees.</p>
+<dl class="docutils">
+<dt>Angle factors:</dt>
+<dd>90deg rotation =&gt; 0.5
+45deg rotation =&gt; 0.75
+0deg rotation =&gt; 1</dd>
+</dl>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>c1</strong> (<a class="reference internal" href="#lib.Cell" title="lib.Cell"><tt class="xref py py-class docutils literal"><span class="pre">Cell</span></tt></a>) &#8211; Reference cell</li>
+<li><strong>c2</strong> (<a class="reference internal" href="#lib.Cell" title="lib.Cell"><tt class="xref py py-class docutils literal"><span class="pre">Cell</span></tt></a>) &#8211; Candidate cell</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">area of overlap (pixels^2) between c1 and c2</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">float</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
 <dl class="method">
 <dt id="lib.Lineage.guess_lineage">
 <tt class="descname">guess_lineage</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/lib.html#Lineage.guess_lineage"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lib.Lineage.guess_lineage" title="Permalink to this definition">¶</a></dt>
@@ -259,7 +379,7 @@ descriptions of these attributes</p>
 <dt id="lib.Lineage.lineages">
 <tt class="descname">lineages</tt><a class="headerlink" href="#lib.Lineage.lineages" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>dict</em></p>
-<p>As per <a class="reference internal" href="#lib.Lineage.load_cells" title="lib.Lineage.load_cells"><tt class="xref py py-func docutils literal"><span class="pre">load_cells()</span></tt></a></p>
+<p>As per <a class="reference internal" href="#lib.Lineage.load_lineages" title="lib.Lineage.load_lineages"><tt class="xref py py-func docutils literal"><span class="pre">load_lineages()</span></tt></a></p>
 </dd></dl>
 
 <table class="docutils field-list" frame="void" rules="none">
@@ -275,6 +395,10 @@ cells in frame 1. For each of these cells, select a cell in the next
 frame which is spatially closest, if the closest cell is significantly
 smaller in length, then choose the two closest cells as daughter
 cells.</p>
+<p>See <a class="reference internal" href="#lib.Lineage.get_distance" title="lib.Lineage.get_distance"><tt class="xref py py-func docutils literal"><span class="pre">get_distance()</span></tt></a> for how spatial distance is calculated.</p>
+<p>If no cell can be found, initiate a cell death.</p>
+<p>If the closest cell is significantly shorter than the potential parent
+cell, look for a division event.</p>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
 <p>Improvements planned:</p>
@@ -298,7 +422,7 @@ the assignment process.</p>
 <dt>
 <tt class="descname">lineages</tt></dt>
 <dd><p><em>dict</em></p>
-<p>As per <a class="reference internal" href="#lib.Lineage.load_cells" title="lib.Lineage.load_cells"><tt class="xref py py-func docutils literal"><span class="pre">load_cells()</span></tt></a></p>
+<p>As per <a class="reference internal" href="#lib.Lineage.load_lineages" title="lib.Lineage.load_lineages"><tt class="xref py py-func docutils literal"><span class="pre">load_lineages()</span></tt></a></p>
 </dd></dl>
 
 <p>Once launced, a matplotlib figure will open showing three
@@ -378,22 +502,14 @@ if alignment file is not found</td>
 
 <dl class="method">
 <dt id="lib.Lineage.load_cells">
-<tt class="descname">load_cells</tt><big>(</big><em>cellmat='mt/mt.mat'</em>, <em>uuidfile='uuids.json'</em>, <em>lineagefile='lineages.json'</em><big>)</big><a class="reference internal" href="_modules/lib.html#Lineage.load_cells"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lib.Lineage.load_cells" title="Permalink to this definition">¶</a></dt>
-<dd><p>Loads meshes created my MicrobeTracker, and any lineages previously
-created by Lineage</p>
+<tt class="descname">load_cells</tt><big>(</big><em>cellmat='mt/mt.mat'</em><big>)</big><a class="reference internal" href="_modules/lib.html#Lineage.load_cells"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lib.Lineage.load_cells" title="Permalink to this definition">¶</a></dt>
+<dd><p>Load meshes created by MicrobeTracker</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>cellmat</strong> (<em>str</em>) &#8211; path to MicrobeTracker meshes file, defaults to
-<cite>mt/mt.mat</cite></li>
-<li><strong>uuidfile</strong> (<em>str</em>) &#8211; path to uuid file created by Lineage, defaults to
-<cite>uuids.json</cite></li>
-<li><strong>lineagefile</strong> (<em>str</em>) &#8211; path to lineages file created by Lineage,
-defaults to <cite>lineages.json</cite></li>
-</ul>
-</td>
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>cellmat</strong> (<em>str</em>) &#8211; path to MicrobeTracker meshes file, defaults to
+<cite>mt/mt.mat</cite></td>
 </tr>
 </tbody>
 </table>
@@ -405,25 +521,39 @@ defaults to <cite>lineages.json</cite></li>
 <p>Contains all data from MicrobeTracker</p>
 </dd></dl>
 
-<dl class="attribute">
-<dt id="lib.Lineage.uuids">
-<tt class="descname">uuids</tt><a class="headerlink" href="#lib.Lineage.uuids" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>dict</em></p>
-<p>References all cell UUIDs according to
-MicrobeTracker&#8217;s cell numbering system</p>
-<dl class="docutils">
-<dt>Cells are referenced with the following key structure:</dt>
-<dd><cite>frame</cite>:<cite>mt_idx</cite></dd>
-</dl>
-<p>Where <cite>frame</cite> is the frame number of the cell, and <cite>mt_idx</cite>
-is the cell number assigned by MicrobeTracker</p>
-<div class="admonition warning">
-<p class="first admonition-title">Warning</p>
-<p class="last">If cell numbers are changed by subsequent runs of
-MicrobeTracker, these UUIDs will no longer be valid.</p>
-</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">None</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><ul class="first last simple">
+<li><tt class="xref py py-exc docutils literal"><span class="pre">IOError</span></tt> &#8211; 
+if meshes file is not found</li>
+<li><tt class="xref py py-exc docutils literal"><span class="pre">SysError</span></tt> &#8211; 
+if there is a problem with the cell data</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
+<dl class="method">
+<dt id="lib.Lineage.load_lineages">
+<tt class="descname">load_lineages</tt><big>(</big><em>lineagefile='lineages.json'</em><big>)</big><a class="reference internal" href="_modules/lib.html#Lineage.load_lineages"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lib.Lineage.load_lineages" title="Permalink to this definition">¶</a></dt>
+<dd><p>Load any previously determined lineages by Lineage</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>lineagefile</strong> (<em>str</em>) &#8211; path to lineages file created by Lineage,
+defaults to <cite>lineages.json</cite></td>
+</tr>
+</tbody>
+</table>
+<p>Sets the following attributes:</p>
 <dl class="attribute">
 <dt>
 <tt class="descname">lineages</tt></dt>
@@ -448,23 +578,47 @@ both child ids (tuple), or None</p>
 </dl>
 </dd></dl>
 
+</dd></dl>
+
+<dl class="method">
+<dt id="lib.Lineage.load_uuids">
+<tt class="descname">load_uuids</tt><big>(</big><em>uuidfile='uuids.json'</em><big>)</big><a class="reference internal" href="_modules/lib.html#Lineage.load_uuids"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lib.Lineage.load_uuids" title="Permalink to this definition">¶</a></dt>
+<dd><p>Load any UUIDs set by a prior run of Lineage</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">None</p>
-</td>
-</tr>
-<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><ul class="first last simple">
-<li><tt class="xref py py-exc docutils literal"><span class="pre">IOError</span></tt> &#8211; 
-if meshes file is not found</li>
-<li><tt class="xref py py-exc docutils literal"><span class="pre">SysError</span></tt> &#8211; 
-if there is a problem with the cell data</li>
-</ul>
-</td>
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>uuidfile</strong> (<em>str</em>) &#8211; path to uuid file created by Lineage, defaults to
+<cite>uuids.json</cite></td>
 </tr>
 </tbody>
 </table>
+<p>Sets the following attributes:</p>
+<dl class="attribute">
+<dt id="lib.Lineage.uuids">
+<tt class="descname">uuids</tt><a class="headerlink" href="#lib.Lineage.uuids" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>dict</em></p>
+<p>References all cell UUIDs according to
+MicrobeTracker&#8217;s cell numbering system</p>
+<dl class="docutils">
+<dt>Cells are referenced with the following key structure:</dt>
+<dd><cite>frame</cite>:<cite>mt_idx</cite></dd>
+</dl>
+<p>Where <cite>frame</cite> is the frame number of the cell, and <cite>mt_idx</cite>
+is the cell number assigned by MicrobeTracker</p>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">If cell numbers are changed by subsequent runs of
+MicrobeTracker, these UUIDs will no longer be valid.</p>
+</div>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="method">
+<dt id="lib.Lineage.write_lineage">
+<tt class="descname">write_lineage</tt><big>(</big><em>fn='lineages.json'</em><big>)</big><a class="reference internal" href="_modules/lib.html#Lineage.write_lineage"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lib.Lineage.write_lineage" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write lineages to JSON file</p>
 </dd></dl>
 
 </dd></dl>
