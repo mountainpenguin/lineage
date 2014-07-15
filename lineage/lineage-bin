@@ -11,8 +11,9 @@ import logging
 
 def main():
     L = lib.Lineage()
-    L.guess_lineage()
-    #L.interactive_track()
+    if not L.lineages:
+        L.guess_lineage()
+    L.interactive_track()
 
 if __name__ == "__main__":
     logging.basicConfig(
