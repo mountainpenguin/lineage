@@ -645,6 +645,54 @@ above</li>
 </tbody>
 </table>
 <dl class="method">
+<dt id="lib.LineageMaker.get_offset">
+<tt class="descname">get_offset</tt><big>(</big><em>cell</em>, <em>offset=None</em>, <em>cell2=None</em><big>)</big><a class="reference internal" href="_modules/lib.html#LineageMaker.get_offset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lib.LineageMaker.get_offset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return offset, bounds, and shifts for a given cell</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>cell</strong> (<a class="reference internal" href="#lib.Cell" title="lib.Cell"><tt class="xref py py-class docutils literal"><span class="pre">Cell</span></tt></a>) &#8211; Target cell</li>
+<li><strong>offset</strong> (<em>sequence</em>) &#8211; 2-element list of XY offset (optional)</li>
+<li><strong>cell2</strong> (<a class="reference internal" href="#lib.Cell" title="lib.Cell"><tt class="xref py py-class docutils literal"><span class="pre">Cell</span></tt></a>) &#8211; Sibling cell (optional)</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">(bounds, shifts, offset)</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">tuple</p>
+</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<dl class="last docutils">
+<dt>bounds (tuple):</dt>
+<dd><ul class="first last simple">
+<li>y_lower (float): Lower Y bound</li>
+<li>x_lower (float): Lower X bound</li>
+</ul>
+</dd>
+<dt>shifts (tuple):</dt>
+<dd><ul class="first last simple">
+<li>xshift (float): X shift</li>
+<li>yshift (float): Y shift</li>
+</ul>
+</dd>
+<dt>offset (sequence):</dt>
+<dd><ul class="first last simple">
+<li>x_offset (float): X offset</li>
+<li>y_offset (float): Y offset</li>
+</ul>
+</dd>
+</dl>
+</div>
+</dd></dl>
+
+<dl class="method">
 <dt id="lib.LineageMaker.maximise_frame">
 <tt class="descname">maximise_frame</tt><big>(</big><em>ax</em>, <em>frame</em>, <em>fn_idx</em>, <em>frame_offset</em><big>)</big><a class="reference internal" href="_modules/lib.html#LineageMaker.maximise_frame"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lib.LineageMaker.maximise_frame" title="Permalink to this definition">¶</a></dt>
 <dd><table class="docutils field-list" frame="void" rules="none">
