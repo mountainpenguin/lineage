@@ -1027,7 +1027,10 @@ class LineageMaker(object):
         else:
             self.n0_frame = EmptyFrame()
         self.n1_frame = frames[self.progenitor.frame - 1]
-        self.n2_frame = frames[self.progenitor.frame]
+        try:
+            self.n2_frame = frames[self.progenitor.frame]
+        except IndexError:
+            self.n2_frame = EmptyFrame()
         self.frames = frames
         self.daughters = []
         self.mother = self.progenitor.id
@@ -1522,14 +1525,7 @@ class LineageMaker(object):
         self.frame_idx = self.progenitor.frame - 1
         logging.debug("Initial frame_idx: %i", self.frame_idx)
 
-        c_x, c_y = self.progenitor.centre
-        x_lower = c_x - 100
-        y_lower = c_y - 100
-
-        if x_lower < 0:
-            x_lower = 0
-        if y_lower < 0:
-            y_lower = 0
+        bounds, shifts, offset = self.get_offset(self.progenitor)
 
         width = 200
 
@@ -1542,8 +1538,8 @@ class LineageMaker(object):
             n0_img = scipy.misc.imread(self.files[self.frame_idx - 1])
             offset = self.align[self.frame_idx - 1]
         n0_crop = n0_img[
-            y_lower - offset[0]:y_lower - offset[0] + width,
-            x_lower - offset[1]:x_lower - offset[1] + width
+            bounds[0] - offset[0]:bounds[0] - offset[0] + width,
+            bounds[1] - offset[1]:bounds[1] - offset[1] + width
         ]
         plt.imshow(n0_crop, cmap=plt.cm.gray)
         plt.title("Frame {0}".format(self.frame_idx))
@@ -1551,31 +1547,31 @@ class LineageMaker(object):
         if self.progenitor.parent:
             grand_mother = self.frames.cell(self.progenitor.parent)
             plt.plot(
-                grand_mother.mesh[:, 0] - x_lower,
-                grand_mother.mesh[:, 1] - y_lower,
-                "b"
+                grand_mother.mesh[:, 0] - shifts[0],
+                grand_mother.mesh[:, 1] - shifts[1],
+                "y"
             )
             plt.plot(
-                grand_mother.mesh[:, 2] - x_lower,
-                grand_mother.mesh[:, 3] - y_lower,
-                "b"
+                grand_mother.mesh[:, 2] - shifts[0],
+                grand_mother.mesh[:, 3] - shifts[1],
+                "y"
             )
 
         self.n1 = plt.subplot(132, sharex=self.n0, sharey=self.n0)  # the frame
         n1_img = scipy.misc.imread(self.files[self.frame_idx])
         offset = self.align[self.frame_idx]
         n1_crop = n1_img[
-            y_lower - offset[0]:y_lower - offset[0] + width,
-            x_lower - offset[1]:x_lower - offset[1] + width
+            bounds[0] - offset[0]:bounds[0] - offset[0] + width,
+            bounds[1] - offset[1]:bounds[1] - offset[1] + width
         ]
         plt.imshow(n1_crop, cmap=plt.cm.gray)
         plt.title("Frame {0}".format(self.frame_idx + 1))
         plt.axis("off")
 
-        cell_xs_l = self.progenitor.mesh[:, 0] - x_lower
-        cell_ys_l = self.progenitor.mesh[:, 1] - y_lower
-        cell_xs_r = self.progenitor.mesh[:, 2] - x_lower
-        cell_ys_r = self.progenitor.mesh[:, 3] - y_lower
+        cell_xs_l = self.progenitor.mesh[:, 0] - shifts[0]
+        cell_ys_l = self.progenitor.mesh[:, 1] - shifts[1]
+        cell_xs_r = self.progenitor.mesh[:, 2] - shifts[0]
+        cell_ys_r = self.progenitor.mesh[:, 3] - shifts[1]
         plt.plot(cell_xs_l, cell_ys_l, "r")
         plt.plot(cell_xs_r, cell_ys_r, "r")
 
@@ -1584,12 +1580,16 @@ class LineageMaker(object):
 
         self.n2 = plt.subplot(133, sharex=self.n0, sharey=self.n0)
         # next frame
-        n2_img = scipy.misc.imread(self.files[self.frame_idx + 1])
-        # use alignment to offset
-        offset = self.align[self.frame_idx + 1]
+        try:
+            n2_img = scipy.misc.imread(self.files[self.frame_idx + 1])
+            # use alignment to offset
+            offset = self.align[self.frame_idx + 1]
+        except IndexError:
+            n2_img = np.zeros((1024, 1344))
+            offset = [0, 0]
         n2_crop = n2_img[
-            y_lower - offset[0]:y_lower - offset[0] + width,
-            x_lower - offset[1]:x_lower - offset[1] + width
+            bounds[0] - offset[0]:bounds[0] - offset[0] + width,
+            bounds[1] - offset[1]:bounds[1] - offset[1] + width
         ]
         plt.imshow(n2_crop, cmap=plt.cm.gray)
         plt.title("Frame {0}".format(self.frame_idx + 2))
@@ -1598,11 +1598,11 @@ class LineageMaker(object):
         # display all cells on n2
         n2_cells = self.n2_frame.cells
         for n2_cell in n2_cells:
-            xs_l = n2_cell.mesh[:, 0] - x_lower
-            xs_r = n2_cell.mesh[:, 2] - x_lower
+            xs_l = n2_cell.mesh[:, 0] - shifts[0]
+            xs_r = n2_cell.mesh[:, 2] - shifts[0]
 
-            ys_l = n2_cell.mesh[:, 1] - y_lower
-            ys_r = n2_cell.mesh[:, 3] - y_lower
+            ys_l = n2_cell.mesh[:, 1] - shifts[1]
+            ys_r = n2_cell.mesh[:, 3] - shifts[1]
 
             if ((xs_l < 0).sum() > 0 or
                     (xs_l > width).sum() > 0 or
@@ -1666,7 +1666,12 @@ class LineageMaker(object):
         )
 
         plt.draw()
-        plt.show()
+        if plt.get_backend() == "Qt4Agg":
+            figm = plt.get_current_fig_manager()
+            figm.window.showMaximized()
+            plt.show()
+        else:
+            plt.show()
         self.end()
 
     def plotkey(self, e):
