@@ -879,7 +879,13 @@ class Lineage(object):
         final_lineage = {}
         files = sorted(glob.glob("*.tif"))
         progenitors = self.frames[0].cells
+        p_idx = 0
         for progenitor in progenitors:
+            p_idx += 1
+            logging.info(
+                "Lineage %i with %i progenitors (%i remaining)",
+                p_idx, len(progenitors), len(progenitors) - p_idx + 1
+            )
             l = LineageMaker(
                 progenitor, files, self.alignment, self.frames
             )
@@ -1361,8 +1367,6 @@ class LineageMaker(object):
             cell = self.frames.cell(child)
 
         num_frames = len(lin)
-
-        num_frames = len(lin)
         if lin.end == "death":
             num_frames += 1
         if lin.grandparent:
@@ -1430,7 +1434,7 @@ class LineageMaker(object):
                 break
 
             plt.subplot(rows, cols, i + 1 + i_mod)
-            plt.title("Frame {0}".format(cell.frame))
+            plt.title("Frame {0}".format(cell.frame + 1))
             second = False
             if type(cell_id) is tuple:
                 cell_id = lin[i][0]

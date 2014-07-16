@@ -32,7 +32,7 @@ def main():
                 break
 
         l = np.array(lineage)
-        plt.plot(l[:, 0], l[:, 1] * 0.077, marker=".")
+        plt.plot(l[:, 0], l[:, 1] * 0.077)
         if end_type == 1:
             new_gen = gen + 1
             iterate_cell(L.frames[frame_idx + 1].cell(cell.children[0]), new_gen)
