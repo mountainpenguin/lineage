@@ -949,6 +949,61 @@ class Lineage(object):
         open(fn, "w").write(json.dumps(self.lineages))
 
 
+class TempLineage(object):
+    def __init__(self, progenitor_id, progenitor_frame, grandparent):
+        self.lineage = [progenitor_id]
+        self.start_frame = progenitor_frame
+        self.grandparent_frame = progenitor_frame - 1
+        self.grandparent = grandparent
+        self.end = None
+        self.end_frame = None
+
+    def __getitem__(self, idx):
+        return self.lineage[idx]
+
+    def append(self, item):
+        if not self.end:
+            self.lineage += [item]
+        else:
+            raise ValueError("Lineage has already ended")
+
+    def __iadd__(self, item):
+        self.append(item)
+
+    def __len__(self):
+        return len(self.lineage)
+
+    def finish(self, end_type, end_frame):
+        self.end = end_type
+        self.end_frame = end_frame
+
+    def __repr__(self):
+        if self.end:
+            if self.end == "division":
+                final = "[{0}..{1}, {2}..{3}]".format(
+                    self.lineage[-1][0][:5], self.lineage[-1][0][-5:],
+                    self.lineage[-1][1][:5], self.lineage[-1][1][-5:]
+                )
+            else:
+                final = "{0}..{1}".format(
+                    self.lineage[-1][:5], self.lineage[-1][-5:]
+                )
+            return ("TempLineage({0}..{1} -> {2}; {3} frames ({4}-{5}); "
+                    "ending in {6})").format(
+                self.lineage[0][:5], self.lineage[0][-5:],
+                final,
+                len(self.lineage),
+                self.start_frame, self.end_frame,
+                self.end
+            )
+        else:
+            return ("TempLineage({0}..{1} -> ?; {2} frames so far; "
+                    "still in progress)").format(
+                self.lineage[0][:5], self.lineage[0][-5:],
+                len(self.lineage)
+            )
+
+
 class LineageMaker(object):
     """Assignment of lineages via manual graphical selection.
 
@@ -980,6 +1035,56 @@ class LineageMaker(object):
         self.lineage = [self.mother]
         self.death = False
 
+    def get_offset(self, cell, offset=None, cell2=None):
+        """Return offset, bounds, and shifts for a given cell
+
+        Args:
+            cell (:class:`Cell`): Target cell
+            offset (sequence): 2-element list of XY offset (optional)
+            cell2 (:class:`Cell`): Sibling cell (optional)
+
+        Returns:
+            (bounds, shifts, offset)
+        Return:
+            tuple
+
+        Note:
+            bounds (tuple):
+                - y_lower (float): Lower Y bound
+                - x_lower (float): Lower X bound
+            shifts (tuple):
+                - xshift (float): X shift
+                - yshift (float): Y shift
+            offset (sequence):
+                - x_offset (float): X offset
+                - y_offset (float): Y offset
+        """
+        width = 200
+
+        if cell2:
+            c_x = np.mean([cell.centre[0], cell2.centre[0]])
+            c_y = np.mean([cell.centre[1], cell2.centre[1]])
+            x_lower = c_x - (width / 2)
+            y_lower = c_y - (width / 2)
+        else:
+            x_lower = cell.centre[0] - (width / 2)
+            y_lower = cell.centre[1] - (width / 2)
+
+        xshift = x_lower
+        yshift = y_lower
+
+        if not offset:
+            offset = self.align[cell.frame - 1]
+
+        if y_lower - offset[0] < 0:
+            y_lower = offset[0]
+            yshift = offset[0]
+        if x_lower - offset[1] < 0:
+            x_lower = offset[1]
+            xshift = offset[1]
+
+        return (y_lower, x_lower), (xshift, yshift), offset
+
     def maximise_frame(self, ax, frame, fn_idx, frame_offset):
         """
 
@@ -993,17 +1098,18 @@ class LineageMaker(object):
         # maximise n2_frame
         if frame.frame is None:
             img = np.zeros((1024, 1344))
+            offset = [0, 0]
         else:
             img = scipy.misc.imread(
                 self.files[fn_idx]
             )
+            offset = self.align[fn_idx]
 
         ax.clear()
         ax.axis("off")
         ax.imshow(img, cmap=plt.cm.gray)
         ax.set_title("Frame {0}".format(self.frame_idx + frame_offset))
 
-        offset = self.align[fn_idx]
         if frame_offset == 0:
             # draw grandmother (parent)
             parent = frame.cell(self.parent)
@@ -1012,8 +1118,8 @@ class LineageMaker(object):
                 ys_l = parent.mesh[:, 1] - offset[0]
                 xs_r = parent.mesh[:, 2] - offset[1]
                 ys_r = parent.mesh[:, 3] - offset[0]
-                ax.plot(xs_l, ys_l, "b")
-                ax.plot(xs_r, ys_r, "b")
+                ax.plot(xs_l, ys_l, "y")
+                ax.plot(xs_r, ys_r, "y")
 
         elif frame_offset == 1:
             # draw mother (mother)
@@ -1232,30 +1338,47 @@ class LineageMaker(object):
     def preview(self):
         self.preview_conclusion = None
         # run through lineage
-        lin = []
         cell = self.progenitor
+        logging.info("Previewing lineage from cell %s", cell.id)
+        lin = TempLineage(cell.id, cell.frame - 1, cell.parent)
         while True:
             child = cell.children
             if not child:
+                if cell.frame == len(self.files):
+                    lin.finish("frames", cell.frame - 1)
+                else:
+                    lin.finish("death", cell.frame - 1)
                 break
             elif type(child) is not str:
+                # division event
                 lin.append(tuple(child))
+                lin.finish("division", cell.frame)
                 break
             lin.append(child)
             cell = self.frames.cell(child)
 
         num_frames = len(lin)
 
-        sqrt = np.sqrt(num_frames)
-        if sqrt.is_integer():
-            cols = int(sqrt)
-            rows = int(sqrt)
-        else:
-            cols = int(sqrt) + 1
-            rows = int(sqrt)
+        num_frames = len(lin)
+        if lin.end == "death":
+            num_frames += 1
+        if lin.grandparent:
+            num_frames += 1
 
-        if cols * rows < num_frames:
-            rows += 1
+        if num_frames <= 3:
+            cols = num_frames
+            rows = 1
+        else:
+            sqrt = np.sqrt(num_frames)
+            if sqrt.is_integer():
+                cols = int(sqrt)
+                rows = int(sqrt)
+            else:
+                cols = int(sqrt) + 1
+                rows = int(sqrt)
+
+            if cols * rows < num_frames:
+                rows += 1
 
         fig = plt.figure()
         plt.suptitle("Lineage preview. Press ENTER to accept or "
@@ -1264,36 +1387,69 @@ class LineageMaker(object):
         fig.canvas.mpl_connect(
             "key_press_event", self._previewkey
         )
+        i_mod = 0
+        if lin.grandparent:
+            i_mod += 1
+
+            plt.subplot(rows, cols, 1)
+
+            frame_idx = lin.grandparent_frame
+            cell = self.frames.cell(lin.grandparent)
+
+            f = scipy.misc.imread(self.files[frame_idx])
+
+            bounds, shifts, offset = self.get_offset(cell)
+            x_lower, y_lower = bounds
+
+            f_crop = f[
+                bounds[0] - offset[0]:bounds[0] - offset[0] + 200,
+                bounds[1] - offset[1]:bounds[1] - offset[1] + 200
+            ]
+
+            plt.imshow(f_crop, cmap=plt.cm.gray)
+            plt.axis("off")
+
+            plt.plot(
+                cell.mesh[:, 0] - shifts[0],
+                cell.mesh[:, 1] - shifts[1],
+                "y"
+            )
+            plt.plot(
+                cell.mesh[:, 2] - shifts[0],
+                cell.mesh[:, 3] - shifts[1],
+                "y"
+            )
+
         for i in range(num_frames):
-            plt.subplot(cols, rows, i + 1)
-            cell_id = lin[i]
+            try:
+                cell_id = lin[i]
+            except IndexError:
+                break
+
+            plt.subplot(rows, cols, i + 1 + i_mod)
+            plt.title("Frame {0}".format(cell.frame))
             second = False
             if type(cell_id) is tuple:
                 cell_id = lin[i][0]
                 second = True
                 cell2 = self.frames.cell(lin[i][1])
-            if not cell_id:
-                f = np.ones((1024, 1344))
-                f[0, 0] = 0
-                frame_idx = -1
-                offset = [0, 0]
-                x_lower = 0
-                y_lower = 0
+
+            cell = self.frames.cell(cell_id)
+            frame_idx = cell.frame - 1
+            f = scipy.misc.imread(self.files[frame_idx])
+
+            if second:
+                bounds, shifts, offset = self.get_offset(cell, cell2=cell2)
             else:
-                cell = self.frames.cell(cell_id)
-                frame_idx = cell.frame - 1
-                f = scipy.misc.imread(self.files[frame_idx])
-                offset = self.align[frame_idx]
-                x_lower = cell.centre[0] - 100
-                y_lower = cell.centre[1] - 100
-                if x_lower < 0:
-                    x_lower = 0
-                if y_lower < 0:
-                    y_lower = 0
+                bounds, shifts, offset = self.get_offset(cell)
+            offset = self.align[frame_idx]
+
+            xshift = shifts[0]
+            yshift = shifts[1]
 
             f_crop = f[
-                y_lower - offset[0]:y_lower - offset[0] + 200,
-                x_lower - offset[1]:x_lower - offset[1] + 200
+                bounds[0] - offset[0]:bounds[0] - offset[0] + 200,
+                bounds[1] - offset[1]:bounds[1] - offset[1] + 200,
             ]
 
             plt.imshow(f_crop, cmap=plt.cm.gray)
@@ -1301,30 +1457,53 @@ class LineageMaker(object):
 
             if cell_id:
                 plt.plot(
-                    cell.mesh[:, 0] - x_lower,
-                    cell.mesh[:, 1] - y_lower,
+                    cell.mesh[:, 0] - xshift,
+                    cell.mesh[:, 1] - yshift,
                     "r"
                 )
                 plt.plot(
-                    cell.mesh[:, 2] - x_lower,
-                    cell.mesh[:, 3] - y_lower,
+                    cell.mesh[:, 2] - xshift,
+                    cell.mesh[:, 3] - yshift,
                     "r"
                 )
                 if second:
                     plt.plot(
-                        cell2.mesh[:, 0] - x_lower,
-                        cell2.mesh[:, 1] - y_lower,
+                        cell2.mesh[:, 0] - xshift,
+                        cell2.mesh[:, 1] - yshift,
                         "c"
                     )
                     plt.plot(
-                        cell2.mesh[:, 2] - x_lower,
-                        cell2.mesh[:, 3] - y_lower,
+                        cell2.mesh[:, 2] - xshift,
+                        cell2.mesh[:, 3] - yshift,
                         "c"
                     )
-        plt.show()
+
+        if lin.end == "death":
+            # add death frame
+            death_idx = i + 1 + i_mod
+            f = scipy.misc.imread(self.files[lin.end_frame + 1])
+            # use last used offset
+            f_crop = f[
+                bounds[0] - offset[0]:bounds[0] - offset[0] + 200,
+                bounds[1] - offset[1]:bounds[1] - offset[1] + 200
+            ]
+            plt.subplot(rows, cols, death_idx)
+            plt.imshow(f_crop, cmap=plt.cm.gray)
+            plt.axis("off")
+
+        if plt.get_backend() == "Qt4Agg":
+            figm = plt.get_current_fig_manager()
+            figm.window.showMaximized()
+            plt.show()
+        else:
+            plt.show()
+
         if self.preview_conclusion == "skip":
             # assign lineage and move on
+            logging.info("Lineage confirmed, skipping to next progenitor cell")
             return lin
+        else:
+            logging.info("Lineage rejected, moving to review")
 
     def end(self):
         # display lineage after assignment for confirmation
