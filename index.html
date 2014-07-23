@@ -460,22 +460,13 @@ zoom and pan tools can be used to narrow down the field.</p>
 
 <dl class="method">
 <dt id="lib.Lineage.load_alignment">
-<tt class="descname">load_alignment</tt><big>(</big><em>alignmat='mt/alignment.mat'</em><big>)</big><a class="reference internal" href="_modules/lib.html#Lineage.load_alignment"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lib.Lineage.load_alignment" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">load_alignment</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/lib.html#Lineage.load_alignment"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lib.Lineage.load_alignment" title="Permalink to this definition">¶</a></dt>
 <dd><p>Loads alignment files as created by MicrobeTracker</p>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
 <p class="last">This will be improved in the future to refine these
 alignments.</p>
 </div>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>alignmat</strong> (<em>str</em>) &#8211; path to MicrobeTracker alignment file,
-defaults to <cite>mt/alignment.mat</cite></td>
-</tr>
-</tbody>
-</table>
 <p>Sets the following attributes:</p>
 <dl class="attribute">
 <dt id="lib.Lineage.alignment">
@@ -502,17 +493,8 @@ if alignment file is not found</td>
 
 <dl class="method">
 <dt id="lib.Lineage.load_cells">
-<tt class="descname">load_cells</tt><big>(</big><em>cellmat='mt/mt.mat'</em><big>)</big><a class="reference internal" href="_modules/lib.html#Lineage.load_cells"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lib.Lineage.load_cells" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">load_cells</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/lib.html#Lineage.load_cells"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lib.Lineage.load_cells" title="Permalink to this definition">¶</a></dt>
 <dd><p>Load meshes created by MicrobeTracker</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>cellmat</strong> (<em>str</em>) &#8211; path to MicrobeTracker meshes file, defaults to
-<cite>mt/mt.mat</cite></td>
-</tr>
-</tbody>
-</table>
 <p>Sets the following attributes:</p>
 <dl class="attribute">
 <dt id="lib.Lineage.frames">
@@ -542,17 +524,8 @@ if there is a problem with the cell data</li>
 
 <dl class="method">
 <dt id="lib.Lineage.load_lineages">
-<tt class="descname">load_lineages</tt><big>(</big><em>lineagefile='lineages.json'</em><big>)</big><a class="reference internal" href="_modules/lib.html#Lineage.load_lineages"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lib.Lineage.load_lineages" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">load_lineages</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/lib.html#Lineage.load_lineages"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lib.Lineage.load_lineages" title="Permalink to this definition">¶</a></dt>
 <dd><p>Load any previously determined lineages by Lineage</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>lineagefile</strong> (<em>str</em>) &#8211; path to lineages file created by Lineage,
-defaults to <cite>lineages.json</cite></td>
-</tr>
-</tbody>
-</table>
 <p>Sets the following attributes:</p>
 <dl class="attribute">
 <dt>
@@ -582,17 +555,8 @@ both child ids (tuple), or None</p>
 
 <dl class="method">
 <dt id="lib.Lineage.load_uuids">
-<tt class="descname">load_uuids</tt><big>(</big><em>uuidfile='uuids.json'</em><big>)</big><a class="reference internal" href="_modules/lib.html#Lineage.load_uuids"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lib.Lineage.load_uuids" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">load_uuids</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/lib.html#Lineage.load_uuids"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lib.Lineage.load_uuids" title="Permalink to this definition">¶</a></dt>
 <dd><p>Load any UUIDs set by a prior run of Lineage</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>uuidfile</strong> (<em>str</em>) &#8211; path to uuid file created by Lineage, defaults to
-<cite>uuids.json</cite></td>
-</tr>
-</tbody>
-</table>
 <p>Sets the following attributes:</p>
 <dl class="attribute">
 <dt id="lib.Lineage.uuids">

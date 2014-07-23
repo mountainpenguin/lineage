@@ -210,21 +210,22 @@
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cellmat</span><span class="o">=</span><span class="s">&quot;mt/mt.mat&quot;</span><span class="p">,</span> <span class="n">uuidfile</span><span class="o">=</span><span class="s">&quot;uuids.json&quot;</span><span class="p">,</span>
                  <span class="n">lineagefile</span><span class="o">=</span><span class="s">&quot;lineages.json&quot;</span><span class="p">,</span> <span class="n">alignmat</span><span class="o">=</span><span class="s">&quot;mt/alignment.mat&quot;</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">load_alignment</span><span class="p">(</span><span class="n">alignmat</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">load_uuids</span><span class="p">(</span><span class="n">uuidfile</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">load_lineages</span><span class="p">(</span><span class="n">lineagefile</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">load_cells</span><span class="p">(</span><span class="n">cellmat</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">CELLMAT</span> <span class="o">=</span> <span class="n">cellmat</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ALIGNMAT</span> <span class="o">=</span> <span class="n">alignmat</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">UUIDFILE</span> <span class="o">=</span> <span class="n">uuidfile</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">LINEAGEFILE</span> <span class="o">=</span> <span class="n">lineagefile</span>
 
-<div class="viewcode-block" id="Lineage.load_alignment"><a class="viewcode-back" href="../index.html#lib.Lineage.load_alignment">[docs]</a>    <span class="k">def</span> <span class="nf">load_alignment</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">alignmat</span><span class="o">=</span><span class="s">&quot;mt/alignment.mat&quot;</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">load_alignment</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">load_uuids</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">load_lineages</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">load_cells</span><span class="p">()</span>
+
+<div class="viewcode-block" id="Lineage.load_alignment"><a class="viewcode-back" href="../index.html#lib.Lineage.load_alignment">[docs]</a>    <span class="k">def</span> <span class="nf">load_alignment</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Loads alignment files as created by MicrobeTracker</span>
 
 <span class="sd">        Note:</span>
 <span class="sd">            This will be improved in the future to refine these</span>
 <span class="sd">            alignments.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            alignmat (str): path to MicrobeTracker alignment file,</span>
-<span class="sd">                defaults to `mt/alignment.mat`</span>
 
 <span class="sd">        Sets the following attributes:</span>
 
@@ -242,10 +243,10 @@
 <span class="sd">            IOError: if alignment file is not found</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Loading alignment data...&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">alignmat</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="s">&quot;Alignment file not found ({0})&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">alignmat</span><span class="p">))</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ALIGNMAT</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="s">&quot;Alignment file not found ({0})&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ALIGNMAT</span><span class="p">))</span>
 
-        <span class="n">alignment</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">loadmat</span><span class="p">(</span><span class="n">alignmat</span><span class="p">)</span>
+        <span class="n">alignment</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">loadmat</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ALIGNMAT</span><span class="p">)</span>
         <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;&gt;&gt;&gt; loaded&quot;</span><span class="p">)</span>
         <span class="n">alignment</span> <span class="o">=</span> <span class="n">alignment</span><span class="p">[</span><span class="s">&quot;shiftframes&quot;</span><span class="p">]</span>
         <span class="n">alignment_x</span> <span class="o">=</span> <span class="n">alignment</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
@@ -254,12 +255,8 @@
         <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;&gt;&gt;&gt; parsed&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">alignment</span> <span class="o">=</span> <span class="n">alignment</span>
 </div>
-<div class="viewcode-block" id="Lineage.load_uuids"><a class="viewcode-back" href="../index.html#lib.Lineage.load_uuids">[docs]</a>    <span class="k">def</span> <span class="nf">load_uuids</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uuidfile</span><span class="o">=</span><span class="s">&quot;uuids.json&quot;</span><span class="p">):</span>
+<div class="viewcode-block" id="Lineage.load_uuids"><a class="viewcode-back" href="../index.html#lib.Lineage.load_uuids">[docs]</a>    <span class="k">def</span> <span class="nf">load_uuids</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Load any UUIDs set by a prior run of Lineage</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            uuidfile (str): path to uuid file created by Lineage, defaults to</span>
-<span class="sd">                `uuids.json`</span>
 
 <span class="sd">        Sets the following attributes:</span>
 
@@ -277,19 +274,14 @@
 <span class="sd">                    MicrobeTracker, these UUIDs will no longer be valid.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Loading UUIDs...&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">uuidfile</span><span class="p">):</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">uuids</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="n">uuidfile</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">UUIDFILE</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">uuids</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">UUIDFILE</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">uuids</span> <span class="o">=</span> <span class="p">{}</span>
             <span class="c"># &quot;frame:mt_idx&quot;: uuid</span>
 </div>
-<div class="viewcode-block" id="Lineage.load_lineages"><a class="viewcode-back" href="../index.html#lib.Lineage.load_lineages">[docs]</a>    <span class="k">def</span> <span class="nf">load_lineages</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lineagefile</span><span class="o">=</span><span class="s">&quot;lineages.json&quot;</span><span class="p">):</span>
+<div class="viewcode-block" id="Lineage.load_lineages"><a class="viewcode-back" href="../index.html#lib.Lineage.load_lineages">[docs]</a>    <span class="k">def</span> <span class="nf">load_lineages</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Load any previously determined lineages by Lineage</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            lineagefile (str): path to lineages file created by Lineage,</span>
-<span class="sd">                defaults to `lineages.json`</span>
-
 
 <span class="sd">        Sets the following attributes:</span>
 
@@ -313,18 +305,15 @@
 <span class="sd">                        (`parent`, None)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Loading lineages...&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">lineagefile</span><span class="p">):</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">lineages</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="n">lineagefile</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">LINEAGEFILE</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">lineages</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">LINEAGEFILE</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">lineages</span> <span class="o">=</span> <span class="p">{}</span>
             <span class="c"># uuid: parent, child</span>
 </div>
-<div class="viewcode-block" id="Lineage.load_cells"><a class="viewcode-back" href="../index.html#lib.Lineage.load_cells">[docs]</a>    <span class="k">def</span> <span class="nf">load_cells</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cellmat</span><span class="o">=</span><span class="s">&quot;mt/mt.mat&quot;</span><span class="p">):</span>
+<div class="viewcode-block" id="Lineage.load_cells"><a class="viewcode-back" href="../index.html#lib.Lineage.load_cells">[docs]</a>    <span class="k">def</span> <span class="nf">load_cells</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Load meshes created by MicrobeTracker</span>
 
-<span class="sd">        Args:</span>
-<span class="sd">            cellmat (str): path to MicrobeTracker meshes file, defaults to</span>
-<span class="sd">                `mt/mt.mat`</span>
 <span class="sd">        Sets the following attributes:</span>
 
 <span class="sd">        Attributes:</span>
@@ -337,13 +326,13 @@
 <span class="sd">            IOError: if meshes file is not found</span>
 <span class="sd">            SysError: if there is a problem with the cell data</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">cellmat</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">CELLMAT</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span>
-                <span class="s">&quot;Meshes file couldn&#39;t be found ({0})&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">cellmat</span><span class="p">)</span>
+                <span class="s">&quot;Meshes file couldn&#39;t be found ({0})&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">CELLMAT</span><span class="p">)</span>
             <span class="p">)</span>
 
         <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Loading cell data...&quot;</span><span class="p">)</span>
-        <span class="n">cells</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">loadmat</span><span class="p">(</span><span class="n">cellmat</span><span class="p">)</span>
+        <span class="n">cells</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">loadmat</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">CELLMAT</span><span class="p">)</span>
         <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;&gt;&gt;&gt; loaded&quot;</span><span class="p">)</span>
         <span class="n">cellList</span> <span class="o">=</span> <span class="n">cells</span><span class="p">[</span><span class="s">&quot;cellList&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
 
@@ -404,7 +393,7 @@
         <span class="p">))</span>
 
         <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Saving UUIDs...&quot;</span><span class="p">)</span>
-        <span class="nb">open</span><span class="p">(</span><span class="s">&quot;uuids.json&quot;</span><span class="p">,</span> <span class="s">&quot;w&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">uuids</span><span class="p">))</span>
+        <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">UUIDFILE</span><span class="p">,</span> <span class="s">&quot;w&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">uuids</span><span class="p">))</span>
         <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;&gt;&gt;&gt; saved&quot;</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">frames</span> <span class="o">=</span> <span class="n">Frames</span><span class="p">(</span><span class="n">frames</span><span class="p">)</span>
@@ -877,7 +866,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">lineages</span> <span class="o">=</span> <span class="n">temp_lineage</span>
         <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Finished guessing&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">write_lineage</span><span class="p">(</span><span class="s">&quot;lineages.guess.json&quot;</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">write_lineage</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">write_lineage</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">LINEAGEFILE</span><span class="p">)</span>
         <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Reloading cells...&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">load_cells</span><span class="p">()</span>
 </div>
@@ -1490,7 +1479,6 @@
                 <span class="k">break</span>
 
             <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">cols</span><span class="p">,</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">i_mod</span><span class="p">)</span>
-            <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s">&quot;Frame {0}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">cell</span><span class="o">.</span><span class="n">frame</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
             <span class="n">second</span> <span class="o">=</span> <span class="bp">False</span>
             <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">cell_id</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">tuple</span><span class="p">:</span>
                 <span class="n">cell_id</span> <span class="o">=</span> <span class="n">lin</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
@@ -1498,6 +1486,7 @@
                 <span class="n">cell2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">frames</span><span class="o">.</span><span class="n">cell</span><span class="p">(</span><span class="n">lin</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">1</span><span class="p">])</span>
 
             <span class="n">cell</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">frames</span><span class="o">.</span><span class="n">cell</span><span class="p">(</span><span class="n">cell_id</span><span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s">&quot;Frame {0}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">cell</span><span class="o">.</span><span class="n">frame</span><span class="p">))</span>
             <span class="n">frame_idx</span> <span class="o">=</span> <span class="n">cell</span><span class="o">.</span><span class="n">frame</span> <span class="o">-</span> <span class="mi">1</span>
             <span class="n">f</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">misc</span><span class="o">.</span><span class="n">imread</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">[</span><span class="n">frame_idx</span><span class="p">])</span>
 
@@ -1571,7 +1560,9 @@
     <span class="k">def</span> <span class="nf">end</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="c"># display lineage after assignment for confirmation</span>
         <span class="c"># allow restarting if not satifactory</span>
-        <span class="nb">input</span><span class="p">(</span><span class="s">&quot;Write ending code!&quot;</span><span class="p">)</span>
+
+        <span class="c"># input(&quot;Write ending code!&quot;)</span>
+        <span class="k">pass</span>
 
     <span class="k">def</span> <span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="c"># preview lineage if exists</span>
@@ -1800,7 +1791,11 @@
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">e</span><span class="o">.</span><span class="n">artist</span><span class="o">.</span><span class="n">set_color</span><span class="p">(</span><span class="s">&quot;r&quot;</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">daughters</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">artist</span><span class="o">.</span><span class="n">gid</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">daughters</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">artist</span><span class="o">.</span><span class="n">gid</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                <span class="c"># daughter not in list, do nothing</span>
+                <span class="k">pass</span>
             <span class="n">e</span><span class="o">.</span><span class="n">artist</span><span class="o">.</span><span class="n">selected</span> <span class="o">=</span> <span class="bp">False</span>
             <span class="n">e</span><span class="o">.</span><span class="n">artist</span><span class="o">.</span><span class="n">set_color</span><span class="p">(</span><span class="s">&quot;y&quot;</span><span class="p">)</span>
         <span class="n">plt</span><span class="o">.</span><span class="n">draw</span><span class="p">()</span>
