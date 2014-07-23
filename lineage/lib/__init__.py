@@ -161,21 +161,22 @@ class Lineage(object):
     """
     def __init__(self, cellmat="mt/mt.mat", uuidfile="uuids.json",
                  lineagefile="lineages.json", alignmat="mt/alignment.mat"):
-        self.load_alignment(alignmat)
-        self.load_uuids(uuidfile)
-        self.load_lineages(lineagefile)
-        self.load_cells(cellmat)
+        self.CELLMAT = cellmat
+        self.ALIGNMAT = alignmat
+        self.UUIDFILE = uuidfile
+        self.LINEAGEFILE = lineagefile
 
-    def load_alignment(self, alignmat="mt/alignment.mat"):
+        self.load_alignment()
+        self.load_uuids()
+        self.load_lineages()
+        self.load_cells()
+
+    def load_alignment(self):
         """Loads alignment files as created by MicrobeTracker
 
         Note:
             This will be improved in the future to refine these
             alignments.
-
-        Args:
-            alignmat (str): path to MicrobeTracker alignment file,
-                defaults to `mt/alignment.mat`
 
         Sets the following attributes:
 
@@ -193,10 +194,10 @@ class Lineage(object):
             IOError: if alignment file is not found
         """
         logging.info("Loading alignment data...")
-        if not os.path.exists(alignmat):
-            raise IOError("Alignment file not found ({0})".format(alignmat))
+        if not os.path.exists(self.ALIGNMAT):
+            raise IOError("Alignment file not found ({0})".format(self.ALIGNMAT))
 
-        alignment = scipy.io.loadmat(alignmat)
+        alignment = scipy.io.loadmat(self.ALIGNMAT)
         logging.info(">>> loaded")
         alignment = alignment["shiftframes"]
         alignment_x = alignment[0][0][0][0]
@@ -205,12 +206,8 @@ class Lineage(object):
         logging.info(">>> parsed")
         self.alignment = alignment
 
-    def load_uuids(self, uuidfile="uuids.json"):
+    def load_uuids(self):
         """Load any UUIDs set by a prior run of Lineage
-
-        Args:
-            uuidfile (str): path to uuid file created by Lineage, defaults to
-                `uuids.json`
 
         Sets the following attributes:
 
@@ -228,19 +225,14 @@ class Lineage(object):
                     MicrobeTracker, these UUIDs will no longer be valid.
         """
         logging.info("Loading UUIDs...")
-        if os.path.exists(uuidfile):
-            self.uuids = json.loads(open(uuidfile).read())
+        if os.path.exists(self.UUIDFILE):
+            self.uuids = json.loads(open(self.UUIDFILE).read())
         else:
             self.uuids = {}
             # "frame:mt_idx": uuid
 
-    def load_lineages(self, lineagefile="lineages.json"):
+    def load_lineages(self):
         """Load any previously determined lineages by Lineage
-
-        Args:
-            lineagefile (str): path to lineages file created by Lineage,
-                defaults to `lineages.json`
-
 
         Sets the following attributes:
 
@@ -264,18 +256,15 @@ class Lineage(object):
                         (`parent`, None)
         """
         logging.info("Loading lineages...")
-        if os.path.exists(lineagefile):
-            self.lineages = json.loads(open(lineagefile).read())
+        if os.path.exists(self.LINEAGEFILE):
+            self.lineages = json.loads(open(self.LINEAGEFILE).read())
         else:
             self.lineages = {}
             # uuid: parent, child
 
-    def load_cells(self, cellmat="mt/mt.mat"):
+    def load_cells(self):
         """Load meshes created by MicrobeTracker
 
-        Args:
-            cellmat (str): path to MicrobeTracker meshes file, defaults to
-                `mt/mt.mat`
         Sets the following attributes:
 
         Attributes:
@@ -288,13 +277,13 @@ class Lineage(object):
             IOError: if meshes file is not found
             SysError: if there is a problem with the cell data
         """
-        if not os.path.exists(cellmat):
+        if not os.path.exists(self.CELLMAT):
             raise IOError(
-                "Meshes file couldn't be found ({0})".format(cellmat)
+                "Meshes file couldn't be found ({0})".format(self.CELLMAT)
             )
 
         logging.info("Loading cell data...")
-        cells = scipy.io.loadmat(cellmat)
+        cells = scipy.io.loadmat(self.CELLMAT)
         logging.info(">>> loaded")
         cellList = cells["cellList"][0]
 
@@ -355,7 +344,7 @@ class Lineage(object):
         ))
 
         logging.info("Saving UUIDs...")
-        open("uuids.json", "w").write(json.dumps(self.uuids))
+        open(self.UUIDFILE, "w").write(json.dumps(self.uuids))
         logging.info(">>> saved")
 
         self.frames = Frames(frames)
@@ -828,7 +817,7 @@ class Lineage(object):
         self.lineages = temp_lineage
         logging.info("Finished guessing")
         self.write_lineage("lineages.guess.json")
-        self.write_lineage()
+        self.write_lineage(self.LINEAGEFILE)
         logging.info("Reloading cells...")
         self.load_cells()
 
