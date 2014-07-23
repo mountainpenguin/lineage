@@ -1434,7 +1434,6 @@ class LineageMaker(object):
                 break
 
             plt.subplot(rows, cols, i + 1 + i_mod)
-            plt.title("Frame {0}".format(cell.frame + 1))
             second = False
             if type(cell_id) is tuple:
                 cell_id = lin[i][0]
@@ -1442,6 +1441,7 @@ class LineageMaker(object):
                 cell2 = self.frames.cell(lin[i][1])
 
             cell = self.frames.cell(cell_id)
+            plt.title("Frame {0}".format(cell.frame))
             frame_idx = cell.frame - 1
             f = scipy.misc.imread(self.files[frame_idx])
 
@@ -1515,7 +1515,9 @@ class LineageMaker(object):
     def end(self):
         # display lineage after assignment for confirmation
         # allow restarting if not satifactory
-        input("Write ending code!")
+
+        # input("Write ending code!")
+        pass
 
     def start(self):
         # preview lineage if exists
@@ -1744,7 +1746,11 @@ class LineageMaker(object):
             else:
                 e.artist.set_color("r")
         else:
-            self.daughters.remove(e.artist.gid)
+            try:
+                self.daughters.remove(e.artist.gid)
+            except ValueError:
+                # daughter not in list, do nothing
+                pass
             e.artist.selected = False
             e.artist.set_color("y")
         plt.draw()
