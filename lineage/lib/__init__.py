@@ -1355,6 +1355,13 @@ class LineageMaker(object):
             lin.append(child)
             cell = self.frames.cell(child)
 
+#        pause_cells = [
+#        ]
+#        if self.progenitor.id not in pause_cells:
+#            return lin
+#        else:
+#            return
+
         num_frames = len(lin)
         if lin.end == "death":
             num_frames += 1
