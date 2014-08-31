@@ -2,7 +2,7 @@
 
 from __future__ import print_function
 import glob
-import lib
+import track
 import matplotlib.pyplot as plt
 import matplotlib.patches
 import scipy.misc
@@ -26,7 +26,7 @@ TIME_INTERVAL = 30
 
 class MovieMaker:
     def __init__(self):
-        self.L = lib.Lineage()
+        self.L = track.Lineage()
 
     def start(self):
         self.files = sorted(glob.glob("*.tif"))

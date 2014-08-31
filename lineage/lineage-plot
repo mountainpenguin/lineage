@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 
-import lib
+import track
 import numpy as np
 import matplotlib.pyplot as plt
 
 
 def main():
-    L = lib.Lineage()
+    L = track.Lineage()
 
     def iterate_cell(cell, gen=0):
         frame_idx = cell.frame - 1
