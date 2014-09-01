@@ -5,7 +5,7 @@
 Extensively uses :class:`track.Lineage`
 """
 
-import track
+from lineage_lib import track
 import logging
 
 

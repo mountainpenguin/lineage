@@ -2,7 +2,7 @@
 
 from __future__ import print_function
 import glob
-import track
+from lineage_lib import track
 import matplotlib.pyplot as plt
 import matplotlib.patches
 import scipy.misc

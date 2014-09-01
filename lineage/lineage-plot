@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import track
+from lineage_lib import track
 import numpy as np
 import matplotlib.pyplot as plt
 
