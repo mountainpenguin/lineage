@@ -866,7 +866,7 @@ class Lineage(object):
             None
         """
         final_lineage = {}
-        files = sorted(glob.glob("*.tif"))
+        files = sorted(glob.glob("B/*.tif"))
         progenitors = self.frames[0].cells
         p_idx = 0
         for progenitor in progenitors:
@@ -1354,6 +1354,13 @@ class LineageMaker(object):
                 break
             lin.append(child)
             cell = self.frames.cell(child)
+
+#        pause_cells = [
+#        ]
+#        if self.progenitor.id not in pause_cells:
+#            return lin
+#        else:
+#            return
 
         num_frames = len(lin)
         if lin.end == "death":
