@@ -2,15 +2,15 @@
 
 """Executable to run lineage assignment routine
 
-Extensively uses :class:`lib.Lineage`
+Extensively uses :class:`track.Lineage`
 """
 
-import lib
+from lineage_lib import track
 import logging
 
 
 def main():
-    L = lib.Lineage()
+    L = track.Lineage()
     if not L.lineages:
         L.guess_lineage()
     L.interactive_track()

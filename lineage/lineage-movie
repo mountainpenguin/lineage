@@ -1,0 +1,290 @@
+#!/usr/bin/env python
+
+from __future__ import print_function
+import glob
+from lineage_lib import track
+import matplotlib.pyplot as plt
+import matplotlib.patches
+import scipy.misc
+import numpy as np
+import PIL.Image
+import PIL.ImageDraw
+import PIL.ImageFont
+
+
+# PIXEL = 0.062893
+PIXEL = 0.077
+BOX = (300, 400)
+# XY04
+# BOX = (350, 460)
+#  XY06
+#BOX = (360, 300)
+#  XY09
+#BOX = (430, 110)
+FINAL_FRAME = 26
+TIME_INTERVAL = 30
+
+class MovieMaker:
+    def __init__(self):
+        self.L = track.Lineage()
+
+    def start(self):
+        self.files = sorted(glob.glob("*.tif"))
+        img = scipy.misc.imread(
+            self.files[FINAL_FRAME - 1]
+        )
+
+        fig = plt.figure()
+        ax = plt.subplot(111)
+        ax.imshow(img, cmap=plt.cm.gray)
+
+        cells = self.L.frames[FINAL_FRAME - 1].cells
+        alignment = self.L.alignment[FINAL_FRAME - 1]
+        for cell in cells:
+            poly_xy = np.array(
+                list(cell.mesh[:, :2] + alignment) +
+                list(cell.mesh[:, 2:][:: -1] + alignment)
+            )
+            polygon = matplotlib.patches.Polygon(
+                poly_xy,
+                color="y",
+                picker=True,
+                alpha=0.8
+            )
+            polygon.set_picker(True)
+            polygon.gid = cell.id
+            polygon.selected = False
+            ax.add_patch(polygon)
+
+        ax.set_title("Click on the cell that you want to track")
+
+        fig.canvas.mpl_connect(
+            "pick_event", self.cell_select
+        )
+        plt.show()
+
+        cells = self.get_cells(self.cell)
+        self.track_cell(self.cell, cells)
+
+    def cell_select(self, evt):
+        print("Selected cell {0}".format(evt.artist.gid))
+        #  get initial progenitor
+
+        evt.artist.set_color("r")
+        plt.draw()
+
+        cell = self.L.frames.cell(evt.artist.gid)
+        while cell.parent:
+            cell = self.L.frames.cell(cell.parent)
+
+        print("Initial progenitor {0}".format(cell.id))
+        self.cell = cell
+
+    def get_cells(self, cell):
+        cells = []
+        buff = []
+        while type(cell.children) is str:
+            buff.append(cell)
+            cell = self.L.frames.cell(cell.children)
+
+        cells.append(buff)
+
+        if type(cell.children) is list:
+            c1 = self.L.frames.cell(cell.children[0])
+            c2 = self.L.frames.cell(cell.children[1])
+            cells.extend(self.get_cells(c1))
+            cells.extend(self.get_cells(c2))
+
+        return cells
+
+    def _c(self, x):
+        if x[0] == "b":
+            return (0, 0, 255)
+        elif x[0] == "r":
+            return (255, 0, 0)
+        elif x[0] == "g":
+            return (0, 255, 0)
+        elif x[0] == "c":
+            return (0, 255, 255)
+        elif x[0] == "m":
+            return (255, 0, 255)
+        elif x[0] == "y":
+            return (255, 255, 0)
+        elif x[0] == "k":
+            return (0, 0, 0)
+
+    def track_cell(self, init, lineages):
+        for frame_idx in range(FINAL_FRAME):
+            print("Handling frame {0}...".format(frame_idx + 1), end=" ")
+
+            frame_img = scipy.misc.imread(self.files[frame_idx])
+
+            colours = ["b.-", "r.-", "g.-", "c.-", "m.-", "y.-", "k.-",
+                       "b^-", "r^-", "g^-", "c^-", "m^-", "y^-", "k^-",
+                       "b--", "r--", "g--", "c--", "m--", "y--", "k--"]
+
+            plt.figure(figsize=(5.12, 5.12), dpi=100)
+            plt.xlim([0, (FINAL_FRAME * TIME_INTERVAL) / 60])
+            plt.ylim([0, 20])
+            plt.xlabel("Time (h)")
+            plt.ylabel("Cell length (um)")
+
+            # convert numpy image into PIL image
+            frame_img = frame_img - frame_img.min()
+            frame_img = (frame_img / (frame_img.max())) * 255
+            frame_img = np.uint8(frame_img)
+
+            # crop image to known bounds
+            offset = self.L.alignment[frame_idx]
+
+            left_x = BOX[0] - offset[1]
+            top_y = BOX[1] - offset[0]
+            right_x = BOX[0] + 512 - offset[1]
+            bottom_y = BOX[1] + 512 - offset[0]
+
+            if left_x < 0:
+                print(left_x, top_y, right_x, bottom_y)
+                input("...")
+
+            if bottom_y >= frame_img.shape[0]:
+                # add n rows of white to bottom of image
+                frame_img = np.vstack([
+                    frame_img,
+                    np.ones((bottom_y - frame_img.shape[0], frame_img.shape[1]), dtype=np.uint8) * 255
+                ])
+
+            frame_img = frame_img[
+                top_y:bottom_y,
+                left_x:right_x
+            ]
+
+            frame_image = PIL.Image.fromstring(
+                "L",
+                (frame_img.shape[1], frame_img.shape[0]),
+                frame_img.tostring()
+            )
+            frame_image = frame_image.convert("RGB")
+
+            frame_draw = PIL.ImageDraw.Draw(frame_image)
+
+            # draw scale bar
+            micron = int(2 / PIXEL)
+            frame_draw.rectangle(
+                [
+                    512 - 30 - micron,
+                    512 - 30 - 2,
+                    512 - 30,
+                    512 - 30
+                ],
+                fill=(255, 255, 255),
+            )
+
+            font = PIL.ImageFont.truetype(
+                ("/usr/share/texmf-dist/fonts/truetype/public"
+                    "/dejavu/DejaVuSans-Bold.ttf"),
+                12
+            )
+
+            frame_draw.text(
+                (512 - 30 - micron, 512 - 20),
+                "2 um",
+                (255, 255, 255),
+                font=font
+            )
+
+            if frame_idx >= 31 and frame_idx <= 59:
+                font = PIL.ImageFont.truetype(
+                    ("/usr/share/texmf-dist/fonts/truetype/public"
+                        "/dejavu/DejaVuSans-Bold.ttf"),
+                    24
+                )
+
+                frame_draw.text(
+                    (0, 0),
+                    "+ RIF",
+                    (255, 0, 0),
+                    font=font
+                )
+
+            for lin in lineages:
+                c = colours.pop(0)
+
+                colours.append(c)
+                l = list(filter(
+                    lambda x: x.frame <= frame_idx + 1,
+                    lin
+                ))
+                if l:
+                    # get coordinates of cell centre
+                    _ = l[-1]
+                    if _.frame - 1 == frame_idx or _.frame == frame_idx:
+                        arrow_colour = self._c(c)
+                        cell_centre = (
+                            _.centre[0] - left_x - offset[1],
+                            _.centre[1] - top_y - offset[0]
+                        )
+
+                        arrow_end = (cell_centre[0] + 10, cell_centre[1] - 10)
+                        arrow_start = (arrow_end[0] + 35, arrow_end[1] - 35)
+                        arrow_head = (arrow_end[0] - 1, arrow_end[1] + 1)
+                        arrow_left = (arrow_head[0] + 10, arrow_head[1])
+                        arrow_right = (arrow_head[0], arrow_head[1] - 10)
+
+                        frame_draw.line([arrow_left, arrow_head], width=2, fill=arrow_colour)
+                        frame_draw.line([arrow_right, arrow_head], width=2, fill=arrow_colour)
+                        frame_draw.line([arrow_end, arrow_start], width=2, fill=arrow_colour)
+
+                    ll = np.array([
+                        (((x.frame - 1) * TIME_INTERVAL) / 60, x.length[0][0] * PIXEL) for x in l
+                    ])
+                    plt.plot(ll[:, 0], ll[:, 1], c)
+            bottom_y = 650 - offset[0]
+
+            # draw RIF rectangle
+            rect = matplotlib.patches.Rectangle(
+                ((32 * TIME_INTERVAL) / 60, 0),
+                (28 * TIME_INTERVAL) / 60,
+                plt.ylim()[1],
+                facecolor="y",
+                edgecolor=None,
+                alpha=.3
+            )
+            plt.gca().add_patch(rect)
+
+            canvas = plt.get_current_fig_manager().canvas
+            canvas.draw()
+            plot_wh = canvas.get_width_height()
+            plot_image = PIL.Image.fromstring(
+                "RGB", plot_wh, canvas.tostring_rgb()
+            )
+
+            # aspect ratio should be 16:9
+            new_image = PIL.Image.new(
+                "RGB",
+                (frame_image.size[0] + plot_image.size[0], frame_image.size[1]),
+                color=(255, 255, 255)
+            )
+            new_image.paste(
+                frame_image, (0, 0)
+            )
+
+            new_image.paste(
+                plot_image, (frame_image.size[0], 0)
+            )
+
+            new_image.save(
+                "movie-frames/{0:05d}.png".format(
+                    frame_idx + 1
+                )
+            )
+            plt.close()
+            print("saved")
+
+
+def main():
+    M = MovieMaker()
+    M.start()
+
+
+if __name__ == "__main__":
+    main()
