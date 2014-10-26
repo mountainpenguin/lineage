@@ -12,7 +12,7 @@ PX = 0.12254  # 63X objective WF2
 
 
 def main():
-    L = lib.Lineage()
+    L = track.Lineage()
     T = json.loads(open("timing.json").read())["timing"]
 
     doubling_time = []  # time between divisions (excluding death)
