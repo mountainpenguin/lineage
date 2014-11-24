@@ -599,10 +599,13 @@ determine cell lineages.</p>
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
 <li><strong>progenitor</strong> (<a class="reference internal" href="#lineage_lib.track.Cell" title="lineage_lib.track.Cell"><tt class="xref py py-class docutils literal"><span class="pre">Cell</span></tt></a>) &#8211; Initial cell to track</li>
-<li><strong>files</strong> (<em>list</em>) &#8211; list of image files sorted by frame number, each
+<li><strong>files</strong> (<em>list</em>) &#8211; List of image files sorted by frame number, each
 frame must be in a separate file (for now)</li>
 <li><strong>alignment</strong> (<em>numpy.ndarray</em>) &#8211; As per <a class="reference internal" href="#lineage_lib.track.Lineage.load_alignment" title="lineage_lib.track.Lineage.load_alignment"><tt class="xref py py-func docutils literal"><span class="pre">Lineage.load_alignment()</span></tt></a>
 above</li>
+<li><strong>frames</strong> (<a class="reference internal" href="#lineage_lib.track.Frames" title="lineage_lib.track.Frames"><tt class="xref py py-class docutils literal"><span class="pre">Frames</span></tt></a>) &#8211; Data for each frame of the image sequence</li>
+<li><strong>fluor</strong> (<em>list or None</em>) &#8211; List of fluorescent image files sorted by frame
+number (optional)</li>
 </ul>
 </td>
 </tr>
@@ -624,6 +627,30 @@ above</li>
 </tr>
 </tbody>
 </table>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Saves fluorescence values using the <a class="reference internal" href="#lineage_lib.track.LineageMaker.save_fluor" title="lineage_lib.track.LineageMaker.save_fluor"><tt class="xref py py-func docutils literal"><span class="pre">save_fluor()</span></tt></a> method.</p>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="lineage_lib.track.LineageMaker.get_fluor">
+<tt class="descname">get_fluor</tt><big>(</big><em>lineage</em><big>)</big><a class="reference internal" href="_modules/lineage_lib/track.html#LineageMaker.get_fluor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lineage_lib.track.LineageMaker.get_fluor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates the mean fluorescence within a lineage of cells</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>lineage</strong> (<tt class="xref py py-class docutils literal"><span class="pre">TempLineage</span></tt>) &#8211; lineage of cells</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">NoneType</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Saves the fluorescence data using the <a class="reference internal" href="#lineage_lib.track.LineageMaker.save_fluor" title="lineage_lib.track.LineageMaker.save_fluor"><tt class="xref py py-func docutils literal"><span class="pre">save_fluor()</span></tt></a> method.</p>
+</div>
 </dd></dl>
 
 <dl class="method">
@@ -677,7 +704,8 @@ above</li>
 <dl class="method">
 <dt id="lineage_lib.track.LineageMaker.maximise_frame">
 <tt class="descname">maximise_frame</tt><big>(</big><em>ax</em>, <em>frame</em>, <em>fn_idx</em>, <em>frame_offset</em><big>)</big><a class="reference internal" href="_modules/lineage_lib/track.html#LineageMaker.maximise_frame"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lineage_lib.track.LineageMaker.maximise_frame" title="Permalink to this definition">¶</a></dt>
-<dd><table class="docutils field-list" frame="void" rules="none">
+<dd><p>Maximises a frame</p>
+<table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
@@ -692,6 +720,13 @@ above</li>
 </tr>
 </tbody>
 </table>
+</dd></dl>
+
+<dl class="method">
+<dt id="lineage_lib.track.LineageMaker.save_fluor">
+<tt class="descname">save_fluor</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/lineage_lib/track.html#LineageMaker.save_fluor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lineage_lib.track.LineageMaker.save_fluor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Saves fluorescence values from the <tt class="xref py py-attr docutils literal"><span class="pre">fluor_data</span></tt> attribute
+as JSON data in the file <cite>fluorescence.json</cite>.</p>
 </dd></dl>
 
 </dd></dl>
