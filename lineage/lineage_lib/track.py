@@ -1011,10 +1011,13 @@ class LineageMaker(object):
 
     Args:
         progenitor (:class:`Cell`): Initial cell to track
-        files (list): list of image files sorted by frame number, each
+        files (list): List of image files sorted by frame number, each
             frame must be in a separate file (for now)
         alignment (numpy.ndarray): As per :func:`Lineage.load_alignment`
             above
+        frames (:class:`Frames`): Data for each frame of the image sequence
+        fluor (list or None): List of fluorescent image files sorted by frame
+            number (optional)
 
     """
     def __init__(self, progenitor, phase, alignment, frames, fluor=None):
@@ -1045,6 +1048,17 @@ class LineageMaker(object):
             self.fluor_data = {}
 
     def get_fluor(self, lineage):
+        """ Calculates the mean fluorescence within a lineage of cells
+
+        Args:
+            lineage (:class:`TempLineage`): lineage of cells
+
+        Return:
+            NoneType
+
+        Note:
+            Saves the fluorescence data using the :func:`save_fluor` method.
+        """
         for l in lineage:
             if type(l) is str:
                 cell = self.frames.cell(l)
@@ -1100,6 +1114,9 @@ class LineageMaker(object):
         Args:
             bounds (tuple): 4-element tuple of XY shift (y0, y1, x0, x1)
             mesh (tuple): 4-element tuple of mesh parameters (xl, yl, xr, yr)
+
+        Note:
+            Saves fluorescence values using the :func:`save_fluor` method.
         """
         fluor_img = scipy.misc.imread(
             self.files_fluor[self.frame_idx]
@@ -1117,6 +1134,8 @@ class LineageMaker(object):
         self.save_fluor()
 
     def save_fluor(self):
+        """ Saves fluorescence values from the :attr:`fluor_data` attribute
+        as JSON data in the file `fluorescence.json`."""
         J = json.dumps(self.fluor_data)
         open("fluorescence.json", "w").write(J)
 
@@ -1171,7 +1190,7 @@ class LineageMaker(object):
         return (y_lower, x_lower), (xshift, yshift), offset
 
     def maximise_frame(self, ax, frame, fn_idx, frame_offset):
-        """
+        """ Maximises a frame
 
         Args:
             ax (axis): Axes object for frame in question
@@ -1327,6 +1346,11 @@ class LineageMaker(object):
         ys_r = mother.mesh[:, 3] - y_lower
         self.n1.plot(xs_l, ys_l, "r")
         self.n1.plot(xs_r, ys_r, "r")
+
+        self.fluor(
+            (y0, y1, x0, x1),
+            (xs_l, ys_l, xs_r, ys_r)
+        )
 
         if self.n2_frame.frame:
             n2_img = scipy.misc.imread(self.files_phase[self.frame_idx + 1])
