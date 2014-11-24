@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Lineage - Extension from MicrobeTracker for cell growth time-lapses &mdash; Lineage 0.1 documentation</title>
+    <title>lineage_lib package &mdash; Lineage 0.1 documentation</title>
     
     <link rel="stylesheet" href="_static/default.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -23,7 +23,7 @@
     <script type="text/javascript" src="_static/jquery.js"></script>
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
-    <link rel="top" title="Lineage 0.1 documentation" href="#" /> 
+    <link rel="top" title="Lineage 0.1 documentation" href="index.html" /> 
   </head>
   <body>
     <div class="related">
@@ -35,7 +35,7 @@
         <li class="right" >
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="#">Lineage 0.1 documentation</a> &raquo;</li> 
+        <li><a href="index.html">Lineage 0.1 documentation</a> &raquo;</li> 
       </ul>
     </div>  
 
@@ -44,21 +44,20 @@
         <div class="bodywrapper">
           <div class="body">
             
-  <div class="section" id="lineage-extension-from-microbetracker-for-cell-growth-time-lapses">
-<h1>Lineage - Extension from MicrobeTracker for cell growth time-lapses<a class="headerlink" href="#lineage-extension-from-microbetracker-for-cell-growth-time-lapses" title="Permalink to this headline">¶</a></h1>
-<p>Optimised for mycobacteria (<em>M. smegmatis</em> especially).</p>
-<p>Code: <a class="reference external" href="https://github.com/mountainpenguin/lineage">https://github.com/mountainpenguin/lineage</a></p>
-<p>Contents:</p>
-<div class="toctree-wrapper compound">
-<ul class="simple">
-</ul>
+  <div class="section" id="lineage-lib-package">
+<h1>lineage_lib package<a class="headerlink" href="#lineage-lib-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
 </div>
-<span class="target" id="module-lineage_lib.track"></span><p>This module is designed to provide tools that allow assignment of cell
+<div class="section" id="module-lineage_lib.track">
+<span id="lineage-lib-track-module"></span><h2>lineage_lib.track module<a class="headerlink" href="#module-lineage_lib.track" title="Permalink to this headline">¶</a></h2>
+<p>This module is designed to provide tools that allow assignment of cell
 lineages from MicrobeTracker results.</p>
 <dl class="class">
 <dt id="lineage_lib.track.Cell">
-<em class="property">class </em><tt class="descclassname">lineage_lib.track.</tt><tt class="descname">Cell</tt><big>(</big><em>cell</em>, <em>dead=False</em><big>)</big><a class="reference internal" href="_modules/lineage_lib/track.html#Cell"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lineage_lib.track.Cell" title="Permalink to this definition">¶</a></dt>
-<dd><p>Simple class that holds arbritrary information about a cell.</p>
+<em class="property">class </em><tt class="descclassname">lineage_lib.track.</tt><tt class="descname">Cell</tt><big>(</big><em>cell</em><big>)</big><a class="reference internal" href="_modules/lineage_lib/track.html#Cell"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lineage_lib.track.Cell" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<p>Simple class that holds arbritrary information about a cell.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
@@ -134,9 +133,21 @@ out of the field of view, or that the frame is the final frame).</p>
 </dd></dl>
 
 <dl class="class">
+<dt id="lineage_lib.track.EmptyFrame">
+<em class="property">class </em><tt class="descclassname">lineage_lib.track.</tt><tt class="descname">EmptyFrame</tt><a class="reference internal" href="_modules/lineage_lib/track.html#EmptyFrame"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lineage_lib.track.EmptyFrame" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<dl class="method">
+<dt id="lineage_lib.track.EmptyFrame.cell">
+<tt class="descname">cell</tt><big>(</big><em>id</em><big>)</big><a class="reference internal" href="_modules/lineage_lib/track.html#EmptyFrame.cell"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lineage_lib.track.EmptyFrame.cell" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
 <dt id="lineage_lib.track.Frame">
 <em class="property">class </em><tt class="descclassname">lineage_lib.track.</tt><tt class="descname">Frame</tt><big>(</big><em>frame</em>, <em>cells</em><big>)</big><a class="reference internal" href="_modules/lineage_lib/track.html#Frame"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lineage_lib.track.Frame" title="Permalink to this definition">¶</a></dt>
-<dd><p>Container class for all cells in a single image frame.</p>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<p>Container class for all cells in a single image frame.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
@@ -187,7 +198,8 @@ within the cells in the frame.</p>
 <dl class="class">
 <dt id="lineage_lib.track.Frames">
 <em class="property">class </em><tt class="descclassname">lineage_lib.track.</tt><tt class="descname">Frames</tt><big>(</big><em>frames</em><big>)</big><a class="reference internal" href="_modules/lineage_lib/track.html#Frames"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lineage_lib.track.Frames" title="Permalink to this definition">¶</a></dt>
-<dd><p>Very basic container class for all frames in an image sequence</p>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<p>Very basic container class for all frames in an image sequence</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
@@ -225,7 +237,8 @@ all frames within the stack.</p>
 <dl class="class">
 <dt id="lineage_lib.track.Lineage">
 <em class="property">class </em><tt class="descclassname">lineage_lib.track.</tt><tt class="descname">Lineage</tt><big>(</big><em>cellmat='mt/mt.mat'</em>, <em>uuidfile='uuids.json'</em>, <em>lineagefile='lineages.json'</em>, <em>alignmat='mt/alignment.mat'</em><big>)</big><a class="reference internal" href="_modules/lineage_lib/track.html#Lineage"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lineage_lib.track.Lineage" title="Permalink to this definition">¶</a></dt>
-<dd><p>Contains methods for analysing and assigning lineages</p>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<p>Contains methods for analysing and assigning lineages</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
@@ -369,6 +382,11 @@ normalised to ensure that the greatest possible angle of rotation is
 </tbody>
 </table>
 </dd></dl>
+
+<dl class="method">
+<dt id="lineage_lib.track.Lineage.get_pole_distances">
+<tt class="descname">get_pole_distances</tt><big>(</big><em>p1_1</em>, <em>p1_2</em>, <em>p2_1</em>, <em>p2_2</em><big>)</big><a class="reference internal" href="_modules/lineage_lib/track.html#Lineage.get_pole_distances"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lineage_lib.track.Lineage.get_pole_distances" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
 
 <dl class="method">
 <dt id="lineage_lib.track.Lineage.guess_lineage">
@@ -580,6 +598,11 @@ MicrobeTracker, these UUIDs will no longer be valid.</p>
 </dd></dl>
 
 <dl class="method">
+<dt id="lineage_lib.track.Lineage.search_daughters">
+<tt class="descname">search_daughters</tt><big>(</big><em>c1</em>, <em>n1_frame</em><big>)</big><a class="reference internal" href="_modules/lineage_lib/track.html#Lineage.search_daughters"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lineage_lib.track.Lineage.search_daughters" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
 <dt id="lineage_lib.track.Lineage.write_lineage">
 <tt class="descname">write_lineage</tt><big>(</big><em>fn='lineages.json'</em><big>)</big><a class="reference internal" href="_modules/lineage_lib/track.html#Lineage.write_lineage"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lineage_lib.track.Lineage.write_lineage" title="Permalink to this definition">¶</a></dt>
 <dd><p>Write lineages to JSON file</p>
@@ -589,8 +612,9 @@ MicrobeTracker, these UUIDs will no longer be valid.</p>
 
 <dl class="class">
 <dt id="lineage_lib.track.LineageMaker">
-<em class="property">class </em><tt class="descclassname">lineage_lib.track.</tt><tt class="descname">LineageMaker</tt><big>(</big><em>progenitor</em>, <em>phase</em>, <em>alignment</em>, <em>frames</em>, <em>fluor=None</em><big>)</big><a class="reference internal" href="_modules/lineage_lib/track.html#LineageMaker"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lineage_lib.track.LineageMaker" title="Permalink to this definition">¶</a></dt>
-<dd><p>Assignment of lineages via manual graphical selection.</p>
+<em class="property">class </em><tt class="descclassname">lineage_lib.track.</tt><tt class="descname">LineageMaker</tt><big>(</big><em>progenitor</em>, <em>files</em>, <em>alignment</em>, <em>frames</em><big>)</big><a class="reference internal" href="_modules/lineage_lib/track.html#LineageMaker"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lineage_lib.track.LineageMaker" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<p>Assignment of lineages via manual graphical selection.</p>
 <p>Extensively uses <tt class="xref py py-mod docutils literal"><span class="pre">matplotlib</span></tt> and user input to
 determine cell lineages.</p>
 <table class="docutils field-list" frame="void" rules="none">
@@ -609,22 +633,9 @@ above</li>
 </tbody>
 </table>
 <dl class="method">
-<dt id="lineage_lib.track.LineageMaker.fluor">
-<tt class="descname">fluor</tt><big>(</big><em>bounds</em>, <em>mesh</em><big>)</big><a class="reference internal" href="_modules/lineage_lib/track.html#LineageMaker.fluor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lineage_lib.track.LineageMaker.fluor" title="Permalink to this definition">¶</a></dt>
-<dd><p>Fluorescent value for a given cell boundary</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>bounds</strong> (<em>tuple</em>) &#8211; 4-element tuple of XY shift (y0, y1, x0, x1)</li>
-<li><strong>mesh</strong> (<em>tuple</em>) &#8211; 4-element tuple of mesh parameters (xl, yl, xr, yr)</li>
-</ul>
-</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
+<dt id="lineage_lib.track.LineageMaker.end">
+<tt class="descname">end</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/lineage_lib/track.html#LineageMaker.end"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lineage_lib.track.LineageMaker.end" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
 
 <dl class="method">
 <dt id="lineage_lib.track.LineageMaker.get_offset">
@@ -684,7 +695,7 @@ above</li>
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
 <li><strong>ax</strong> (<em>axis</em>) &#8211; Axes object for frame in question</li>
 <li><strong>frame</strong> (<a class="reference internal" href="#lineage_lib.track.Frame" title="lineage_lib.track.Frame"><tt class="xref py py-class docutils literal"><span class="pre">Frame</span></tt></a>) &#8211; The data for the frame</li>
-<li><strong>fn_idx</strong> (<em>int</em>) &#8211; File index for self.files_phase
+<li><strong>fn_idx</strong> (<em>int</em>) &#8211; File index for self.files
 (e.g. frame_idx + 1 for n2)</li>
 <li><strong>frame_offset</strong> (<em>int</em>) &#8211; offset for title (e.g. 2 for n2)</li>
 </ul>
@@ -694,16 +705,53 @@ above</li>
 </table>
 </dd></dl>
 
+<dl class="method">
+<dt id="lineage_lib.track.LineageMaker.next_frame">
+<tt class="descname">next_frame</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/lineage_lib/track.html#LineageMaker.next_frame"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lineage_lib.track.LineageMaker.next_frame" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="lineage_lib.track.LineageMaker.plotkey">
+<tt class="descname">plotkey</tt><big>(</big><em>e</em><big>)</big><a class="reference internal" href="_modules/lineage_lib/track.html#LineageMaker.plotkey"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lineage_lib.track.LineageMaker.plotkey" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="lineage_lib.track.LineageMaker.plotpick">
+<tt class="descname">plotpick</tt><big>(</big><em>e</em><big>)</big><a class="reference internal" href="_modules/lineage_lib/track.html#LineageMaker.plotpick"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lineage_lib.track.LineageMaker.plotpick" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="lineage_lib.track.LineageMaker.preview">
+<tt class="descname">preview</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/lineage_lib/track.html#LineageMaker.preview"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lineage_lib.track.LineageMaker.preview" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="lineage_lib.track.LineageMaker.start">
+<tt class="descname">start</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/lineage_lib/track.html#LineageMaker.start"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lineage_lib.track.LineageMaker.start" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="lineage_lib.track.TempLineage">
+<em class="property">class </em><tt class="descclassname">lineage_lib.track.</tt><tt class="descname">TempLineage</tt><big>(</big><em>progenitor_id</em>, <em>progenitor_frame</em>, <em>grandparent</em><big>)</big><a class="reference internal" href="_modules/lineage_lib/track.html#TempLineage"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lineage_lib.track.TempLineage" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<dl class="method">
+<dt id="lineage_lib.track.TempLineage.append">
+<tt class="descname">append</tt><big>(</big><em>item</em><big>)</big><a class="reference internal" href="_modules/lineage_lib/track.html#TempLineage.append"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lineage_lib.track.TempLineage.append" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="lineage_lib.track.TempLineage.finish">
+<tt class="descname">finish</tt><big>(</big><em>end_type</em>, <em>end_frame</em><big>)</big><a class="reference internal" href="_modules/lineage_lib/track.html#TempLineage.finish"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#lineage_lib.track.TempLineage.finish" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
 </dd></dl>
 
 </div>
-<div class="section" id="indices-and-tables">
-<h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline">¶</a></h1>
-<ul class="simple">
-<li><a class="reference internal" href="genindex.html"><em>Index</em></a></li>
-<li><a class="reference internal" href="py-modindex.html"><em>Module Index</em></a></li>
-<li><a class="reference internal" href="search.html"><em>Search Page</em></a></li>
-</ul>
+<div class="section" id="module-lineage_lib">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-lineage_lib" title="Permalink to this headline">¶</a></h2>
+</div>
 </div>
 
 
@@ -712,15 +760,19 @@ above</li>
       </div>
       <div class="sphinxsidebar">
         <div class="sphinxsidebarwrapper">
-  <h3><a href="#">Table Of Contents</a></h3>
+  <h3><a href="index.html">Table Of Contents</a></h3>
   <ul>
-<li><a class="reference internal" href="#">Lineage - Extension from MicrobeTracker for cell growth time-lapses</a></li>
-<li><a class="reference internal" href="#indices-and-tables">Indices and tables</a></li>
+<li><a class="reference internal" href="#">lineage_lib package</a><ul>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-lineage_lib.track">lineage_lib.track module</a></li>
+<li><a class="reference internal" href="#module-lineage_lib">Module contents</a></li>
+</ul>
+</li>
 </ul>
 
   <h3>This Page</h3>
   <ul class="this-page-menu">
-    <li><a href="_sources/index.txt"
+    <li><a href="_sources/lineage_lib.txt"
            rel="nofollow">Show Source</a></li>
   </ul>
 <div id="searchbox" style="display: none">
@@ -749,7 +801,7 @@ above</li>
         <li class="right" >
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="#">Lineage 0.1 documentation</a> &raquo;</li> 
+        <li><a href="index.html">Lineage 0.1 documentation</a> &raquo;</li> 
       </ul>
     </div>
     <div class="footer">

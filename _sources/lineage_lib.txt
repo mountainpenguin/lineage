@@ -1,0 +1,22 @@
+lineage_lib package
+===================
+
+Submodules
+----------
+
+lineage_lib.track module
+------------------------
+
+.. automodule:: lineage_lib.track
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+Module contents
+---------------
+
+.. automodule:: lineage_lib
+    :members:
+    :undoc-members:
+    :show-inheritance:

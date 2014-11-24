@@ -1,0 +1,8 @@
+lineage
+=======
+
+.. toctree::
+   :maxdepth: 4
+
+   lineage_lib
+   template
