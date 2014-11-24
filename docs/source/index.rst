@@ -15,7 +15,7 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
-.. automodule:: lib
+.. automodule:: lineage_lib.track
    :members:
 
 
