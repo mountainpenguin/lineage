@@ -10,8 +10,8 @@ import matplotlib.patches
 import numpy as np
 import scipy.io
 import scipy.misc
+import skimage.draw
 import uuid
-# import glob
 import os
 import json
 import logging
@@ -55,7 +55,7 @@ class Cell(object):
         centre (tuple):
             tuple of XY cell centre coordinates, both as `float`.
     """
-    def __init__(self, cell):
+    def __init__(self, cell, dead=False):
         for d in range(len(cell.dtype)):
             self.__dict__[cell.dtype.names[d]] = cell[d]
 
@@ -866,7 +866,11 @@ class Lineage(object):
             None
         """
         final_lineage = {}
-        files = sorted(glob.glob("B/*.tif"))
+        phase = sorted(glob.glob("B/*.tif"))
+        if os.path.exists("F"):
+            fluor = sorted(glob.glob("F/*.tif"))
+        else:
+            fluor = None
         progenitors = self.frames[0].cells
         p_idx = 0
         for progenitor in progenitors:
@@ -876,7 +880,7 @@ class Lineage(object):
                 p_idx, len(progenitors), len(progenitors) - p_idx + 1
             )
             l = LineageMaker(
-                progenitor, files, self.alignment, self.frames
+                progenitor, phase, self.alignment, self.frames, fluor=fluor
             )
             l.start()
             lineage = l.lineage
@@ -1013,9 +1017,10 @@ class LineageMaker(object):
             above
 
     """
-    def __init__(self, progenitor, files, alignment, frames):
+    def __init__(self, progenitor, phase, alignment, frames, fluor=None):
         self.progenitor = progenitor
-        self.files = files
+        self.files_phase = phase
+        self.files_fluor = fluor
         self.align = alignment
         if (self.progenitor.frame - 2) >= 0:
             self.n0_frame = frames[self.progenitor.frame - 2]
@@ -1032,6 +1037,88 @@ class LineageMaker(object):
         self.parent = self.progenitor.parent
         self.lineage = [self.mother]
         self.death = False
+        if os.path.exists("fluorescence.json"):
+            self.fluor_data = json.loads(
+                open("fluorescence.json").read()
+            )
+        else:
+            self.fluor_data = {}
+
+    def get_fluor(self, lineage):
+        for l in lineage:
+            if type(l) is str:
+                cell = self.frames.cell(l)
+                fluor_img = scipy.misc.imread(
+                    self.files_fluor[
+                        cell.frame - 1
+                    ]
+                )
+                offset = self.align[cell.frame - 1]
+                c_x, c_y = cell.centre
+                x_lower = c_x - 100
+                y_lower = c_y - 100
+
+                if y_lower - offset[0] < 0:
+                    y_lower = offset[0]
+                elif x_lower - offset[1] < 0:
+                    x_lower = offset[1]
+
+                width = 200
+                y0 = y_lower - offset[0]
+#                if y0 < 0:
+#                    y0 = 0
+#                elif y0 + width >= fluor_img.shape[1]:
+#                    y0 = fluor_img.shape[1] - width - 1
+                y1 = y0 + width
+
+                x0 = x_lower - offset[1]
+#                if x0 < 0:
+#                    x0 = 0
+#                elif x0 + width >= fluor_img.shape[0]:
+#                    x0 = fluor_img.shape[0] - width - 1
+                x1 = x0 + width
+
+                fluor_crop = fluor_img[
+                    y0:y1, x0:x1
+                ]
+                xs = np.array([
+                    cell.mesh[:, 0] - x_lower,
+                    (cell.mesh[:, 2] - x_lower)[::-1]
+                ]).flatten()
+                ys = np.array([
+                    cell.mesh[:, 1] - y_lower,
+                    (cell.mesh[:, 3] - y_lower)[::-1]
+                ]).flatten()
+                rr, cc = skimage.draw.polygon(ys, xs)
+                fluor = np.mean(fluor_crop[rr, cc])
+                self.fluor_data[l] = fluor
+        self.save_fluor()
+
+    def fluor(self, bounds, mesh):
+        """ Fluorescent value for a given cell boundary
+
+        Args:
+            bounds (tuple): 4-element tuple of XY shift (y0, y1, x0, x1)
+            mesh (tuple): 4-element tuple of mesh parameters (xl, yl, xr, yr)
+        """
+        fluor_img = scipy.misc.imread(
+            self.files_fluor[self.frame_idx]
+        )
+        y0, y1, x0, x1 = bounds
+        xl, yl, xr, yr = mesh
+        fluor_crop = fluor_img[
+            y0:y1, x0:x1
+        ]
+        xs = np.array([xl, xr[::-1]]).flatten()
+        ys = np.array([yl, yr[::-1]]).flatten()
+        rr, cc = skimage.draw.polygon(ys, xs)
+        fluor = np.mean(fluor_crop[rr, cc])
+        self.fluor_data[self.mother] = fluor
+        self.save_fluor()
+
+    def save_fluor(self):
+        J = json.dumps(self.fluor_data)
+        open("fluorescence.json", "w").write(J)
 
     def get_offset(self, cell, offset=None, cell2=None):
         """Return offset, bounds, and shifts for a given cell
@@ -1089,7 +1176,7 @@ class LineageMaker(object):
         Args:
             ax (axis): Axes object for frame in question
             frame (:class:`Frame`): The data for the frame
-            fn_idx (int): File index for self.files
+            fn_idx (int): File index for self.files_phase
                 (e.g. frame_idx + 1 for n2)
             frame_offset (int): offset for title (e.g. 2 for n2)
         """
@@ -1099,7 +1186,7 @@ class LineageMaker(object):
             offset = [0, 0]
         else:
             img = scipy.misc.imread(
-                self.files[fn_idx]
+                self.files_phase[fn_idx]
             )
             offset = self.align[fn_idx]
 
@@ -1202,7 +1289,7 @@ class LineageMaker(object):
 
         width = 200
 
-        n0_img = scipy.misc.imread(self.files[self.frame_idx - 1])
+        n0_img = scipy.misc.imread(self.files_phase[self.frame_idx - 1])
 
         n0_crop = n0_img[
             y_lower - offset[0]:y_lower - offset[0] + width,
@@ -1222,7 +1309,7 @@ class LineageMaker(object):
         self.n0.plot(xs_l, ys_l, "b")
         self.n0.plot(xs_r, ys_r, "b")
 
-        n1_img = scipy.misc.imread(self.files[self.frame_idx])
+        n1_img = scipy.misc.imread(self.files_phase[self.frame_idx])
         offset = self.align[self.frame_idx]
         n1_crop = n1_img[
             y_lower - offset[0]:y_lower - offset[0] + width,
@@ -1242,7 +1329,7 @@ class LineageMaker(object):
         self.n1.plot(xs_r, ys_r, "r")
 
         if self.n2_frame.frame:
-            n2_img = scipy.misc.imread(self.files[self.frame_idx + 1])
+            n2_img = scipy.misc.imread(self.files_phase[self.frame_idx + 1])
             offset = self.align[self.frame_idx + 1]
         else:
             n2_img = np.zeros((1024, 1344))
@@ -1342,7 +1429,7 @@ class LineageMaker(object):
         while True:
             child = cell.children
             if not child:
-                if cell.frame == len(self.files):
+                if cell.frame == len(self.files_phase):
                     lin.finish("frames", cell.frame - 1)
                 else:
                     lin.finish("death", cell.frame - 1)
@@ -1399,7 +1486,7 @@ class LineageMaker(object):
             frame_idx = lin.grandparent_frame
             cell = self.frames.cell(lin.grandparent)
 
-            f = scipy.misc.imread(self.files[frame_idx])
+            f = scipy.misc.imread(self.files_phase[frame_idx])
 
             bounds, shifts, offset = self.get_offset(cell)
             x_lower, y_lower = bounds
@@ -1439,7 +1526,7 @@ class LineageMaker(object):
             cell = self.frames.cell(cell_id)
             plt.title("Frame {0}".format(cell.frame))
             frame_idx = cell.frame - 1
-            f = scipy.misc.imread(self.files[frame_idx])
+            f = scipy.misc.imread(self.files_phase[frame_idx])
 
             if second:
                 bounds, shifts, offset = self.get_offset(cell, cell2=cell2)
@@ -1484,7 +1571,7 @@ class LineageMaker(object):
         if lin.end == "death":
             # add death frame
             death_idx = i + 1 + i_mod
-            f = scipy.misc.imread(self.files[lin.end_frame + 1])
+            f = scipy.misc.imread(self.files_phase[lin.end_frame + 1])
             # use last used offset
             f_crop = f[
                 bounds[0] - offset[0]:bounds[0] - offset[0] + 200,
@@ -1519,6 +1606,8 @@ class LineageMaker(object):
         # preview lineage if exists
         response = self.preview()
         if response:
+            # get fluorescence for members of lineage
+            self.get_fluor(response)
             # assign this lineage
             self.lineage = response
             return
@@ -1537,8 +1626,9 @@ class LineageMaker(object):
             n0_img = np.zeros((1024, 1344))
             offset = [0, 0]
         else:
-            n0_img = scipy.misc.imread(self.files[self.frame_idx - 1])
+            n0_img = scipy.misc.imread(self.files_phase[self.frame_idx - 1])
             offset = self.align[self.frame_idx - 1]
+
         n0_crop = n0_img[
             bounds[0] - offset[0]:bounds[0] - offset[0] + width,
             bounds[1] - offset[1]:bounds[1] - offset[1] + width
@@ -1560,7 +1650,8 @@ class LineageMaker(object):
             )
 
         self.n1 = plt.subplot(132, sharex=self.n0, sharey=self.n0)  # the frame
-        n1_img = scipy.misc.imread(self.files[self.frame_idx])
+        n1_img = scipy.misc.imread(self.files_phase[self.frame_idx])
+
         offset = self.align[self.frame_idx]
         n1_crop = n1_img[
             bounds[0] - offset[0]:bounds[0] - offset[0] + width,
@@ -1574,8 +1665,14 @@ class LineageMaker(object):
         cell_ys_l = self.progenitor.mesh[:, 1] - shifts[1]
         cell_xs_r = self.progenitor.mesh[:, 2] - shifts[0]
         cell_ys_r = self.progenitor.mesh[:, 3] - shifts[1]
+
         plt.plot(cell_xs_l, cell_ys_l, "r")
         plt.plot(cell_xs_r, cell_ys_r, "r")
+
+        self.fluor(
+            (y0, y1, x0, x1),
+            (cell_xs_l, cell_ys_l, cell_xs_r, cell_ys_r)
+        )
 
         plt.title("Frame {0}".format(self.frame_idx + 1))
         plt.axis("off")
@@ -1583,7 +1680,7 @@ class LineageMaker(object):
         self.n2 = plt.subplot(133, sharex=self.n0, sharey=self.n0)
         # next frame
         try:
-            n2_img = scipy.misc.imread(self.files[self.frame_idx + 1])
+            n2_img = scipy.misc.imread(self.files_phase[self.frame_idx + 1])
             # use alignment to offset
             offset = self.align[self.frame_idx + 1]
         except IndexError:

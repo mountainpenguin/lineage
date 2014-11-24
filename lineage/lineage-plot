@@ -10,10 +10,13 @@ import json
 # PX = 0.077  # 100X objective WF2
 PX = 0.12254  # 63X objective WF2
 
+FLUOR_THRESH = 2500  # threshold of fluorescence
+
 
 def main():
     L = track.Lineage()
     T = json.loads(open("timing.json").read())["timing"]
+    F = json.loads(open("fluorescence.json").read())
 
     doubling_time = []  # time between divisions (excluding death)
     growth_rate = []  # size at death/division divided by time
@@ -31,13 +34,22 @@ def main():
         lineage = [
             (cell.frame, cell.length)
         ]
+        dead_lineage = [
+        ]
         # (frame, length)
         while True:
             if type(cell.children) is str:
                 # print(">", end="")
+                fluor = F[cell.id]
                 frame_idx += 1
                 cell = L.frames[frame_idx].cell(cell.children)
-                lineage.append((cell.frame, cell.length))
+                if fluor > FLUOR_THRESH:
+                    if not dead_lineage:
+                        dead_lineage.append(lineage[-1])
+                    dead_lineage.append((cell.frame, cell.length))
+                else:
+                    lineage.append((cell.frame, cell.length))
+
             elif type(cell.children) is list:
                 # division
                 # print(". {0}".format(cell.frame))
@@ -58,9 +70,11 @@ def main():
                 growth_rate.append(lt)
                 end_type = 2
                 break
-
         l = np.array(lineage)
         plt.plot(_c(l[:, 0]), l[:, 1] * PX)
+        if dead_lineage:
+            d = np.array(dead_lineage)
+            plt.plot(_c(d[:, 0]), d[:, 1] * PX, "k-", alpha=0.4)
         if end_type == 1:
             new_gen = gen + 1
             iterate_cell(L.frames[frame_idx + 1].cell(cell.children[0]), new_gen)
@@ -81,24 +95,6 @@ def main():
     parent_cells = L.frames[0].cells
     for cell in parent_cells:
         iterate_cell(cell)
-
-    sem = np.std(doubling_time) / np.sqrt(len(doubling_time))
-    print("Doubling Time: {0:.5f}h \u00B1 {1:.5f}".format(
-        np.mean(doubling_time),
-        sem
-    ))
-
-    sem = np.std(growth_rate) / np.sqrt(len(growth_rate))
-    print("Growth rate: {0:.5f}\u03BCm/h \u00B1 {1:.5f}".format(
-        np.mean(growth_rate),
-        sem
-    ))
-
-    sem = np.std(div_length) / np.sqrt(len(div_length))
-    print("Cell length at division: {0:.5f}\u03BCm \u00B1 {1:.5f}".format(
-        np.mean(div_length),
-        sem
-    ))
 
     if rect_add:
         x = 7
@@ -122,6 +118,43 @@ def main():
     ax.spines["top"].set_color("none")
     ax.xaxis.set_ticks_position("bottom")
     ax.yaxis.set_ticks_position("left")
+
+    sem = np.std(doubling_time) / np.sqrt(len(doubling_time))
+    print("Doubling Time: {0:.5f}h \u00B1 {1:.5f}".format(
+        np.mean(doubling_time),
+        sem
+    ))
+
+    sem = np.std(growth_rate) / np.sqrt(len(growth_rate))
+    print("Growth rate: {0:.5f}\u03BCm/h \u00B1 {1:.5f}".format(
+        np.mean(growth_rate),
+        sem
+    ))
+
+    sem = np.std(div_length) / np.sqrt(len(div_length))
+    print("Cell length at division: {0:.5f}\u03BCm \u00B1 {1:.5f}".format(
+        np.mean(div_length),
+        sem
+    ))
+
+    # get all cells in the last frame
+    last_cells = L.frames.frames[-1].cells
+    dead = 0
+    live = 0
+    for cell in last_cells:
+        if cell.id in F:
+            fluor = F[cell.id]
+            if fluor > FLUOR_THRESH:
+                dead += 1
+            else:
+                live += 1
+        else:
+            live += 1
+
+    print("{0} of {1} cells unstained ({2:.02f}%)".format(
+        live, len(last_cells), 100 * live / len(last_cells)
+    ))
+
     plt.savefig("growth.pdf")
     plt.show()
 
