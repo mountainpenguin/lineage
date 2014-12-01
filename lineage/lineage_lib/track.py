@@ -1292,63 +1292,56 @@ class LineageMaker(object):
         logging.debug("n1: %r", self.n1_frame.cell(self.mother))
         logging.debug("n2: %r", self.n2_frame.cell(self.mother))
 
-        offset = self.align[self.frame_idx - 1]
-
-        c_x, c_y = self.n1_frame.cell(self.mother).centre
-#        c_x, c_y = self.get_centre(
-#            self.n1_frame.cell(self.mother).mesh
-#        )
-        x_lower = c_x - 100
-        y_lower = c_y - 100
-
-        if x_lower < 0:
-            x_lower = 0
-        if y_lower < 0:
-            y_lower = 0
-
         width = 200
 
+        grand_mother = self.n0_frame.cell(self.parent)
+        bounds, shifts, offset = self.get_offset(grand_mother)
         n0_img = scipy.misc.imread(self.files_phase[self.frame_idx - 1])
-
+        x0, x1 = bounds[0] - offset[0], bounds[0] - offset[0] + width
+        y0, y1 = bounds[1] - offset[1], bounds[1] - offset[1] + width
         n0_crop = n0_img[
-            y_lower - offset[0]:y_lower - offset[0] + width,
-            x_lower - offset[1]:x_lower - offset[1] + width
+            x0:x1,
+            y0:y1
         ]
-
         self.n0.clear()
         self.n0.axis("off")
         self.n0.imshow(n0_crop, cmap=plt.cm.gray)
         self.n0.set_title("Frame {0}".format(self.frame_idx))
 
-        parent = self.n0_frame.cell(self.parent)
-        xs_l = parent.mesh[:, 0] - x_lower
-        ys_l = parent.mesh[:, 1] - y_lower
-        xs_r = parent.mesh[:, 2] - x_lower
-        ys_r = parent.mesh[:, 3] - y_lower
-        self.n0.plot(xs_l, ys_l, "b")
-        self.n0.plot(xs_r, ys_r, "b")
+        self.n0.plot(
+            grand_mother.mesh[:, 0] - shifts[0],
+            grand_mother.mesh[:, 1] - shifts[1],
+            "b"
+        )
+        self.n0.plot(
+            grand_mother.mesh[:, 2] - shifts[0],
+            grand_mother.mesh[:, 3] - shifts[1],
+            "b"
+        )
 
+        mother = self.n1_frame.cell(self.mother)
+        bounds, shifts, offset = self.get_offset(mother)
         n1_img = scipy.misc.imread(self.files_phase[self.frame_idx])
-        offset = self.align[self.frame_idx]
+        x0, x1 = bounds[0] - offset[0], bounds[0] - offset[0] + width
+        y0, y1 = bounds[1] - offset[1], bounds[1] - offset[1] + width
         n1_crop = n1_img[
-            y_lower - offset[0]:y_lower - offset[0] + width,
-            x_lower - offset[1]:x_lower - offset[1] + width
+            x0:x1,
+            y0:y1
         ]
         self.n1.clear()
         self.n1.axis("off")
         self.n1.imshow(n1_crop, cmap=plt.cm.gray)
         self.n1.set_title("Frame {0}".format(self.frame_idx + 1))
 
-        mother = self.n1_frame.cell(self.mother)
-        xs_l = mother.mesh[:, 0] - x_lower
-        ys_l = mother.mesh[:, 1] - y_lower
-        xs_r = mother.mesh[:, 2] - x_lower
-        ys_r = mother.mesh[:, 3] - y_lower
+        xs_l = mother.mesh[:, 0] - shifts[0]
+        ys_l = mother.mesh[:, 1] - shifts[1]
+        xs_r = mother.mesh[:, 2] - shifts[0]
+        ys_r = mother.mesh[:, 3] - shifts[1]
+
         self.n1.plot(xs_l, ys_l, "r")
         self.n1.plot(xs_r, ys_r, "r")
-
         self.fluor(
-            (y0, y1, x0, x1),
+            (x0, x1, y0, y1),
             (xs_l, ys_l, xs_r, ys_r)
         )
 
@@ -1359,16 +1352,21 @@ class LineageMaker(object):
             n2_img = np.zeros((1024, 1344))
             offset = [0, 0]
 
-        if y_lower - offset[0] < 0:
-            offset = [0, 0]
-        elif x_lower - offset[1] < 0:
-            offset = [0, 0]
+        x0, x1 = bounds[0] - offset[0], bounds[0] - offset[0] + width
+        if x0 < 0:
+            x1 -= x0
+            offset[0] -= x0
+            x0 = 0
+        y0, y1 = bounds[1] - offset[1], bounds[1] - offset[1] + width
+        if y0 < 0:
+            y1 -= y0
+            offset[1] -= y0
+            y0 = 0
 
         n2_crop = n2_img[
-            y_lower - offset[0]:y_lower - offset[0] + width,
-            x_lower - offset[1]:x_lower - offset[1] + width
+            x0:x1,
+            y0:y1
         ]
-
         self.n2.clear()
         self.n2.axis("off")
         self.n2.imshow(n2_crop, cmap=plt.cm.gray)
@@ -1376,10 +1374,10 @@ class LineageMaker(object):
 
         n2_cells = self.n2_frame.cells
         for n2_cell in n2_cells:
-            xs_l = n2_cell.mesh[:, 0] - x_lower
-            ys_l = n2_cell.mesh[:, 1] - y_lower
-            xs_r = n2_cell.mesh[:, 2] - x_lower
-            ys_r = n2_cell.mesh[:, 3] - y_lower
+            xs_l = n2_cell.mesh[:, 0] - shifts[0]
+            ys_l = n2_cell.mesh[:, 1] - shifts[1]
+            xs_r = n2_cell.mesh[:, 2] - shifts[0]
+            ys_r = n2_cell.mesh[:, 3] - shifts[1]
 
             if ((xs_l < 0).sum() > 0 or
                     (xs_l > width).sum() > 0 or
@@ -1556,6 +1554,7 @@ class LineageMaker(object):
                 bounds, shifts, offset = self.get_offset(cell, cell2=cell2)
             else:
                 bounds, shifts, offset = self.get_offset(cell)
+
             offset = self.align[frame_idx]
 
             xshift = shifts[0]
@@ -1640,28 +1639,23 @@ class LineageMaker(object):
         self.frame_idx = self.progenitor.frame - 1
         logging.debug("Initial frame_idx: %i", self.frame_idx)
 
-        bounds, shifts, offset = self.get_offset(self.progenitor)
-
         width = 200
 
         self.n0 = plt.subplot(131)  # previous frame, i.e. blank
         plt.axis("off")
         if self.frame_idx == 0:
-            n0_img = np.zeros((1024, 1344))
-            offset = [0, 0]
+            n0_img = np.zeros((200, 200))
         else:
             n0_img = scipy.misc.imread(self.files_phase[self.frame_idx - 1])
-            offset = self.align[self.frame_idx - 1]
-
-        n0_crop = n0_img[
-            bounds[0] - offset[0]:bounds[0] - offset[0] + width,
-            bounds[1] - offset[1]:bounds[1] - offset[1] + width
-        ]
-        plt.imshow(n0_crop, cmap=plt.cm.gray)
-        plt.title("Frame {0}".format(self.frame_idx))
 
         if self.progenitor.parent:
             grand_mother = self.frames.cell(self.progenitor.parent)
+            bounds, shifts, offset = self.get_offset(grand_mother)
+            n0_crop = n0_img[
+                bounds[0] - offset[0]:bounds[0] - offset[0] + width,
+                bounds[1] - offset[1]:bounds[1] - offset[1] + width
+            ]
+            plt.imshow(n0_crop, cmap=plt.cm.gray)
             plt.plot(
                 grand_mother.mesh[:, 0] - shifts[0],
                 grand_mother.mesh[:, 1] - shifts[1],
@@ -1672,14 +1666,20 @@ class LineageMaker(object):
                 grand_mother.mesh[:, 3] - shifts[1],
                 "y"
             )
+        else:
+            plt.imshow(n0_img, cmap=plt.cm.gray)
+            plt.title("Frame {0}".format(self.frame_idx))
 
         self.n1 = plt.subplot(132, sharex=self.n0, sharey=self.n0)  # the frame
         n1_img = scipy.misc.imread(self.files_phase[self.frame_idx])
 
-        offset = self.align[self.frame_idx]
+        bounds, shifts, offset = self.get_offset(self.progenitor)
+
+        x0, x1 = bounds[0] - offset[0], bounds[0] - offset[0] + width
+        y0, y1 = bounds[1] - offset[1], bounds[1] - offset[1] + width
         n1_crop = n1_img[
-            bounds[0] - offset[0]:bounds[0] - offset[0] + width,
-            bounds[1] - offset[1]:bounds[1] - offset[1] + width
+            x0: x1,
+            y0: y1
         ]
         plt.imshow(n1_crop, cmap=plt.cm.gray)
         plt.title("Frame {0}".format(self.frame_idx + 1))
@@ -1710,9 +1710,21 @@ class LineageMaker(object):
         except IndexError:
             n2_img = np.zeros((1024, 1344))
             offset = [0, 0]
+
+        x0, x1 = bounds[0] - offset[0], bounds[0] - offset[0] + width
+        if x0 < 0:
+            x1 -= x0
+            offset[0] -= x0
+            x0 = 0
+        y0, y1 = bounds[1] - offset[1], bounds[1] - offset[1] + width
+        if y0 < 0:
+            y1 -= y0
+            offset[1] -= y0
+            y0 = 0
+
         n2_crop = n2_img[
-            bounds[0] - offset[0]:bounds[0] - offset[0] + width,
-            bounds[1] - offset[1]:bounds[1] - offset[1] + width
+            x0:x1,
+            y0:y1
         ]
         plt.imshow(n2_crop, cmap=plt.cm.gray)
         plt.title("Frame {0}".format(self.frame_idx + 2))
