@@ -882,7 +882,7 @@ class Lineage(object):
             l = LineageMaker(
                 progenitor, phase, self.alignment, self.frames, fluor=fluor
             )
-            l.start()
+            l.start(bool(fluor))
             lineage = l.lineage
             logging.info("Lineage completed, %i members", len(lineage))
             logging.debug("Lineage members: %r", lineage)
@@ -1201,7 +1201,7 @@ class LineageMaker(object):
         """
         # maximise n2_frame
         if frame.frame is None:
-            img = np.zeros((1024, 1344))
+            img = np.zeros((1000, 1000))
             offset = [0, 0]
         else:
             img = scipy.misc.imread(
@@ -1340,16 +1340,17 @@ class LineageMaker(object):
 
         self.n1.plot(xs_l, ys_l, "r")
         self.n1.plot(xs_r, ys_r, "r")
-        self.fluor(
-            (x0, x1, y0, y1),
-            (xs_l, ys_l, xs_r, ys_r)
-        )
+        if self.files_fluor:
+            self.fluor(
+                (x0, x1, y0, y1),
+                (xs_l, ys_l, xs_r, ys_r)
+            )
 
         if self.n2_frame.frame:
             n2_img = scipy.misc.imread(self.files_phase[self.frame_idx + 1])
             offset = self.align[self.frame_idx + 1]
         else:
-            n2_img = np.zeros((1024, 1344))
+            n2_img = np.zeros((1000, 1000))
             offset = [0, 0]
 
         x0, x1 = bounds[0] - offset[0], bounds[0] - offset[0] + width
@@ -1556,7 +1557,6 @@ class LineageMaker(object):
                 bounds, shifts, offset = self.get_offset(cell)
 
             offset = self.align[frame_idx]
-
             xshift = shifts[0]
             yshift = shifts[1]
 
@@ -1625,12 +1625,13 @@ class LineageMaker(object):
         # input("Write ending code!")
         pass
 
-    def start(self):
+    def start(self, fluor=None):
         # preview lineage if exists
         response = self.preview()
         if response:
             # get fluorescence for members of lineage
-            self.get_fluor(response)
+            if fluor:
+                self.get_fluor(response)
             # assign this lineage
             self.lineage = response
             return
@@ -1693,39 +1694,41 @@ class LineageMaker(object):
         plt.plot(cell_xs_l, cell_ys_l, "r")
         plt.plot(cell_xs_r, cell_ys_r, "r")
 
-        self.fluor(
-            (y0, y1, x0, x1),
-            (cell_xs_l, cell_ys_l, cell_xs_r, cell_ys_r)
-        )
+#        self.fluor(
+#            (y0, y1, x0, x1),
+#            (cell_xs_l, cell_ys_l, cell_xs_r, cell_ys_r)
+#        )
 
         plt.title("Frame {0}".format(self.frame_idx + 1))
         plt.axis("off")
 
         self.n2 = plt.subplot(133, sharex=self.n0, sharey=self.n0)
+
         # next frame
         try:
             n2_img = scipy.misc.imread(self.files_phase[self.frame_idx + 1])
             # use alignment to offset
             offset = self.align[self.frame_idx + 1]
         except IndexError:
-            n2_img = np.zeros((1024, 1344))
+            n2_img = np.zeros((1000, 1000))
             offset = [0, 0]
 
         x0, x1 = bounds[0] - offset[0], bounds[0] - offset[0] + width
         if x0 < 0:
             x1 -= x0
-            offset[0] -= x0
+            # offset[0] -= x0
             x0 = 0
         y0, y1 = bounds[1] - offset[1], bounds[1] - offset[1] + width
         if y0 < 0:
             y1 -= y0
-            offset[1] -= y0
+            # offset[1] -= y0
             y0 = 0
 
         n2_crop = n2_img[
             x0:x1,
             y0:y1
         ]
+
         plt.imshow(n2_crop, cmap=plt.cm.gray)
         plt.title("Frame {0}".format(self.frame_idx + 2))
         plt.axis("off")
@@ -1733,11 +1736,10 @@ class LineageMaker(object):
         # display all cells on n2
         n2_cells = self.n2_frame.cells
         for n2_cell in n2_cells:
-            xs_l = n2_cell.mesh[:, 0] - shifts[0]
-            xs_r = n2_cell.mesh[:, 2] - shifts[0]
-
-            ys_l = n2_cell.mesh[:, 1] - shifts[1]
-            ys_r = n2_cell.mesh[:, 3] - shifts[1]
+            xs_l = n2_cell.mesh[:, 0] - offset[1] - y0
+            xs_r = n2_cell.mesh[:, 2] - offset[1] - y0
+            ys_l = n2_cell.mesh[:, 1] - offset[0] - x0
+            ys_r = n2_cell.mesh[:, 3] - offset[0] - x0
 
             if ((xs_l < 0).sum() > 0 or
                     (xs_l > width).sum() > 0 or
@@ -1747,6 +1749,7 @@ class LineageMaker(object):
                     (ys_l > width).sum() > 0 or
                     (ys_r < 0).sum() > 0 or
                     (ys_r > width).sum() > 0):
+                logging.debug("Pass {0}".format(n2_cell.id))
                 pass
             else:
                 left = np.array([xs_l, ys_l]).T
