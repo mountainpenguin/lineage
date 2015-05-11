@@ -6,102 +6,231 @@ import numpy as np
 import matplotlib.patches
 import matplotlib.pyplot as plt
 import json
+import os
+import datetime
+import sys
+import scipy.optimize
 
-# PX = 0.077  # 100X objective WF2
-PX = 0.12254  # 63X objective WF2
+class Storage(object):
+    def __init__(self, description, unit):
+        self.description = description
+        self.unit = unit
+        self.all_data = []
+        self.phase1 = []
+        self.phase2 = []
+        self.phase3 = []
 
-FLUOR_THRESH = 2500  # threshold of fluorescence
+    def set_phase_boundaries(self, p2, p3):
+        self.p2 = p2
+        self.p3 = p3
 
+    def append(self, x):
+        self.all_data.append(x)
 
-def main():
-    L = track.Lineage()
-    T = json.loads(open("timing.json").read())["timing"]
-    F = json.loads(open("fluorescence.json").read())
+    def append_p1(self, x):
+        self.phase1.append(x)
 
-    doubling_time = []  # time between divisions (excluding death)
-    growth_rate = []  # size at death/division divided by time
-    div_length = []  # length at division
+    def append_p2(self, x):
+        self.phase2.append(x)
 
-    def _c(x):
-        return np.array([T[int(z) - 1] / 60 for z in x])
+    def append_p3(self, x):
+        self.phase3.append(x)
 
-    L = track.Lineage()
-
-    def iterate_cell(cell, gen=0):
-        frame_idx = cell.frame - 1
-        end_type = None
-
-        lineage = [
-            (cell.frame, cell.length)
-        ]
-        dead_lineage = [
-        ]
-        # (frame, length)
-        while True:
-            if type(cell.children) is str:
-                # print(">", end="")
-                fluor = F[cell.id]
-                frame_idx += 1
-                cell = L.frames[frame_idx].cell(cell.children)
-                if fluor > FLUOR_THRESH:
-                    if not dead_lineage:
-                        dead_lineage.append(lineage[-1])
-                    dead_lineage.append((cell.frame, cell.length))
-                else:
-                    lineage.append((cell.frame, cell.length))
-
-            elif type(cell.children) is list:
-                # division
-                # print(". {0}".format(cell.frame))
-                dt = (T[lineage[-1][0] - 1] - T[lineage[0][0] - 1]) / 60
-                doubling_time.append(dt)
-                lt = ((lineage[-1][1] - lineage[0][1]) / dt) * PX
-                growth_rate.append(lt)
-                div_length.append(
-                    lineage[-1][1] * PX
-                )
-                end_type = 1
-                break
-            else:
-                # death
-                # print("] {0}".format(cell.frame))
-                dt = (T[lineage[-1][0] - 1] - T[lineage[0][0] - 1]) / 60
-                lt = ((lineage[-1][1] - lineage[0][1]) / dt) * PX
-                growth_rate.append(lt)
-                end_type = 2
-                break
-        l = np.array(lineage)
-        plt.plot(_c(l[:, 0]), l[:, 1] * PX)
-        if dead_lineage:
-            d = np.array(dead_lineage)
-            plt.plot(_c(d[:, 0]), d[:, 1] * PX, "k-", alpha=0.4)
-        if end_type == 1:
-            new_gen = gen + 1
-            iterate_cell(L.frames[frame_idx + 1].cell(cell.children[0]), new_gen)
-            iterate_cell(L.frames[frame_idx + 1].cell(cell.children[1]), new_gen)
-            return (2, None)
-        elif end_type == 2:
-            return (1, None)
+    def append_p(self, cell, x):
+        if not self.p2 or not self.p3:
+            raise NotImplementedError
+        if cell.frame <= self.p2:
+            self.phase1.append(x)
+        elif cell.frame > self.p2 and cell.frame <= self.p3:
+            self.phase2.append(x)
         else:
-            return (0, None)
+            self.phase3.append(x)
 
-    rect_add = bool(input("Add rectangle? (y/n): ") != "n")
-#    if rect_add:
-#        tmp = np.array(T) / 60
-#        sect1_idx = list(tmp < 7).index(False)
-#        sect2_idx = list(tmp < 14).index(False)
+    def print_data(self):
+        phase = 0
+        for x in [self.all_data,
+                  self.phase1,
+                  self.phase2,
+                  self.phase3]:
+            if len(x) <= 1:
+                print("{0} ({1}): No divisions".format(
+                    self.description,
+                    phase and "Phase {0}".format(phase) or "All Data"
+                ))
+            else:
+                sem = np.std(x) / np.sqrt(len(x))
+                print("{0} ({1}): {2:.5f}{3} \u00B1 {4:.5f} (n = {5})".format(
+                    self.description,
+                    phase and "Phase {0}".format(phase) or "All Data",
+                    np.mean(x),
+                    self.unit,
+                    sem,
+                    len(x)
+                ))
+            phase += 1
 
-    plt.figure()
-    parent_cells = L.frames[0].cells
-    for cell in parent_cells:
-        iterate_cell(cell)
 
-    if rect_add:
-        x = 7
+class Plotter(object):
+    def __init__(self, paths):
+        self.PATHS = paths
+        self.PASS_DELAY = 15  # pass delay in minutes
+        self.PX = 0.12254  # calibration of 1px in um for 63x objective
+        self.FLUOR_THRESH = 2500
+        self.ORIGINAL_DIR = os.getcwd()
+
+    def start(self):
+        self.doubling_time = Storage("Doubling Time", "h")
+        self.growth_rate = Storage("Growth Rate", "\u03BCm/h")
+        self.div_length = Storage("Division Length", "\u03BCm")
+        for path in self.PATHS:
+            self.process(path)
+        self.decorate_tracks()
+        self.doubling_time.print_data()
+        self.growth_rate.print_data()
+        self.div_length.print_data()
+        self.plot_histograms()
+
+    def _set_topmid(self, ax):
+        ax.spines["right"].set_color("none")
+        ax.spines["top"].set_color("none")
+        ax.xaxis.set_ticks_position("bottom")
+        ax.yaxis.set_ticks_position("left")
+
+    def _h(self, h, b):
+        h = (h.astype("f64") / np.sum(h)) * 100
+        x = (b[:-1] + b[1:])/2
+        return h, x, b
+
+    def set_limits(self):
+        xmax = ((7 * self.PX) / 15) * 60
+        plt.xlim([0, xmax])
+        plt.ylim([0, plt.ylim()[1]])
+        plt.xticks(np.arange(0, xmax, 0.5))
+
+    def plot_bars(self, bins, c, h, t, w, col, leg, counts):
+        b = bins[:-1]
+        n1 = counts[c <= t]
+        n2 = counts[c > t]
+        l1 = plt.bar(b[c <= t], h[c <= t], w, color="0.5", linewidth=1)
+        l2 = plt.bar(b[c > t], h[c > t], w, color=col, linewidth=1)
+        plt.legend(
+            [l1, l2],
+            [
+                "n = {0} ({1:.0f}%)".format(n1.sum(), 100 * n1.sum() / counts.sum()),
+                "n = {0} ({1:.0f}%)".format(n2.sum(), 100 * n2.sum() / counts.sum())
+            ],
+            title=leg,
+        )
+
+    def _f(self, x, *p):
+        A, mu, sigma = p
+        return A * np.exp(-((x - mu) ** 2) / (2 * (sigma ** 2)))
+        return (1 / (sigma * np.sqrt(2 * np.pi)) *
+                np.exp(-(x - mu) ** 2 / (2 * sigma ** 2)))
+
+    def plot_fit(self, c, h, t, counts):
+        b = c[c > t]
+        f = h[c > t]
+
+        n = counts[c > t]
+        if n.sum() < 30:
+            return
+
+        m = np.argmax(f)
+        A = np.mean([f[m - 1], f[m], f[m + 1]])
+        mu = np.mean([b[m - 1], b[m], b[m + 1]])
+
+        sigma = np.sqrt(
+            np.sum((b ** 2) * f) /
+            np.sum(f) -
+            ((np.sum(b * f) / np.sum(f)) ** 2)
+        )
+
+        mu = b[np.argmax(f)]
+        guess = [A, mu, sigma]
+        if 0 in guess:
+            return
+        try:
+            coeff, matrix = scipy.optimize.curve_fit(self._f, b, f, p0=guess)
+        except RuntimeError:
+            return
+        fit_x = np.linspace(
+            0,
+            ((7 * self.PX) / 15) * 60,
+            500
+        )
+        fit = self._f(fit_x, *coeff)
+        fit_mean = coeff[1]
+
+        plt.plot(fit_x, fit, "k-")
+        plt.vlines(fit_mean, 0, plt.ylim()[1], colors=["k"], linestyles=["dashed"])
+        plt.text(fit_mean + 0.1, 9 * plt.ylim()[1] / 10, "$\mu =$ {0:.2f}".format(fit_mean))
+        plt.text(fit_mean + 0.1, 7.5 * plt.ylim()[1] / 10, "$\sigma =$ {0:.2f}".format(coeff[2]))
+
+
+    def plot_histograms(self):
+        plt.figure()
+        x1 = np.array(self.growth_rate.phase1)
+        x2 = np.array(self.growth_rate.phase2)
+        x3 = np.array(self.growth_rate.phase3)
+
+        ax = plt.subplot(3, 1, 1)
+        self._set_topmid(ax)
+
+        x1[x1 < 0] = 0
+        n_bins = 30
+        counts, bins = np.histogram(x1, n_bins)
+        hist, bin_centres, bins = self._h(counts, bins)
+        width = bins[1] - bins[0]
+        threshold = width * 2
+
+        self.plot_bars(bins, bin_centres, hist, threshold, width, "r", "Before RIF", counts)
+        self.plot_fit(bin_centres, hist, threshold, counts)
+        self.set_limits()
+
+        ax = plt.subplot(3, 1, 2)
+        self._set_topmid(ax)
+
+        x2[x2 < 0] = 0
+        counts, _ = np.histogram(x2, bins)
+        hist, _, __ = self._h(counts, bins)
+
+        self.plot_bars(bins, bin_centres, hist, threshold, width, "g", "With RIF", counts)
+        self.plot_fit(bin_centres, hist, threshold, counts)
+        self.set_limits()
+        plt.ylabel("Frequency (%)")
+
+        ax = plt.subplot(3, 1, 3)
+        self._set_topmid(ax)
+
+        x3[x3 < 0] = 0
+        counts, _ = np.histogram(x3, bins)
+        hist, _, __ = self._h(counts, bins)
+
+        self.plot_bars(bins, bin_centres, hist, threshold, width, "y", "After RIF", counts)
+        self.plot_fit(bin_centres, hist, threshold, counts)
+        self.set_limits()
+
+        plt.xlabel("Growth rate (um / hr)")
+
+        plt.savefig("growth-rates.pdf")
+
+
+    def decorate_tracks(self):
+        d = self.RIF_REMOVE - self.RIF_ADD
+        s = d.days * 24 * 60 * 60
+        s += d.seconds
+        w = (s / 60) // 60
+
+        xd = self.RIF_ADD - self.T0
+        s = xd.days * 24 * 60 * 60
+        s += xd.seconds
+        x = (s / 60) // 60
+
         y0, y1 = plt.ylim()
         rect = matplotlib.patches.Rectangle(
             (x, y0),
-            7,
+            w,
             (y1 - y0),
             facecolor="y",
             edgecolor=None,
@@ -110,54 +239,230 @@ def main():
         ax = plt.gca()
         ax.add_patch(rect)
 
-    plt.xlabel("Time (h)")
-    # plt.ylabel("Cell size (\u03BCm)")
-    plt.ylabel("Cell size (um)")
-    ax = plt.gca()
-    ax.spines["right"].set_color("none")
-    ax.spines["top"].set_color("none")
-    ax.xaxis.set_ticks_position("bottom")
-    ax.yaxis.set_ticks_position("left")
+        plt.xlabel("Time (h)")
+        plt.ylabel("Cell size (um)")
+        ax.spines["right"].set_color("none")
+        ax.spines["top"].set_color("none")
+        ax.xaxis.set_ticks_position("bottom")
+        ax.yaxis.set_ticks_position("left")
 
-    sem = np.std(doubling_time) / np.sqrt(len(doubling_time))
-    print("Doubling Time: {0:.5f}h \u00B1 {1:.5f}".format(
-        np.mean(doubling_time),
-        sem
-    ))
+        plt.xlim([0, 22])
 
-    sem = np.std(growth_rate) / np.sqrt(len(growth_rate))
-    print("Growth rate: {0:.5f}\u03BCm/h \u00B1 {1:.5f}".format(
-        np.mean(growth_rate),
-        sem
-    ))
+        plt.savefig("growth-traces.pdf")
 
-    sem = np.std(div_length) / np.sqrt(len(div_length))
-    print("Cell length at division: {0:.5f}\u03BCm \u00B1 {1:.5f}".format(
-        np.mean(div_length),
-        sem
-    ))
+    def _gettimestamp(self, day, time, *args):
+        return datetime.datetime.strptime(
+            "{0} {1}".format(day, time),
+            "%d.%m.%y %H:%M"
+        )
 
-    # get all cells in the last frame
-    last_cells = L.frames.frames[-1].cells
-    dead = 0
-    live = 0
-    for cell in last_cells:
-        if cell.id in F:
-            fluor = F[cell.id]
-            if fluor > FLUOR_THRESH:
-                dead += 1
+    def _timediff(self, day, time, t0):
+        t1 = self._gettimestamp(day, time)
+        td = t1 - t0
+        s = td.days * 24 * 60 * 60
+        s += td.seconds
+        m = s // 60
+        return m
+
+    def get_timings(self, t0=False):
+        if os.path.exists("timing.json"):
+            return json.loads(open("timing.json").read())["timing"]
+        elif os.path.exists("timings.json"):
+            timing_data = json.loads(open("timings.json").read())
+            rif_add = self._gettimestamp(*timing_data["add"])
+            rif_remove = self._gettimestamp(*timing_data["remove"])
+            timings = timing_data["timings"]
+            T = []
+            t0 = self._gettimestamp(*timings[0])
+            for d1, t1, frames in timings:
+                sm = self._timediff(d1, t1, t0)
+                for _ in range(frames):
+                    T.append(sm)
+                    sm += self.PASS_DELAY
+            if t0:
+                return T, rif_add, rif_remove, t0
             else:
-                live += 1
+                return T, rif_add, rif_remove
+
+    def get_fluoresence(self):
+        if os.path.exists("fluorescence.json"):
+            return json.loads(open("fluoresence.json").read())
         else:
-            live += 1
+            return []
 
-    print("{0} of {1} cells unstained ({2:.02f}%)".format(
-        live, len(last_cells), 100 * live / len(last_cells)
-    ))
+    def process(self, path):
+        os.chdir(path)
+        L = track.Lineage()
+        self.T, self.RIF_ADD, self.RIF_REMOVE, self.T0 = self.get_timings(t0=True)
+        F = self.get_fluoresence()
 
-    plt.savefig("growth.pdf")
-    plt.show()
+        start_delta = self.RIF_ADD - self.T0
+        start = start_delta.days * 24 * 60 * 60
+        start += start_delta.seconds
+        start /= 60
+        t_array = np.array(self.T) - start
+        t_array[t_array < 0] = np.inf
+        p2 = np.argmin(t_array) + 1
+
+        end_delta = self.RIF_REMOVE - self.RIF_ADD
+        end = end_delta.days * 24 * 60 * 60
+        end += end_delta.seconds
+        end /= 60
+        t_array = np.array(self.T) - end - start
+        t_array[t_array < 0] = np.inf
+        p3 = np.argmin(t_array) + 1
+
+        self.doubling_time.set_phase_boundaries(p2, p3)
+        self.growth_rate.set_phase_boundaries(p2, p3)
+        self.div_length.set_phase_boundaries(p2, p3)
+
+        cell_queue = L.frames[0].cells
+        while True:
+            try:
+                cell = cell_queue.pop(0)
+            except IndexError:
+                break
+            frame_idx = cell.frame - 1
+            end_type = None
+
+            lineage = [
+                (cell.frame, cell.length)
+            ]
+            dead_lineage = []
+
+            while True:
+                if type(cell.children) is str:
+                    # growth event
+                    if F:
+                        fluor = F[cell.id]
+                    else:
+                        fluor = 0
+
+                    frame_idx += 1
+                    cell = L.frames[frame_idx].cell(cell.children)
+
+                    if fluor > self.FLUOR_THRESH:
+                        if not dead_lineage:
+                            dead_lineage.append(lineage[-1])
+                        dead_lineage.append(
+                            (cell.frame, cell.length)
+                        )
+                    else:
+                        lineage.append(
+                            (cell.frame, cell.length)
+                        )
+
+                elif type(cell.children) is list:
+                    # division event
+                    end_type = 1
+                    dt = (self.T[lineage[-1][0] - 1] - self.T[lineage[0][0] - 1]) / 60
+                    if dt == 0:
+                        break
+
+                    self.doubling_time.append(dt)
+                    self.doubling_time.append_p(cell, dt)
+
+                    lt = ((lineage[-1][1] - lineage[0][1]) / dt) * self.PX
+                    dl = lineage[-1][1] * self.PX
+                    self.growth_rate.append(lt)
+                    self.div_length.append(dl)
+                    self.divideandconquer(lineage, p2, p3, div=True)
+                    break
+                else:
+                    # death event
+                    end_type = 2
+                    dt = (self.T[lineage[-1][0] - 1] - self.T[lineage[0][0] - 1]) / 60
+                    if dt == 0:
+                        break
+                    lt = ((lineage[-1][1] - lineage[0][1]) / dt) * self.PX
+                    self.growth_rate.append(lt)
+                    self.divideandconquer(lineage, p2, p3, div=False)
+                    break
+
+            l = np.array(lineage)
+            plt.plot(self.ftt(l[:, 0]), l[:, 1] * self.PX)
+            if dead_lineage:
+                d = np.array(dead_lineage)
+                plt.plot(self.ftt(d[:, 0]), d[:, 1] * self.PX, "k-", alpha=0.4)
+
+            if end_type == 1:
+                cell_queue.append(
+                    L.frames[frame_idx + 1].cell(
+                        cell.children[0]
+                    )
+                )
+                cell_queue.append(
+                    L.frames[frame_idx + 1].cell(
+                        cell.children[1]
+                    )
+                )
+
+        os.chdir(self.ORIGINAL_DIR)
+
+    def ftt(self, x):
+        return np.array([self.T[int(z) - 1] / 60 for z in x])
+
+    def divideandconquer(self, lineage, p2, p3, div):
+        before = [
+            x for x in lineage
+            if x[0] <= p2
+        ]
+        self.assign_t(before, 1)
+
+        during = [
+            x for x in lineage
+            if x[0] <= p3 and x[0] > p2
+        ]
+        self.assign_t(during, 2)
+
+        after = [
+            x for x in lineage
+            if x[0] > p3
+        ]
+        self.assign_t(after, 3)
+
+        if div:
+            if after:
+                dl = after[-1][1] * self.PX
+                print("!!!")
+                print(after, p2, p3)
+                self.div_length.append_p3(dl)
+            elif during:
+                dl = during[-1][1] * self.PX
+                self.div_length.append_p2(dl)
+            elif before:
+                dl = before[-1][1] * self.PX
+                self.div_length.append_p1(dl)
+
+
+    def assign_t(self, data, phase):
+        if len(data) <= 1:
+            return
+        dt = (self.T[data[-1][0] - 1] - self.T[data[0][0] - 1]) / 60
+        lt = ((data[-1][1] - data[0][1]) / dt) * self.PX
+        if phase == 1:
+            self.growth_rate.append_p1(lt)
+        elif phase == 2:
+            self.growth_rate.append_p2(lt)
+        elif phase == 3:
+            self.growth_rate.append_p3(lt)
 
 
 if __name__ == "__main__":
-    main()
+    if sys.argv[1:]:
+        print("Processing multiple datasets: {0}".format(
+            " ".join(filter(
+                lambda x: os.path.exists(x),
+                sys.argv[1:]
+            ))
+        ))
+        paths = [
+            os.path.abspath(_)
+            for _ in sys.argv[1:]
+            if os.path.exists(_)
+        ]
+    else:
+        paths = [os.path.abspath(".")]
+
+    P = Plotter(paths)
+    P.start()
