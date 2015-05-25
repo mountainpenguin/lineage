@@ -5,12 +5,14 @@
 """
 
 from __future__ import print_function
+import datetime
 import matplotlib.pyplot as plt
 import matplotlib.patches
 import numpy as np
 import scipy.io
 import scipy.misc
 import skimage.draw
+import sqlite3
 import uuid
 import os
 import json
@@ -19,6 +21,168 @@ import glob
 
 __version__ = "0.1"
 __author__ = "Miles Priestman <priestman.miles@gmail.com>"
+
+
+class LineageDatabase:
+    """Class for storing lineage data"""
+    def __init__(self):
+        self.IS_NEW = False
+        self.conn = sqlite3.connect("lineages.db")
+        if not self._checkDB():
+            self.IS_NEW = True
+            self._createDB()
+
+    def _createDB(self):
+        cursor = self.conn.cursor()
+        query = """
+        CREATE TABLE cell
+        (
+            id INTEGER PRIMARY KEY,
+            uuid TEXT UNIQUE,
+            parent_id INTEGER,
+            child1_id INTEGER,
+            child2_id INTEGER,
+            frame INTEGER,
+            lineage_id INTEGER,
+            length REAL,
+            generation INTEGER,
+            lineage_index INTEGER,
+            mt_idx INTEGER,
+            box_centre_x REAL,
+            box_centre_y REAL,
+            mesh_centre_x REAL,
+            mesh_centre_y REAL
+        )"""
+        # note about mt_idx
+        # only the last 20 bits are used, of this:
+        # the first 10 bits are the frame number (0-1023)
+        # the second 10 bits are the cell number (0-1023)
+        cursor.execute(query)
+
+        query = """
+        CREATE TABLE lineage
+        (
+            id INTEGER PRIMARY KEY,
+            start INTEGER,
+            end INTEGER,
+            end_type INTEGER,
+            members INTEGER
+        )"""
+        cursor.execute(query)
+
+        query = """
+        CREATE TABLE end_types
+        (
+            id INTEGER PRIMARY KEY,
+            description TEXT
+        )"""
+        cursor.execute(query)
+
+        query = """
+        INSERT INTO end_types
+        VALUES
+        (1, "frames"),
+        (2, "death"),
+        (3, "division")"""
+        cursor.execute(query)
+
+        query = """
+        CREATE TABLE timing
+        (
+            frame INTEGER PRIMARY KEY,
+            seconds INTEGER
+        )"""
+        cursor.execute(query)
+        self.conn.commit()
+        cursor.close()
+
+    def _checkDB(self):
+        cursor = self.conn.cursor()
+        query = """
+        SELECT * FROM cell
+        LIMIT 1"""
+        try:
+            cursor.execute(query)
+        except sqlite3.OperationalError:
+            return False
+        cursor.close()
+        return True
+
+    def insertCell(self, mt_idx, frame, cell_uuid=None, commit=True):
+        query = """
+        INSERT INTO cell
+        (uuid, frame, mt_idx)
+        VALUES
+        (?, ?, ?)"""
+
+        if not cell_uuid:
+            cell_uuid = uuid.uuid4().urn[9:]
+        cursor = self.conn.cursor()
+        cursor.execute(query, (cell_uuid, frame, mt_idx))
+        if commit:
+            self.conn.commit()
+        cursor.close()
+
+    def assignCell(self, cell_uuid, parent_id, child1_id, child2_id, lineage_id, length, generation, lineage_index, box_centre, mesh_centre, commit=True):
+        query = """
+        UPDATE cell
+        SET
+            parent_id = ?,
+            child1_id = ?,
+            child2_id = ?,
+            lineage_id = ?,
+            length = ?,
+            generation = ?,
+            lineage_index = ?,
+            box_centre_x = ?,
+            box_centre_y = ?,
+            mesh_centre_x = ?,
+            mesh_centre_y = ?
+        WHERE uuid = ?
+        """
+        cursor = self.conn.cursor()
+        cursor.execute(
+            query,
+            (
+                parent_id, child1_id, child2_id, lineage_id,
+                length, generation, lineage_index,
+                box_centre[0], box_centre[1],
+                mesh_centre[0], mesh_centre[1],
+                cell_uuid
+            )
+        )
+        if commit:
+            self.conn.commit()
+        cursor.close()
+
+    def insertLineage(self, ID, start, end, end_type, members, commit=True):
+        query = """
+        INSERT INTO lineage
+        (id, start, end, end_type, members)
+        VALUES
+        (?, ?, ?, ?, ?)"""
+        cursor = self.conn.cursor()
+
+        cursor.execute(
+            query, (
+                ID, start, end, end_type, members
+            )
+        )
+        if commit:
+            self.conn.commit()
+        cursor.close()
+
+    def getLineageByID(self, ID):
+        pass
+
+    def getCellByUUID(self, uuid):
+        pass
+
+    def getCellByID(self, ID):
+        pass
+
+    def getCellsByFrame(self, frame):
+        pass
 
 
 class Cell(object):
@@ -165,11 +329,198 @@ class Lineage(object):
         self.ALIGNMAT = alignmat
         self.UUIDFILE = uuidfile
         self.LINEAGEFILE = lineagefile
+        self.Database = LineageDatabase()
+        if self.Database.IS_NEW:
+            self.convert_json_data()
+        self.load_data()
+        return
 
-        self.load_alignment()
-        self.load_uuids()
-        self.load_lineages()
-        self.load_cells()
+#        if not os.path.exists(".lineage_data"):
+#            os.mkdir(".lineage_data")
+#
+#        self.load_alignment()
+#        self.load_uuids()
+#        self.load_lineages()
+#        self.load_cells()
+
+    def load_data(self):
+        pass
+
+    def convert_json_data(self):
+        # load uuids and insert into database
+        uuid_data = json.loads(open(self.UUIDFILE).read())
+        for key, value in uuid_data.items():
+            f_num, c_num = [int(_) for _ in key.split(":")[1:]]
+            mt_idx = int("{0:010b}{1:010b}".format(
+                f_num, c_num
+            ), 2)
+#            test_b = "{0:020b}".format(mt_idx)
+#            test_f = int(test_b[-20:-10], 2)
+#            test_c = int(test_b[-10:], 2)
+#            print(test_f, test_c)
+
+            self.Database.insertCell(
+                mt_idx, f_num - 1, cell_uuid=value, commit=False
+            )
+        self.Database.conn.commit()
+
+        # load lineage data
+        lineages = json.loads(open(self.LINEAGEFILE).read())
+
+        cells = scipy.io.loadmat(self.CELLMAT)
+        cellList = cells["cellList"][0]
+
+        cell_total = 0
+        pos_idx = 0
+        frames = []
+
+        for pos in cellList:
+            if pos.shape[0] == 0:
+                pos_idx += 1
+                continue
+            cell_idx = 0
+            py_cell_idx = 0
+            frame_cells = []
+            for c in pos[0]:
+                if c.shape[0] != 0 and c.shape[1] != 0:
+                    cell = Cell(c[0][0])
+                    if cell.mesh.shape == (1, 1):
+                        pass
+                    else:
+                        cell.frame = pos_idx + 1
+                        cell.mt_idx = cell_idx + 1
+                        cell.py_idx = py_cell_idx
+                        uuid_check = "frame:{0}:{1}".format(
+                            cell.frame, cell.mt_idx
+                        )
+                        cell.id = uuid_data[uuid_check]
+
+                        if cell.id in lineages:
+                            cell.parent = lineages[cell.id][0]
+                            cell.children = lineages[cell.id][1]
+                            if type(cell.children) is not str and cell.children:
+                                cell.DIVISION = True
+                            else:
+                                cell.DIVISION = False
+
+                        else:
+                            cell.parent = None
+                            cell.children = None
+
+                        cell.box_centre = self.get_box_centre(cell)
+                        cell.centre = self.get_mesh_centre(cell)
+
+                        py_cell_idx += 1
+                        cell_total += 1
+                        frame_cells.append(cell)
+                cell_idx += 1
+            frame = Frame(pos_idx, frame_cells)
+            frames.append(frame)
+            pos_idx += 1
+
+        frames = Frames(frames)
+
+        # assign lineages into tracks
+        gens = {}
+        l_idx = 1
+        f0_cells = frames[0].cells
+        cell_queue = f0_cells
+        for c in cell_queue:
+            l = []
+            lin_idx = 0
+            if c.id in gens:
+                generation = gens[c.id]
+            else:
+                generation = 0
+            while True:
+                l.append(c)
+                self.Database.assignCell(
+                    c.id,
+                    c.parent,
+                    c.DIVISION and c.children[0] or c.children,
+                    c.DIVISION and c.children[1] or None,
+                    l_idx,
+                    c.length[0][0],
+                    generation,
+                    lin_idx,
+                    c.box_centre,
+                    c.centre,
+                    commit=False
+                )
+                if type(c.children) is str:
+                    c = frames.cell(c.children)
+                elif not c.children:
+                    break
+                else:
+                    c1 = frames.cell(c.children[0])
+                    c2 = frames.cell(c.children[1])
+                    gens[c1.id] = generation + 1
+                    gens[c2.id] = generation + 1
+                    cell_queue.append(c1)
+                    cell_queue.append(c2)
+                    break
+                lin_idx += 1
+            # commit lineage
+            # get end_type
+            data_path = ".lineage_data/{0}.json".format(l[0].id)
+            if os.path.exists(data_path):
+                d = json.loads(open(data_path).read())
+                end_type = d["end"]
+                if end_type == "death":
+                    end_type = 2
+                elif end_type == "frames":
+                    end_type = 1
+                elif end_type == "division":
+                    end_type = 3
+            else:
+                # guess death_type
+                if l[-1].frame >= 76:
+                    end_type = 1
+                elif l[-1].frame < 76 and not l[-1].children:
+                    end_type = 2
+                elif l[-1].children:
+                    end_type = 3
+
+            self.Database.insertLineage(
+                l_idx,
+                l[0].frame - 1,
+                l[-1].frame - 1,
+                end_type,
+                len(l),
+            )
+            l_idx += 1
+        self.Database.conn.commit()
+
+        # insert timing
+        timing_data = json.loads(open("timings.json").read())
+        timings = timing_data["timings"]
+        T = []
+        ts = lambda x, y, *z: datetime.datetime.strptime(
+            "{0} {1}".format(x, y), "%d.%m.%y %H:%M"
+        )
+        if "start" in timing_data:
+            t0 = ts(*timing_data["start"])
+        else:
+            t0 = ts(*timings[0])
+
+        f_num = 0
+        cursor = self.Database.conn.cursor()
+        for d1, h1, frames in timings:
+            t1 = ts(d1, h1)
+            td = t1 - t0
+            s = td.days * 24 * 60 * 60
+            s += td.seconds
+            for _ in range(frames):
+                T.append(s)
+                cursor.execute("""
+                    INSERT INTO timing
+                    VALUES
+                    (?, ?)
+                """, (f_num, s))
+                s += timing_data["pass_delay"] * 60
+                f_num += 1
+        cursor.close()
+        self.Database.conn.commit()
 
     def load_alignment(self):
         """Loads alignment files as created by MicrobeTracker
