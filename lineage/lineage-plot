@@ -13,6 +13,7 @@ import os
 import datetime
 import scipy.optimize
 import argparse
+import xlwt
 plt.rc("font", family="sans-serif")
 plt.rc("text", usetex=True)
 plt.rcParams["text.latex.preamble"] = [
@@ -76,6 +77,30 @@ class Storage(object):
         else:
             return np.mean(x), 1.96 * SEM
 
+    def get_data(self):
+        data = []  # all, phase1, phase2, phase3: (phase, n, mean, sem, unit)
+
+        phase = 0
+        for x in [self.all_data,
+                  self.phase1,
+                  self.phase2,
+                  self.phase3]:
+            if len(x) < 1:
+                # no divisions
+                data.append((
+                    phase and "Phase {0}".format(phase) or "All Data",
+                    0, 0, 0, self.unit
+                ))
+            else:
+                m, sem = self.mean_growth(phase)
+                data.append((
+                    phase and "Phase {0}".format(phase) or "All Data",
+                    len(x), m, sem, self.unit
+                ))
+            phase += 1
+        return data
+
+
     def print_data(self):
         phase = 0
         for x in [self.all_data,
@@ -116,16 +141,68 @@ class Plotter(object):
         for path in self.PATHS:
             self.process_three(path)
 
+    def write_excel_row(self, rownum, *values):
+        i = 0
+        for val in values:
+            self.excel_ws.write(rownum, i, val)
+            i += 1
+
     def start(self):
+        excel_wb = xlwt.Workbook()
+        self.excel_ws = excel_wb.add_sheet("General")
+        self.write_excel_row(0, "Name", "n", "Mean", "SEM", "unit")
+
         self.doubling_time = Storage("Doubling Time", "h")
         self.growth_rate = Storage("Growth Rate", "\u03BCm/h")
         self.div_length = Storage("Division Length", "\u03BCm")
         for path in self.PATHS:
-            self.process(path)
+            L = self.process(path)
         self.decorate_tracks()
         self.doubling_time.print_data()
         self.growth_rate.print_data()
         self.div_length.print_data()
+
+        r = 1
+        for x in [self.doubling_time, self.growth_rate, self.div_length]:
+            for label, n, mean, sem, unit in x.get_data():
+                self.write_excel_row(
+                    r,
+                    "{0} ({1})".format(x.description, label),
+                    int(n),
+                    float(mean),
+                    float(sem),
+                    unit
+                )
+                r += 1
+
+        # get mini-cells
+        c = L.frames[-1].cells
+        cl = np.array([float(_.length) for _ in c]) * self.PX
+        n = len(cl)
+        m = cl.mean()
+        sem = cl.std() / np.sqrt(n)
+        self.write_excel_row(
+            r, "Cell length (endpoint)", n, m, sem, "\u03BCm", " ", *cl
+        )
+        r += 1
+        nmini = len(cl[cl < 2.5])
+        self.write_excel_row(
+            r, "Mini-cells (< 2.5 \u03BCm)", nmini
+        )
+        r += 1
+        self.write_excel_row(
+            r, "Mini-cells", (nmini / n) * 100
+        )
+        self.excel_ws.write(r, 4, "%")
+
+        print("Cell lengths (endpoint): {0:.5f}\u03BCm \u00B1 {1:.5f} (n = {2})".format(
+            m, sem, n
+        ))
+        print("Mini-cells (<2.5\u03BCm): {0} ({0} / {1}); {2:.1f}%".format(
+            nmini, n, (nmini / n) * 100
+        ))
+
+        excel_wb.save("data/data.xls")
         self.plot_histograms()
 
     def _set_topmid(self, ax):
@@ -273,7 +350,6 @@ class Plotter(object):
         else:
             plt.savefig("growth-rates.pdf")
 
-
     def decorate_tracks(self):
         d = self.RIF_REMOVE - self.RIF_ADD
         s = d.days * 24 * 60 * 60
@@ -337,8 +413,11 @@ class Plotter(object):
             return json.loads(open("timing.json").read())["timing"]
         elif os.path.exists("timings.json"):
             timing_data = json.loads(open("timings.json").read())
-            rif_add = self._gettimestamp(*timing_data["add"])
-            rif_remove = self._gettimestamp(*timing_data["remove"])
+            if "add" in timing_data and "remove" in timing_data:
+                rif_add = self._gettimestamp(*timing_data["add"])
+                rif_remove = self._gettimestamp(*timing_data["remove"])
+            else:
+                rif_add, rif_remove = None, None
             timings = timing_data["timings"]
             T = []
             if "start" in timing_data:
@@ -586,6 +665,7 @@ class Plotter(object):
                 )
 
         os.chdir(self.ORIGINAL_DIR)
+        return L
 
     def ftt(self, x):
         return np.array([self.T[int(z) - 1] / 60 for z in x])
@@ -612,8 +692,8 @@ class Plotter(object):
         if div:
             if after:
                 dl = after[-1][1] * self.PX
-                print("!!!")
-                print(after, p2, p3)
+                #print("!!!")
+                #print(after, p2, p3)
                 self.div_length.append_p3(dl)
             elif during:
                 dl = during[-1][1] * self.PX
