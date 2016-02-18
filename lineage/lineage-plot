@@ -20,6 +20,8 @@ plt.rcParams["text.latex.preamble"] = [
     r"\usepackage{siunitx}",
     r"\sisetup{detect-all}",
 ]
+import seaborn as sns
+sns.set_style("white")
 
 if not Axes3D:
     print("Uh oh")
