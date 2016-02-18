@@ -909,12 +909,13 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "-m", "--method", default="mean",
+        "-m", "--method", default="gradient",
         help="""
-            Set growth rate determination method. Options are: mean (default) -
-            use growth rate between each adjacent frame, and use the mean of
-            all rates. endpoint - use initial and final cell lengths. gradient
-            - use the gradient of the line of best fit for cell lengths.
+            Set growth rate determination method. Options are: mean - use
+            growth rate between each adjacent frame, and use the mean of all
+            rates.  endpoint - use initial and final cell lengths. gradient
+            (default) - use the gradient of the line of best fit for cell
+            lengths.
         """,
         choices=["mean", "endpoint", "gradient"]
     )
