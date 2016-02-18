@@ -78,6 +78,13 @@ class Storage(object):
         else:
             return np.mean(x), 1.96 * SEM
 
+    def get_all_data(self):
+        if len(self.all_data) < 1:
+            return [(None, 0, 0, 0, self.unit)]
+        m, sem = self.mean_growth(0)
+        return [(None, len(self.all_data), m, sem, self.unit)]
+
+
     def get_data(self):
         data = []  # all, phase1, phase2, phase3: (phase, n, mean, sem, unit)
 
@@ -124,9 +131,21 @@ class Storage(object):
                 ))
             phase += 1
 
+    def print_all_data(self):
+        if len(self.all_data) < 1:
+            print("{0}: No divisions".format(self.description))
+        else:
+            m, sem = self.mean_growth(0)
+            print("{0}: {1:.5f}{2} \u00B1 {3:.5f} (n = {4})".format(
+                self.description,
+                m, self.unit,
+                sem, len(self.all_data)
+            ))
+
+
 
 class Plotter(object):
-    def __init__(self, paths, method, suffix):
+    def __init__(self, paths, method, suffix, phases):
         self.PATHS = paths
         self.PASS_DELAY = 15  # pass delay in minutes
         self.PX = 0.12254  # calibration of 1px in um for 63x objective (WF2)
@@ -135,6 +154,7 @@ class Plotter(object):
         self.ORIGINAL_DIR = os.getcwd()
         self.METHOD = method
         self.SUFFIX = suffix
+        self.PHASES = phases
         self.DEBUG = 1
 
     def three(self):
@@ -160,17 +180,31 @@ class Plotter(object):
         for path in self.PATHS:
             print("Processing {0}".format(path))
             self.process(path)
+
         self.decorate_tracks()
-        self.doubling_time.print_data()
-        self.growth_rate.print_data()
-        self.div_length.print_data()
+        if self.PHASES:
+            self.doubling_time.print_data()
+            self.growth_rate.print_data()
+            self.div_length.print_data()
+        else:
+            self.doubling_time.print_all_data()
+            self.growth_rate.print_all_data()
+            self.div_length.print_all_data()
 
         r = 1
         for x in [self.doubling_time, self.growth_rate, self.div_length]:
-            for label, n, mean, sem, unit in x.get_data():
+            if self.PHASES:
+                data = x.get_data()
+            else:
+                data = x.get_all_data()
+            for label, n, mean, sem, unit in data:
+                if label:
+                    desc_cell = "{0} ({1})".format(x.description, label)
+                else:
+                    desc_cell = x.description
                 self.write_excel_row(
                     r,
-                    "{0} ({1})".format(x.description, label),
+                    desc_cell,
                     int(n),
                     float(mean),
                     float(sem),
@@ -208,7 +242,8 @@ class Plotter(object):
         if not os.path.exists("data"):
             os.mkdir("data")
         excel_wb.save("data/data.xls")
-        self.plot_histograms()
+        if self.PHASES:
+            self.plot_histograms()
 
     def _set_topmid(self, ax):
         ax.spines["right"].set_color("none")
@@ -392,7 +427,10 @@ class Plotter(object):
         ax.xaxis.set_ticks_position("bottom")
         ax.yaxis.set_ticks_position("left")
 
-        plt.xlim([0, 22])
+        if self.PHASES:
+            plt.xlim([0, 22])
+        else:
+            plt.xlim([0, plt.xlim()[1]])
 
         if self.SUFFIX:
             plt.savefig("growth-traces-{0}.pdf".format(self.SUFFIX))
@@ -887,6 +925,13 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        "-n", "--nophase", default=False, action="store_true",
+        help="""
+            Disable determination of phases (specific for Rif experiments)
+        """
+    )
+
+    parser.add_argument(
         "directories", metavar="dirs", type=str, nargs="*",
         help="""
             Specify which directories to process. Combines each dataset into
@@ -912,7 +957,7 @@ if __name__ == "__main__":
     else:
         paths = [os.path.abspath(".")]
 
-    P = Plotter(paths, method=args.method, suffix=args.suffix)
+    P = Plotter(paths, method=args.method, suffix=args.suffix, phases=not args.nophase)
     if args.three:
         P.three()
     else:
