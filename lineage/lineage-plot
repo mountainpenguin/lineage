@@ -440,6 +440,7 @@ class Plotter(object):
                 return T, rif_add, rif_remove
 
     def get_fluoresence(self):
+        return []
         if os.path.exists("fluorescence.json"):
             return json.loads(open("fluorescence.json").read())
         else:
