@@ -441,7 +441,7 @@ class Plotter(object):
 
     def get_fluoresence(self):
         if os.path.exists("fluorescence.json"):
-            return json.loads(open("fluoresence.json").read())
+            return json.loads(open("fluorescence.json").read())
         else:
             return []
 
