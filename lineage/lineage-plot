@@ -86,7 +86,6 @@ class Storage(object):
         m, sem = self.mean_growth(0)
         return [(None, len(self.all_data), m, sem, self.unit)]
 
-
     def get_data(self):
         data = []  # all, phase1, phase2, phase3: (phase, n, mean, sem, unit)
 
@@ -393,34 +392,24 @@ class Plotter(object):
             plt.savefig("growth-rates.pdf")
 
     def decorate_tracks(self):
-        d = self.RIF_REMOVE - self.RIF_ADD
-        s = d.days * 24 * 60 * 60
-        s += d.seconds
-        w = (s / 60) // 60
-
-        xd = self.RIF_ADD - self.T0
-        s = xd.days * 24 * 60 * 60
-        s += xd.seconds
-        x = (s / 60) // 60
-
         ax = plt.gca()
-        ax.axvspan(
-            x, x + w,
-            facecolor="y",
-            edgecolor=None,
-            alpha=.3,
-        )
+        if self.PHASES:
+            d = self.RIF_REMOVE - self.RIF_ADD
+            s = d.days * 24 * 60 * 60
+            s += d.seconds
+            w = (s / 60) // 60
 
-#        y0, y1 = plt.ylim()
-#        rect = matplotlib.patches.Rectangle(
-#            (x, y0),
-#            w,
-#            (y1 - y0),
-#            facecolor="y",
-#            edgecolor=None,
-#            alpha=.3,
-#        )
-#        ax.add_patch(rect)
+            xd = self.RIF_ADD - self.T0
+            s = xd.days * 24 * 60 * 60
+            s += xd.seconds
+            x = (s / 60) // 60
+
+            ax.axvspan(
+                x, x + w,
+                facecolor="y",
+                edgecolor=None,
+                alpha=.3,
+            )
 
         plt.xlabel(r"Time (\si{\hour})")
         plt.ylabel(r"Cell size (\si{\micro\metre})")
