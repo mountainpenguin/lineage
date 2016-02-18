@@ -150,12 +150,15 @@ class Plotter(object):
     def start(self):
         excel_wb = xlwt.Workbook()
         self.excel_ws = excel_wb.add_sheet("General")
+        self.excel_ws2 = excel_wb.add_sheet("End Lengths")
         self.write_excel_row(0, "Name", "n", "Mean", "SEM", "unit")
 
         self.doubling_time = Storage("Doubling Time", "h")
         self.growth_rate = Storage("Growth Rate", "\u03BCm/h")
         self.div_length = Storage("Division Length", "\u03BCm")
+        self.end_length = []
         for path in self.PATHS:
+            print("Processing {0}".format(path))
             L = self.process(path)
         self.decorate_tracks()
         self.doubling_time.print_data()
@@ -176,24 +179,24 @@ class Plotter(object):
                 r += 1
 
         # get mini-cells
-        c = L.frames[-1].cells
-        cl = np.array([float(_.length) for _ in c]) * self.PX
+        cl = np.array(self.end_length)
         n = len(cl)
         m = cl.mean()
         sem = cl.std() / np.sqrt(n)
         self.write_excel_row(
-            r, "Cell length (endpoint)", n, m, sem, "\u03BCm", " ", *cl
+            r, "Cell length (endpoint)", n, m, sem, "\u03BCm"
         )
+        cell_length_row = 0
+        for cell_length in cl:
+            self.excel_ws2.write(cell_length_row, 0, cell_length)
+            cell_length_row += 1
+
         r += 1
         nmini = len(cl[cl < 2.5])
         self.write_excel_row(
-            r, "Mini-cells (< 2.5 \u03BCm)", nmini
+            r, "Mini-cells (< 2.5 \u03BCm)", nmini,
+            (nmini / n) * 100, " ", "%"
         )
-        r += 1
-        self.write_excel_row(
-            r, "Mini-cells", (nmini / n) * 100
-        )
-        self.excel_ws.write(r, 4, "%")
 
         print("Cell lengths (endpoint): {0:.5f}\u03BCm \u00B1 {1:.5f} (n = {2})".format(
             m, sem, n
@@ -202,6 +205,8 @@ class Plotter(object):
             nmini, n, (nmini / n) * 100
         ))
 
+        if not os.path.exists("data"):
+            os.mkdir("data")
         excel_wb.save("data/data.xls")
         self.plot_histograms()
 
@@ -664,6 +669,9 @@ class Plotter(object):
                     )
                 )
 
+        final_cells = L.frames[-1].cells
+        for final_cell in final_cells:
+            self.end_length.append(float(final_cell.length) * self.PX)
         os.chdir(self.ORIGINAL_DIR)
         return L
 
