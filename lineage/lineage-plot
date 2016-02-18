@@ -24,6 +24,7 @@ plt.rcParams["text.latex.preamble"] = [
 if not Axes3D:
     print("Uh oh")
 
+
 class Storage(object):
     def __init__(self, description, unit):
         self.description = description
@@ -100,7 +101,6 @@ class Storage(object):
             phase += 1
         return data
 
-
     def print_data(self):
         phase = 0
         for x in [self.all_data,
@@ -130,7 +130,7 @@ class Plotter(object):
         self.PATHS = paths
         self.PASS_DELAY = 15  # pass delay in minutes
         self.PX = 0.12254  # calibration of 1px in um for 63x objective (WF2)
-        #self.PX = 0.077 # calibration for 1px in um for 100x objective (WF1)
+        # self.PX = 0.077  # calibration for 1px in um for 100x objective (WF1)
         self.FLUOR_THRESH = 2500
         self.ORIGINAL_DIR = os.getcwd()
         self.METHOD = method
@@ -159,7 +159,7 @@ class Plotter(object):
         self.end_length = []
         for path in self.PATHS:
             print("Processing {0}".format(path))
-            L = self.process(path)
+            self.process(path)
         self.decorate_tracks()
         self.doubling_time.print_data()
         self.growth_rate.print_data()
@@ -429,11 +429,13 @@ class Plotter(object):
                 t0 = self._gettimestamp(*timing_data["start"])
             else:
                 t0 = self._gettimestamp(*timings[0])
+
             for d1, t1, frames in timings:
                 sm = self._timediff(d1, t1, t0)
                 for _ in range(frames):
                     T.append(sm)
                     sm += self.PASS_DELAY
+
             if t0:
                 return T, rif_add, rif_remove, t0
             else:
@@ -538,7 +540,7 @@ class Plotter(object):
                         zs=self.T[F.frame] / 60,
                         width=width,
                         color="0.5",
-                        #linewidth=0.5,
+                        # linewidth=0.5,
                         alpha=0.8,
                         zdir="y",
                     )
@@ -548,7 +550,7 @@ class Plotter(object):
                         zs=self.T[F.frame] / 60,
                         width=width,
                         color=col,
-                        #linewidth=0.5,
+                        # linewidth=0.5,
                         alpha=0.8,
                         zdir="y",
                     )
@@ -556,7 +558,6 @@ class Plotter(object):
         plt.show()
 
         os.chdir(self.ORIGINAL_DIR)
-
 
     def process(self, path):
         os.chdir(path)
@@ -701,8 +702,6 @@ class Plotter(object):
         if div:
             if after:
                 dl = after[-1][1] * self.PX
-                #print("!!!")
-                #print(after, p2, p3)
                 self.div_length.append_p3(dl)
             elif during:
                 dl = during[-1][1] * self.PX
@@ -710,7 +709,6 @@ class Plotter(object):
             elif before:
                 dl = before[-1][1] * self.PX
                 self.div_length.append_p1(dl)
-
 
     def assign_t(self, data, phase):
         if len(data) <= 1:
@@ -723,7 +721,6 @@ class Plotter(object):
             self.growth_rate.append_p2(lt)
         elif phase == 3:
             self.growth_rate.append_p3(lt)
-
 
     def get_growth_rate(self, data, method, debug=False):
         if debug:
@@ -766,7 +763,7 @@ class Plotter(object):
                 transform=trans,
             )
 
-            #mean
+            # mean
             n = 0
             lts = []
             for curr in data:
