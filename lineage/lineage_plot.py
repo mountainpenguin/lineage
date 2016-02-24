@@ -156,9 +156,8 @@ class Storage(object):
             ))
 
 
-
 class Plotter(object):
-    def __init__(self, paths, method, suffix, phases):
+    def __init__(self, paths, method, suffix, phases, write_excel=True, write_pdf=True, print_data=True):
         self.PATHS = paths
         self.PASS_DELAY = 15  # pass delay in minutes
         self.PX = 0.12254  # calibration of 1px in um for 63x objective (WF2)
@@ -168,6 +167,9 @@ class Plotter(object):
         self.METHOD = method
         self.SUFFIX = suffix
         self.PHASES = phases
+        self.WRITE_EXCEL = write_excel
+        self.WRITE_PDF = write_pdf
+        self.PRINT = print_data
         self.DEBUG = 1
 
     def three(self):
@@ -187,7 +189,7 @@ class Plotter(object):
         self.write_excel_row(0, "Name", "n", "Mean", "SD", "SEM", "95%", "unit")
 
         self.doubling_time = Storage("Doubling Time", "h")
-        self.growth_rate = Storage("Growth Rate", "\u03BCm/h")
+        self.growth_rate = Storage("Elongation Rate", "\u03BCm/h")
         self.div_length = Storage("Division Length", "\u03BCm")
         self.end_length = []
         for path in self.PATHS:
@@ -195,11 +197,11 @@ class Plotter(object):
             self.process(path)
 
         self.decorate_tracks()
-        if self.PHASES:
+        if self.PHASES and self.PRINT:
             self.doubling_time.print_data()
             self.growth_rate.print_data()
             self.div_length.print_data()
-        else:
+        elif not self.PHASES and self.PRINT:
             self.doubling_time.print_all_data()
             self.growth_rate.print_all_data()
             self.div_length.print_all_data()
@@ -249,16 +251,19 @@ class Plotter(object):
             (nmini / n) * 100, "", "", "", "%"
         )
 
-        print("Cell lengths (endpoint): {0:.5f}\u03BCm \u00B1 {1:.5f} (n = {2})".format(
-            m, sem, n
-        ))
-        print("Mini-cells (<2.5\u03BCm): {0} ({0} / {1}); {2:.1f}%".format(
-            nmini, n, (nmini / n) * 100
-        ))
+        if self.PRINT:
+            print("Cell lengths (endpoint): {0:.5f}\u03BCm \u00B1 {1:.5f} (n = {2}) [S.D. {3:.5f}]".format(
+                m, ci, n, cl.std()
+            ))
+            print("Mini-cells (<2.5\u03BCm): {0} ({0} / {1}); {2:.1f}%".format(
+                nmini, n, (nmini / n) * 100
+            ))
 
-        if not os.path.exists("data"):
-            os.mkdir("data")
-        excel_wb.save("data/data.xls")
+        if self.WRITE_EXCEL:
+            if not os.path.exists("data"):
+                os.mkdir("data")
+            excel_wb.save("data/data.xls")
+
         if self.PHASES:
             self.plot_histograms()
 
@@ -402,10 +407,12 @@ class Plotter(object):
 
         plt.xlabel("Elongation Rate (\si{\micro\metre\per\hour})")
 
-        if self.SUFFIX:
-            plt.savefig("growth-rates-{0}.pdf".format(self.SUFFIX))
-        else:
-            plt.savefig("growth-rates.pdf")
+        if self.WRITE_PDF:
+            if self.SUFFIX:
+                plt.savefig("growth-rates-{0}.pdf".format(self.SUFFIX))
+            else:
+                plt.savefig("growth-rates.pdf")
+            plt.close()
 
     def decorate_tracks(self):
         ax = plt.gca()
@@ -439,10 +446,12 @@ class Plotter(object):
         else:
             plt.xlim([0, plt.xlim()[1]])
 
-        if self.SUFFIX:
-            plt.savefig("growth-traces-{0}.pdf".format(self.SUFFIX))
-        else:
-            plt.savefig("growth-traces.pdf")
+        if self.WRITE_PDF:
+            if self.SUFFIX:
+                plt.savefig("growth-traces-{0}.pdf".format(self.SUFFIX))
+            else:
+                plt.savefig("growth-traces.pdf")
+            plt.close()
 
     def _gettimestamp(self, day, time, *args):
         return datetime.datetime.strptime(
