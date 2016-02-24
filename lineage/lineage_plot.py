@@ -161,7 +161,6 @@ class Plotter(object):
         self.PATHS = paths
         self.PASS_DELAY = 15  # pass delay in minutes
         self.PX = 0.12254  # calibration of 1px in um for 63x objective (WF2)
-        # self.PX = 0.077  # calibration for 1px in um for 100x objective (WF1)
         self.FLUOR_THRESH = 2500
         self.ORIGINAL_DIR = os.getcwd()
         self.METHOD = method
@@ -615,6 +614,10 @@ class Plotter(object):
 
     def process(self, path):
         os.chdir(path)
+
+        if os.path.exists(".WF1_100"):
+            self.PX = 0.062893  # calibration for 1px in um for 100x objective (WF1)
+
         L = track.Lineage()
         self.T, self.RIF_ADD, self.RIF_REMOVE, self.T0 = self.get_timings(t0=True)
         F = self.get_fluoresence()
