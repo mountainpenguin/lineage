@@ -685,8 +685,9 @@ class Plotter(object):
                     if dt == 0:
                         break
 
-                    self.doubling_time.append(dt)
-                    self.doubling_time.append_p(cell, dt)
+                    if lineage[0][0] != 1:
+                        self.doubling_time.append(dt)
+                        self.doubling_time.append_p(cell, dt)
 
                     if cell.frame == 13:
                         lt = self.get_growth_rate(lineage, self.METHOD)
