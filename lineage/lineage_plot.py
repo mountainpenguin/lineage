@@ -12,6 +12,7 @@ import json
 import os
 import datetime
 import scipy.optimize
+import scipy.stats
 import argparse
 import xlwt
 plt.rc("font", family="sans-serif")
@@ -62,7 +63,7 @@ class Storage(object):
         else:
             self.phase3.append(x)
 
-    def mean_growth(self, phase=0, sem=False, threshold=False):
+    def mean_growth(self, phase=0, ci=False, threshold=False):
         x = np.array([self.all_data, self.phase1, self.phase2, self.phase3][phase])
 
         if threshold:
@@ -71,20 +72,27 @@ class Storage(object):
         if len(x) == 0:
             return None, None
 
-        SEM = np.std(x) / np.sqrt(len(x))
-        if sem:
+        SEM = scipy.stats.sem(x).flatten()[0]
+        if not ci:
             return (
                 np.mean(x),
+                np.std(x),
                 SEM
             )
         else:
-            return np.mean(x), 1.96 * SEM
+            ci = SEM * scipy.stats.t.ppf(1.95/2, len(x) - 1)
+            return (
+                np.mean(x),
+                np.std(x),
+                SEM,
+                ci
+            )
 
     def get_all_data(self):
         if len(self.all_data) < 1:
-            return [(None, 0, 0, 0, self.unit)]
-        m, sem = self.mean_growth(0)
-        return [(None, len(self.all_data), m, sem, self.unit)]
+            return [(None, 0, 0, 0, 0, 0, self.unit)]
+        m, std, sem, ci = self.mean_growth(0, ci=True)
+        return [(None, len(self.all_data), m, std, sem, ci, self.unit)]
 
     def get_data(self):
         data = []  # all, phase1, phase2, phase3: (phase, n, mean, sem, unit)
@@ -98,13 +106,13 @@ class Storage(object):
                 # no divisions
                 data.append((
                     phase and "Phase {0}".format(phase) or "All Data",
-                    0, 0, 0, self.unit
+                    0, 0, 0, 0, 0, self.unit
                 ))
             else:
-                m, sem = self.mean_growth(phase)
+                m, std, sem, ci = self.mean_growth(phase, ci=True)
                 data.append((
                     phase and "Phase {0}".format(phase) or "All Data",
-                    len(x), m, sem, self.unit
+                    len(x), m, std, sem, ci, self.unit
                 ))
             phase += 1
         return data
@@ -121,14 +129,15 @@ class Storage(object):
                     phase and "Phase {0}".format(phase) or "All Data"
                 ))
             else:
-                m, sem = self.mean_growth(phase)
-                print("{0} ({1}): {2:.5f}{3} \u00B1 {4:.5f} (n = {5})".format(
+                m, std, sem, ci = self.mean_growth(phase, ci=True)
+                print("{0} ({1}): {2:.5f}{3} \u00B1 {4:.5f} (n = {5}) [S.D. {6:.5f}]".format(
                     self.description,
                     phase and "Phase {0}".format(phase) or "All Data",
                     m,
                     self.unit,
-                    sem,
-                    len(x)
+                    ci,
+                    len(x),
+                    std
                 ))
             phase += 1
 
@@ -136,11 +145,14 @@ class Storage(object):
         if len(self.all_data) < 1:
             print("{0}: No divisions".format(self.description))
         else:
-            m, sem = self.mean_growth(0)
-            print("{0}: {1:.5f}{2} \u00B1 {3:.5f} (n = {4})".format(
+            m, std, sem, ci = self.mean_growth(0, ci=True)
+            print("{0}: {1:.5f}{2} \u00B1 {3:.5f} (n = {4}) [S.D. {5:.5f}]".format(
                 self.description,
-                m, self.unit,
-                sem, len(self.all_data)
+                m,
+                self.unit,
+                ci,
+                len(self.all_data),
+                std
             ))
 
 
@@ -172,7 +184,7 @@ class Plotter(object):
         excel_wb = xlwt.Workbook()
         self.excel_ws = excel_wb.add_sheet("General")
         self.excel_ws2 = excel_wb.add_sheet("End Lengths")
-        self.write_excel_row(0, "Name", "n", "Mean", "SEM", "unit")
+        self.write_excel_row(0, "Name", "n", "Mean", "SD", "SEM", "95%", "unit")
 
         self.doubling_time = Storage("Doubling Time", "h")
         self.growth_rate = Storage("Growth Rate", "\u03BCm/h")
@@ -198,7 +210,8 @@ class Plotter(object):
                 data = x.get_data()
             else:
                 data = x.get_all_data()
-            for label, n, mean, sem, unit in data:
+
+            for label, n, mean, std, sem, ci, unit in data:
                 if label:
                     desc_cell = "{0} ({1})".format(x.description, label)
                 else:
@@ -208,7 +221,9 @@ class Plotter(object):
                     desc_cell,
                     int(n),
                     float(mean),
+                    float(std),
                     float(sem),
+                    float(ci),
                     unit
                 )
                 r += 1
@@ -217,9 +232,10 @@ class Plotter(object):
         cl = np.array(self.end_length)
         n = len(cl)
         m = cl.mean()
-        sem = cl.std() / np.sqrt(n)
+        sem = scipy.stats.sem(cl).flatten()[0]
+        ci = sem * scipy.stats.t.ppf(1.95/2, n - 1)
         self.write_excel_row(
-            r, "Cell length (endpoint)", n, m, sem, "\u03BCm"
+            r, "Cell length (endpoint)", n, m, std, sem, ci, "\u03BCm"
         )
         cell_length_row = 0
         for cell_length in cl:
@@ -230,7 +246,7 @@ class Plotter(object):
         nmini = len(cl[cl < 2.5])
         self.write_excel_row(
             r, "Mini-cells (< 2.5 \u03BCm)", nmini,
-            (nmini / n) * 100, " ", "%"
+            (nmini / n) * 100, "", "", "", "%"
         )
 
         print("Cell lengths (endpoint): {0:.5f}\u03BCm \u00B1 {1:.5f} (n = {2})".format(
@@ -332,7 +348,7 @@ class Plotter(object):
         plt.text(fit_mean + 0.1, 7.5 * plt.ylim()[1] / 10, "$\sigma =$ {0:.2f}".format(coeff[2]))
 
     def plot_mean(self, d, phase, threshold=False):
-        mean, ci = d.mean_growth(phase, threshold=threshold)
+        mean, std, sem, ci = d.mean_growth(phase, threshold=threshold, ci=True)
         if not mean:
             return
 
@@ -384,7 +400,7 @@ class Plotter(object):
         self.set_limits()
         self.plot_mean(self.growth_rate, 3, threshold=threshold)
 
-        plt.xlabel("Growth rate (\si{\micro\metre\per\hour})")
+        plt.xlabel("Elongation Rate (\si{\micro\metre\per\hour})")
 
         if self.SUFFIX:
             plt.savefig("growth-rates-{0}.pdf".format(self.SUFFIX))
