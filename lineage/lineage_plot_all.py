@@ -359,28 +359,16 @@ def run(indirs, outdir):
 
 if __name__ == "__main__":
     dirlist = {
-        "Other": [
+        "delParA pMENDAB": [
+            [("delParA pMENDAB_2", "2"), ["zoom 1", "zoom 3", "zoom 4", "zoom 5"]],
+            [("delParA pMENDAB_3", "3"), ["zoom 1", "zoom 2"]],
+        ],
+        "delParAB": [
             ["14-7-15", ["4-1", "9-1", "10-2", "12-1", "13-2", "16-1"]],
             ["120815", ["1-1", "9-2", "12-2"]],
-            ["delParA pMENDAB_2", ["zoom 1", "zoom 3", "zoom 4", "zoom 5"]],
-            ["delParA pMENDAB_3", ["zoom 1", "zoom 2"]],
-            ["parAB 14-7-7 miles", ["09"]],
-            ["ParAB 12", ["zoom 1"]],
+            [("parAB 14-7-7 miles", "14-7-7"), ["09"]],
+            [("ParAB 12", "12"), ["zoom 1"]],
         ],
-        # non-random
-        #        "delParA pMENDAB": [
-        #            [("delParA pMENDAB_2", "2"), ["zoom 1", "zoom 3", "zoom 4", "zoom 5"]],
-        #            [("delParA pMENDAB_3", "3"), ["zoom 1", "zoom 2"]],
-        #        ],
-        #        "ParAB": [
-        #            [("parAB 14-7-7 miles", "14-7-7"), ["09"]],
-        #            [("ParAB 12", "12"), ["zoom 1"]],
-        #        ],
-        #        "other": [
-        #            ["14-7-15", ["4-1", "9-1", "10-2", "12-1", "13-2", "16-1"]],
-        #            ["120815", ["1-1", "9-2", "12-2"]],
-        #        ],
-        # end
         "WT ParA int": [
             [("WT ParA int", "3"), [
                 "ParA int 3-1", "ParA int 3-2",
@@ -393,9 +381,9 @@ if __name__ == "__main__":
             ]],
         ],
         "WT ParB int": [
-            [("WT ParB int", "6"), ["6-1", "6-2"]],
-            [("WT ParB int", "7"), ["7-1", "7-2"]],
-            [("WT ParB int", "8"), ["8-1"]],
+#            [("WT ParB int", "6"), ["6-1", "6-2"]],
+#            [("WT ParB int", "7"), ["7-1", "7-2"]],
+#            [("WT ParB int", "8"), ["8-1"]],
             [("WT ParB int", "13"), ["13-1"]],
         ],
         "WT ParAB int": [
