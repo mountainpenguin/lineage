@@ -160,20 +160,67 @@ def plot_master_data(doubling, elong, div, end, mini, nvalues):
         "\si{\micro\metre}"
     ]
     sns.set_style("whitegrid")
-    plt.figure(figsize=(7, 10.5))
+    fig1 = plt.figure("boxplots", figsize=(7, 10.5))
+    fig2 = plt.figure("t-tests", figsize=(7, 10.5))
     # 203mm x 140mm
     # 8in x 5.5in
+
     i = 1
     for label, data, unit in zip(labels, full_data, units):
-        plt.subplot(3, 2, i)
-        ax = sns.boxplot(data=data)
+        sp = fig1.add_subplot(3, 2, i)
+        ax = sns.boxplot(ax=sp, data=data)
 #        ax = sns.stripplot(data=data, jitter=True, color="0.3", edgecolor="none")
 #        ax = sns.swarmplot(data=data, color=".25", alpha=0.6)
-        _, labels = plt.xticks()
+        labels = ax.get_xticklabels()
         ax.set_xticklabels(labels, rotation=90)
-        sns.despine()
-        plt.ylabel("{0} ({1})".format(label, unit))
-        # plt.title(label)
+        sns.despine(ax=sp)
+        ax.set_ylabel("{0} ({1})".format(label, unit))
+
+        # ttests
+        datasets = data.columns.values
+        ttests = {}
+        threshold = 0.05 / (len(datasets) - 1)
+        done = []
+        for col_label in datasets:
+            col = data[col_label].dropna()
+            c = {}
+            for row_label in datasets:
+                row = data[row_label].dropna()
+
+                ttest = scipy.stats.ttest_ind(col, row, equal_var=False).pvalue
+                if col_label != row_label and sorted([col_label, row_label]) not in done:
+#                    if ttest <= threshold:
+#                        c[row_label] = 1
+#                    else:
+#                        c[row_label] = 0
+                    c[row_label] = ttest
+                    done.append(sorted([col_label, row_label]))
+
+            if c:
+                ttests[col_label] = c
+
+        ttests = pd.DataFrame(ttests).T
+        sp2 = fig2.add_subplot(3, 2, i)
+        colormap = sns.light_palette("green", reverse=True, as_cmap=True)
+        ax = sns.heatmap(
+            ttests,
+            ax=sp2,
+            cmap=colormap,
+            center=threshold,
+            annot=True,
+            fmt=".03f",
+            cbar=False,
+            vmin=0,
+            vmax=threshold,
+        )
+        xlabels = ax.get_xticklabels()
+        ylabels = ax.get_yticklabels()
+        ax.set_xticklabels(xlabels, rotation=90)
+        ax.set_yticklabels(ylabels, rotation=0)
+        ax.xaxis.set_ticks_position("top")
+        ax.yaxis.set_ticks_position("right")
+        ax.set_ylabel(label)
+
         i += 1
 
     labels = [
@@ -189,18 +236,25 @@ def plot_master_data(doubling, elong, div, end, mini, nvalues):
         None
     ]
     for label, data, unit in zip(labels, full_data, units):
-        plt.subplot(3, 2, i)
-        ax = sns.barplot(x=data.index, y=data.values)
-        _, labels = plt.xticks()
+        sp = fig1.add_subplot(3, 2, i)
+        ax = sns.barplot(ax=sp, x=data.index, y=data.values)
+        labels = ax.get_xticklabels()
         ax.set_xticklabels(labels, rotation=90)
-        sns.despine()
+        sns.despine(ax=sp)
         if not unit:
-            plt.ylabel(label)
+            ax.set_ylabel(label)
         else:
-            plt.ylabel("{0} ({1})".format(label, unit))
+            ax.set_ylabel("{0} ({1})".format(label, unit))
         i += 1
+
+    plt.figure("boxplots")
     plt.tight_layout()
-    plt.savefig(os.path.join("lineage_output", "data.pdf"))
+    fig1.savefig(os.path.join("lineage_output", "data.pdf"))
+
+    plt.figure("t-tests")
+    plt.tight_layout()
+    plt.suptitle("Significance (\SI{{95}}{{\percent}}: $p < {0}$)".format(threshold))
+    fig2.savefig(os.path.join("lineage_output", "data-t.pdf"))
     plt.close()
 
 
@@ -314,18 +368,18 @@ if __name__ == "__main__":
             ["ParAB 12", ["zoom 1"]],
         ],
         # non-random
-#        "delParA pMENDAB": [
-#            [("delParA pMENDAB_2", "2"), ["zoom 1", "zoom 3", "zoom 4", "zoom 5"]],
-#            [("delParA pMENDAB_3", "3"), ["zoom 1", "zoom 2"]],
-#        ],
-#        "ParAB": [
-#            [("parAB 14-7-7 miles", "14-7-7"), ["09"]],
-#            [("ParAB 12", "12"), ["zoom 1"]],
-#        ],
-#        "other": [
-#            ["14-7-15", ["4-1", "9-1", "10-2", "12-1", "13-2", "16-1"]],
-#            ["120815", ["1-1", "9-2", "12-2"]],
-#        ],
+        #        "delParA pMENDAB": [
+        #            [("delParA pMENDAB_2", "2"), ["zoom 1", "zoom 3", "zoom 4", "zoom 5"]],
+        #            [("delParA pMENDAB_3", "3"), ["zoom 1", "zoom 2"]],
+        #        ],
+        #        "ParAB": [
+        #            [("parAB 14-7-7 miles", "14-7-7"), ["09"]],
+        #            [("ParAB 12", "12"), ["zoom 1"]],
+        #        ],
+        #        "other": [
+        #            ["14-7-15", ["4-1", "9-1", "10-2", "12-1", "13-2", "16-1"]],
+        #            ["120815", ["1-1", "9-2", "12-2"]],
+        #        ],
         # end
         "WT ParA int": [
             [("WT ParA int", "3"), [
