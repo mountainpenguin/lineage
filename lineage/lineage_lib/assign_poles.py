@@ -7,8 +7,8 @@ import os
 
 
 class PoleAssign(object):
-    def __init__(self, lineage):
-        self.lineage = lineage
+    def __init__(self, frames):
+        self.frames = frames
 
     def get_poles(self, cell):
         pole1 = cell.mesh[0, 0:2]
@@ -44,8 +44,8 @@ class PoleAssign(object):
         if not mother:
             return None
 
-        mother_cell = self.lineage.frames.cell(mother)
-        daughter_cell = self.lineage.frames.cell(daughter)
+        mother_cell = self.frames.cell(mother)
+        daughter_cell = self.frames.cell(daughter)
         m1, m2, m3 = self.get_poles(mother_cell)
         p1, _, p2 = self.get_poles(daughter_cell)
 #        print(np.vstack([m1, m2, m3]))
@@ -66,24 +66,24 @@ class PoleAssign(object):
 
         assignments = {}
         # iterate through cell lineages
-        progenitors = self.lineage.frames[0].cells
+        progenitors = self.frames[0].cells
         for progenitor in progenitors:
             # assign a pole to the first member of the lineage only
             # orientation parameter will cover rest in spot_analysis routines
             pole_assignment = self.assign_new_pole(progenitor.parent, progenitor.id)
             assignments[progenitor.id] = pole_assignment
             while type(progenitor.children) is str:
-                progenitor = self.lineage.frames.cell(progenitor.children)
+                progenitor = self.frames.cell(progenitor.children)
             if progenitor.children:
-                progenitors.append(self.lineage.frames.cell(progenitor.children[0]))
-                progenitors.append(self.lineage.frames.cell(progenitor.children[1]))
+                progenitors.append(self.frames.cell(progenitor.children[0]))
+                progenitors.append(self.frames.cell(progenitor.children[1]))
 
         open("poles.json", "w").write(json.dumps(assignments))
 
 
 def main():
     lineage = track.Lineage()
-    p = PoleAssign(lineage)
+    p = PoleAssign(lineage.frames)
     p.assign_poles()
 
 

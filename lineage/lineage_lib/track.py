@@ -17,6 +17,8 @@ import json
 import logging
 import glob
 
+from lineage_lib import assign_poles
+
 __version__ = "0.1"
 __author__ = "Miles Priestman <priestman.miles@gmail.com>"
 
@@ -939,6 +941,10 @@ class Lineage(object):
                 progenitors.append(daughter1)
                 progenitors.append(daughter2)
         self.lineages = final_lineage
+        logging.info("Assigning poles")
+        P = assign_poles.PoleAssign(self.lineages)
+        P.assign_poles()
+        logging.info("Writing poles to <poles.json>")
         self.write_lineage()
 
     def write_lineage(self, fn="lineages.json"):
