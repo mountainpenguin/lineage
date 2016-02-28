@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import numpy as np
-from lineage_lib import track
 import json
 import os
 
@@ -79,13 +78,3 @@ class PoleAssign(object):
                 progenitors.append(self.frames.cell(progenitor.children[1]))
 
         open("poles.json", "w").write(json.dumps(assignments))
-
-
-def main():
-    lineage = track.Lineage()
-    p = PoleAssign(lineage.frames)
-    p.assign_poles()
-
-
-if __name__ == "__main__":
-    main()
