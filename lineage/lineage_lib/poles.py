@@ -4,9 +4,14 @@ import numpy as np
 import json
 import os
 
+from lineage_lib import track
+
 
 class PoleAssign(object):
-    def __init__(self, frames):
+    def __init__(self, frames=None):
+        if not frames:
+            l = track.Lineage()
+            frames = l.frames
         self.frames = frames
 
     def get_poles(self, cell):
@@ -78,3 +83,4 @@ class PoleAssign(object):
                 progenitors.append(self.frames.cell(progenitor.children[1]))
 
         open("poles.json", "w").write(json.dumps(assignments))
+        return assignments
