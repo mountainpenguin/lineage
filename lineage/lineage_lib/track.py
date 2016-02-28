@@ -942,7 +942,7 @@ class Lineage(object):
                 progenitors.append(daughter2)
         self.lineages = final_lineage
         logging.info("Assigning poles")
-        P = poles.PoleAssign(self.lineages)
+        P = poles.PoleAssign(self.frames)
         P.assign_poles()
         logging.info("Writing poles to <poles.json>")
         self.write_lineage()
