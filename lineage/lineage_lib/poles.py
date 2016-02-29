@@ -5,12 +5,11 @@ import json
 import os
 import matplotlib.pyplot as plt
 import matplotlib.patches
-matplotlib.rcParams["text.usetex"] = True
+# matplotlib.rcParams["text.usetex"] = True
 import glob
 import scipy.misc
 
 from lineage_lib import track
-
 
 
 class AxBase(object):
@@ -23,6 +22,7 @@ class AxBase(object):
 
     def __getattr__(self, attr):
         return getattr(self.ax, attr)
+
 
 class NoAx(AxBase):
     def _postinit(self):
@@ -45,7 +45,7 @@ class ManualAssign(object):
         self.ax1 = NoAx(self.fig.add_subplot(
             122, sharex=self.ax0, sharey=self.ax0
         ))
-        self.ax1.set_title(r"Select \textbf{NEW} pole")
+        self.ax1.set_title(r"Select NEW pole")
 
         self.plot_c1(c1)
         self.plot_c0(c0, c1)
