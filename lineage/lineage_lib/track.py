@@ -705,7 +705,7 @@ class Lineage(object):
         """
         logging.info("Guessing lineages based on positions...")
         temp_lineage = {}
-        progenitors = self.frames[0].cells
+        progenitors = list(self.frames[0].cells)
         for progenitor in progenitors:
             logging.debug(">>> Parent cell: %s", progenitor.id)
             lineage = [progenitor.id]
@@ -873,7 +873,7 @@ class Lineage(object):
             fluor = sorted(glob.glob("F/*.tif"))
         else:
             fluor = None
-        progenitors = self.frames[0].cells
+        progenitors = list(self.frames[0].cells)
         p_idx = 0
         for progenitor in progenitors:
             p_idx += 1

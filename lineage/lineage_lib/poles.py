@@ -163,13 +163,13 @@ class PoleAssign(object):
 
         assignments = {}
         # iterate through cell lineages
-        progenitors = self.frames[0].cells
+        progenitors = list(self.frames[0].cells)
         for progenitor in progenitors:
             # assign a pole to the first member of the lineage only
             # orientation parameter will cover rest in spot_analysis routines
             pole_assignment = self.assign_new_pole(progenitor.parent, progenitor.id)
             if not pole_assignment:
-                pole_assigment = self.manual_assignment(
+                pole_assignment = self.manual_assignment(
                     self.frames.cell(progenitor.parent),  # parent      (n - 1)
                     progenitor,  # this cell                            (n)
                 )
