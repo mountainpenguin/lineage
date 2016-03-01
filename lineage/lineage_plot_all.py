@@ -35,9 +35,9 @@ def decorate_top_sheet(sheet):
         (0, "Doubling Time"),
         (8, "Elongation Rate"),
         (16, "Division Length"),
-        (24, "Cell Length"),
-        (32, "Mini-cells"),
-        (40, "Septum Placement"),
+        (24, "Septum Placement"),
+        (32, "Cell Length"),
+        (40, "Mini-cells"),
     ]
     for rownum, desc in headerrows:
         sheet.write(rownum, 0, desc)
