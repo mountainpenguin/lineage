@@ -207,12 +207,12 @@ def plot_master_data(doubling, elong, div, septum, end, mini, nvalues):
                 ttests[col_label] = c
 
         ttests = pd.DataFrame(ttests).T
-        sp2 = fig2.add_subplot(3, 2, i)
-        colormap = sns.light_palette("green", reverse=True, as_cmap=True)
+        sp2 = fig2.add_subplot(4, 2, i)
+        # colormap = sns.light_palette("green", reverse=True, as_cmap=True)
         ax = sns.heatmap(
             ttests,
             ax=sp2,
-            cmap=colormap,
+            cmap="Greens_r",
             center=threshold,
             annot=True,
             fmt=".03f",
@@ -220,6 +220,10 @@ def plot_master_data(doubling, elong, div, septum, end, mini, nvalues):
             vmin=0,
             vmax=threshold,
         )
+        for t in ax.texts:
+            if float(t.get_text()) > threshold:
+                t.set_color("k")
+
         xlabels = ax.get_xticklabels()
         ylabels = ax.get_yticklabels()
         ax.set_xticklabels(xlabels, rotation=90)
