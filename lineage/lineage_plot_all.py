@@ -36,7 +36,8 @@ def decorate_top_sheet(sheet):
         (8, "Elongation Rate"),
         (16, "Division Length"),
         (24, "Cell Length"),
-        (32, "Mini-cells")
+        (32, "Mini-cells"),
+        (40, "Septum Placement"),
     ]
     for rownum, desc in headerrows:
         sheet.write(rownum, 0, desc)
@@ -47,7 +48,7 @@ def decorate_top_sheet(sheet):
 
 
 def add_data(sheet, colnum, heading, *args):
-    rownums = [0, 8, 16, 24, 32]
+    rownums = [0, 8, 16, 24, 32, 40]
     i = 0
     for n, mean, std, sem, ci, unit in args:
         rownum = rownums[i]
@@ -72,8 +73,9 @@ def add_master_data(sheet, *args):
     sheet.write(1, 0, "Doubling Time")
     sheet.write(2, 0, "Elongation Rate")
     sheet.write(3, 0, "Division Length")
-    sheet.write(4, 0, "Cell Length")
-    sheet.write(5, 0, "Mini-cells")
+    sheet.write(4, 0, "Septum Placement")
+    sheet.write(5, 0, "Cell Length")
+    sheet.write(6, 0, "Mini-cells")
 
     rownum = 1
     for n, mean, std, sem, ci, unit in args:
@@ -108,6 +110,7 @@ def get_data(P):
         P.doubling_time.get_all_data()[0][1:],
         P.growth_rate.get_all_data()[0][1:],
         P.div_length.get_all_data()[0][1:],
+        P.septum_placement.get_all_data()[0][1:],
         d[0],
         d[1],
     ]
@@ -118,6 +121,7 @@ def get_master_data(P):
         "doubling_time",
         "growth_rate",
         "div_length",
+        "septum_placement",
         "end_length",
     ]
     full_data = []
@@ -140,23 +144,26 @@ def get_master_data(P):
     return dict(full_data)
 
 
-def plot_master_data(doubling, elong, div, end, mini, nvalues):
+def plot_master_data(doubling, elong, div, septum, end, mini, nvalues):
     labels = [
         "Doubling Time",
         "Elongation Rate",
         "Division Length",
+        "Septum Placement",
         "Endpoint Length",
     ]
     full_data = [
         doubling,
         elong,
         div,
-        end
+        septum,
+        end,
     ]
     units = [
         "\si{\hour}",
         "\si{\micro\metre\per\hour}",
         "\si{\micro\metre}",
+        "\si{\percent}",
         "\si{\micro\metre}"
     ]
     sns.set_style("whitegrid")
@@ -167,7 +174,7 @@ def plot_master_data(doubling, elong, div, end, mini, nvalues):
 
     i = 1
     for label, data, unit in zip(labels, full_data, units):
-        sp = fig1.add_subplot(3, 2, i)
+        sp = fig1.add_subplot(4, 2, i)
         ax = sns.boxplot(ax=sp, data=data)
 #        ax = sns.stripplot(data=data, jitter=True, color="0.3", edgecolor="none")
 #        ax = sns.swarmplot(data=data, color=".25", alpha=0.6)
@@ -235,8 +242,9 @@ def plot_master_data(doubling, elong, div, end, mini, nvalues):
         "\si{\percent}",
         None
     ]
+    i += 1
     for label, data, unit in zip(labels, full_data, units):
-        sp = fig1.add_subplot(3, 2, i)
+        sp = fig1.add_subplot(4, 2, i)
         ax = sns.barplot(ax=sp, x=data.index, y=data.values)
         labels = ax.get_xticklabels()
         ax.set_xticklabels(labels, rotation=90)
@@ -410,6 +418,7 @@ if __name__ == "__main__":
         doubling = {}
         elong = {}
         div = {}
+        septum = {}
         end = {}
         mini = {}
         nvalues = {}
@@ -419,6 +428,7 @@ if __name__ == "__main__":
             doubling[outdir] = data["doubling_time"]
             elong[outdir] = data["growth_rate"]
             div[outdir] = data["div_length"]
+            septum[outdir] = data["septum_placement"]
             end[outdir] = data["end_length"]
             mini[outdir] = data["mini_cells"]
             nvalues[outdir] = len(elong[outdir])
@@ -429,6 +439,8 @@ if __name__ == "__main__":
         elong.to_pickle("lineage_output/.backup/elongation.pkl")
         div = pd.DataFrame(div)
         div.to_pickle("lineage_output/.backup/div.pkl")
+        septum = pd.DataFrame(septum)
+        septum.to_pickle("lineage_output/.backup/septum.pkl")
         end = pd.DataFrame(end)
         end.to_pickle("lineage_output/.backup/end.pkl")
         mini = pd.Series(mini)
@@ -439,8 +451,9 @@ if __name__ == "__main__":
         doubling = pd.read_pickle("lineage_output/.backup/doubling.pkl")
         elong = pd.read_pickle("lineage_output/.backup/elongation.pkl")
         div = pd.read_pickle("lineage_output/.backup/div.pkl")
+        septum = pd.read_pickle("lineage_output/.backup/septum.pkl")
         end = pd.read_pickle("lineage_output/.backup/end.pkl")
         mini = pd.read_pickle("lineage_output/.backup/mini.pkl")
         nvalues = pd.read_pickle("lineage_output/.backup/nvalues.pkl")
 
-    plot_master_data(doubling, elong, div, end, mini, nvalues)
+    plot_master_data(doubling, elong, div, septum, end, mini, nvalues)

@@ -191,6 +191,7 @@ class Plotter(object):
         self.growth_rate = Storage("Elongation Rate", "\u03BCm/h")
         self.div_length = Storage("Division Length", "\u03BCm")
         self.end_length = []
+        self.septum_placement = Storage("Septum Placement", "%")
         for path in self.PATHS:
             print("Processing {0}".format(path))
             self.process(path)
@@ -200,10 +201,12 @@ class Plotter(object):
             self.doubling_time.print_data()
             self.growth_rate.print_data()
             self.div_length.print_data()
+            self.septum_placement.print_data()
         elif not self.PHASES and self.PRINT:
             self.doubling_time.print_all_data()
             self.growth_rate.print_all_data()
             self.div_length.print_all_data()
+            self.septum_placement.print_all_data()
 
         r = 1
         for x in [self.doubling_time, self.growth_rate, self.div_length]:
@@ -697,6 +700,18 @@ class Plotter(object):
                     dl = lineage[-1][1] * self.PX
                     self.growth_rate.append(lt)
                     self.div_length.append(dl)
+
+                    # get septum placement
+                    child_lengths = np.array([
+                        L.frames.cell(cell.children[0]).length[0][0],
+                        L.frames.cell(cell.children[1]).length[0][0]
+                    ])
+                    child_deviation = np.abs(
+                        child_lengths[0] - child_lengths[1]
+                    ) / 2
+                    placement = (child_deviation / child_lengths.sum()) * 100
+                    self.septum_placement.append(placement)
+
                     self.divideandconquer(lineage, p2, p3, div=True)
                     break
                 else:
