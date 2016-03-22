@@ -271,6 +271,56 @@ def plot_master_data(doubling, elong, div, septum, end, mini, nvalues):
     plt.close()
 
 
+def _decorate_master_all(s):
+    s.write(0, 1, "n")
+    s.write(0, 2, "mean")
+    s.write(0, 3, "SD")
+    s.write(0, 4, "SEM")
+    s.write(0, 5, "95%")
+    s.write(0, 6, "unit")
+
+
+def save_master_data(d):
+    units = [
+        "\si{\hour}",
+        "\si{\micro\metre\per\hour}",
+        "\si{\micro\metre}",
+        "\si{\percent}",
+        "\si{\micro\metre}"
+    ]
+    workbook = xlwt.Workbook()
+    for data, desc in d:
+        sheet = Sheet(workbook.add_sheet(desc))
+        if desc == "Mini-Cells":
+            sheet.write(0, 1, "n")
+            sheet.write(0, 2, "%")
+            endpoint = d[-2][0]
+            n = endpoint[endpoint < 2.5].count()
+            idx = data.index
+            for i in range(len(idx)):
+                sheet.write(i + 1, 0, idx[i])
+                sheet.write(i + 1, 1, int(n[i]))
+                sheet.write(i + 1, 2, float(data[i]))
+        else:
+            _decorate_master_all(sheet)
+            r = 1
+            for dataset in data.columns:
+                sheet.write(r, 0, dataset)
+                ds = data[dataset]
+                sheet.write(r, 1, int(ds.count()))
+                sheet.write(r, 2, float(ds.mean()))
+                sheet.write(r, 3, float(ds.std()))
+                sem = ds.sem()
+                ppf = scipy.stats.t.ppf(1.95 / 2, ds.count() - 1)
+                ci = sem * ppf
+                sheet.write(r, 4, float(sem))
+                sheet.write(r, 5, float(ci))
+                r += 1
+
+    workbook.save(os.path.join(
+        "lineage_output", "all_data.xls"
+    ))
+
 def run(indirs, outdir):
     default_kwargs = {
         "method": "gradient",
@@ -466,4 +516,14 @@ if __name__ == "__main__":
         mini = pd.read_pickle("lineage_output/.backup/mini.pkl")
         nvalues = pd.read_pickle("lineage_output/.backup/nvalues.pkl")
 
+    save_master_data(
+        d=[
+            (doubling, "Doubling Time"),
+            (elong, "Elongation Rate"),
+            (div, "Division Length"),
+            (septum, "Septum Placement"),
+            (end, "Cell Length"),
+            (mini, "Mini-Cells"),
+        ]
+    )
     plot_master_data(doubling, elong, div, septum, end, mini, nvalues)
