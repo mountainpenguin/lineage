@@ -175,7 +175,8 @@ def plot_master_data(doubling, elong, div, septum, end, mini, nvalues):
     i = 1
     for label, data, unit in zip(labels, full_data, units):
         sp = fig1.add_subplot(4, 2, i)
-        ax = sns.boxplot(ax=sp, data=data)
+        ax = sns.barplot(ax=sp, data=data, ci=95)
+#        ax = sns.boxplot(ax=sp, data=data)
 #        ax = sns.stripplot(data=data, jitter=True, color="0.3", edgecolor="none")
 #        ax = sns.swarmplot(data=data, color=".25", alpha=0.6)
         labels = ax.get_xticklabels()
@@ -409,7 +410,12 @@ if __name__ == "__main__":
         ],
         "WT episomal ParB": [
             [("WT episomal ParB", "WT pstB 5"), ["WT pstB 5"]],
-        ]
+        ],
+        "WT": [
+            [("/home/miles/Documents/Work/PhD/2014-10-15-msm-prop-iodide-nitrogen", "WT"), [
+                "Field-01-HdB", "Field-02-HdB",
+            ]],
+        ],
     }
 
     backup_path = "lineage_output/.backup"
