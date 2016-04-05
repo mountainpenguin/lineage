@@ -13,6 +13,11 @@ sns.set_context("paper")
 import matplotlib.pyplot as plt
 import sys
 
+PLOT_ORDER = [
+    "WT vector int", "WT ParA int", "WT ParB int", "WT ParAB int",
+    "WT episomal ParB", "delParA pMENDAB", "delParAB"
+]
+
 
 class Sheet(object):
     def __init__(self, sheet):
@@ -33,7 +38,7 @@ class Sheet(object):
 def decorate_top_sheet(sheet):
     headerrows = [
         (0, "Doubling Time"),
-        (8, "Elongation Rate"),
+        (8, "Growth Rate"),
         (16, "Division Length"),
         (24, "Septum Placement"),
         (32, "Cell Length"),
@@ -71,7 +76,7 @@ def add_master_data(sheet, *args):
     sheet.write(0, 6, "unit")
 
     sheet.write(1, 0, "Doubling Time")
-    sheet.write(2, 0, "Elongation Rate")
+    sheet.write(2, 0, "Growth Rate")
     sheet.write(3, 0, "Division Length")
     sheet.write(4, 0, "Septum Placement")
     sheet.write(5, 0, "Cell Length")
@@ -147,7 +152,7 @@ def get_master_data(P):
 def plot_master_data(doubling, elong, div, septum, end, mini, nvalues):
     labels = [
         "Doubling Time",
-        "Elongation Rate",
+        "Growth Rate",
         "Division Length",
         "Septum Placement",
         "Endpoint Length",
@@ -161,7 +166,7 @@ def plot_master_data(doubling, elong, div, septum, end, mini, nvalues):
     ]
     units = [
         "\si{\hour}",
-        "\si{\micro\metre\per\hour}",
+        "\si{\per\hour}",
         "\si{\micro\metre}",
         "\si{\percent}",
         "\si{\micro\metre}"
@@ -175,7 +180,7 @@ def plot_master_data(doubling, elong, div, septum, end, mini, nvalues):
     i = 1
     for label, data, unit in zip(labels, full_data, units):
         sp = fig1.add_subplot(4, 2, i)
-        ax = sns.barplot(ax=sp, data=data, ci=95)
+        ax = sns.barplot(ax=sp, data=data, ci=95, order=PLOT_ORDER)
 #        ax = sns.boxplot(ax=sp, data=data)
 #        ax = sns.stripplot(data=data, jitter=True, color="0.3", edgecolor="none")
 #        ax = sns.swarmplot(data=data, color=".25", alpha=0.6)
@@ -250,7 +255,7 @@ def plot_master_data(doubling, elong, div, septum, end, mini, nvalues):
     i += 1
     for label, data, unit in zip(labels, full_data, units):
         sp = fig1.add_subplot(4, 2, i)
-        ax = sns.barplot(ax=sp, x=data.index, y=data.values)
+        ax = sns.barplot(ax=sp, x=data.index, y=data.values, order=PLOT_ORDER)
         labels = ax.get_xticklabels()
         ax.set_xticklabels(labels, rotation=90)
         sns.despine(ax=sp)
@@ -283,7 +288,7 @@ def _decorate_master_all(s):
 def save_master_data(d):
     units = [
         "\si{\hour}",
-        "\si{\micro\metre\per\hour}",
+        "\si{\per\hour}",
         "\si{\micro\metre}",
         "\si{\percent}",
         "\si{\micro\metre}"
@@ -323,7 +328,7 @@ def save_master_data(d):
 
 def run(indirs, outdir):
     default_kwargs = {
-        "method": "gradient",
+        "method": "exponential",
         "suffix": "",
         "phases": False,
         "print_data": False,
@@ -461,9 +466,10 @@ if __name__ == "__main__":
         "WT episomal ParB": [
             [("WT episomal ParB", "WT pstB 5"), ["WT pstB 5"]],
         ],
-        "WT": [
-            [("/home/miles/Documents/Work/PhD/2014-10-15-msm-prop-iodide-nitrogen", "WT"), [
-                "Field-01-HdB", "Field-02-HdB",
+        "WT vector int": [
+            [("WT cherry egfp int", "WT"), [
+                "13-1", "13-2", "13-3", "13-4", "13-5", "13-6",
+                "15-1", "15-2", "15-3",
             ]],
         ],
     }
@@ -519,7 +525,7 @@ if __name__ == "__main__":
     save_master_data(
         d=[
             (doubling, "Doubling Time"),
-            (elong, "Elongation Rate"),
+            (elong, "Growth Rate"),
             (div, "Division Length"),
             (septum, "Septum Placement"),
             (end, "Cell Length"),

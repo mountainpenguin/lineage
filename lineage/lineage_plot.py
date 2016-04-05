@@ -188,7 +188,10 @@ class Plotter(object):
         self.write_excel_row(0, "Name", "n", "Mean", "SD", "SEM", "95%", "unit")
 
         self.doubling_time = Storage("Doubling Time", "h")
-        self.growth_rate = Storage("Elongation Rate", "\u03BCm/h")
+        if self.METHOD == "exponential":
+            self.growth_rate = Storage("Growth Rate", "h\u207B\u00B9")
+        else:
+            self.growth_rate = Storage("Elongation Rate", "\u03BCm/h")
         self.div_length = Storage("Division Length", "\u03BCm")
         self.end_length = []
         self.septum_placement = Storage("Septum Placement", "%")
@@ -927,6 +930,21 @@ class Plotter(object):
             ])
             lt = np.polyfit(l[:, 0], l[:, 1], 1)[0]
 
+        elif method == "exponential":
+            # use exponential growth method
+            l = np.array([
+                (self.T[_[0] - 1] / 60,
+                 _[1][0][0] * self.PX)
+                for _ in data
+            ])
+            t = l[:, 0]
+            L = l[:, 1]
+            logL = np.log(L)
+            lamb, logL0 = np.polyfit(t - t[0], logL, 1)
+#            model = L[0] * (np.exp(lamb * (t - t[0])))
+
+            return lamb
+
         return lt
 
 if __name__ == "__main__":
@@ -947,10 +965,10 @@ if __name__ == "__main__":
             Set growth rate determination method. Options are: mean - use
             growth rate between each adjacent frame, and use the mean of all
             rates.  endpoint - use initial and final cell lengths. gradient
-            (default) - use the gradient of the line of best fit for cell
-            lengths.
+             - use the gradient of the line of best fit for cell
+            lengths. exponential (default) - use the exponential method.
         """,
-        choices=["mean", "endpoint", "gradient"]
+        choices=["mean", "endpoint", "gradient", "exponential"]
     )
 
     parser.add_argument(
