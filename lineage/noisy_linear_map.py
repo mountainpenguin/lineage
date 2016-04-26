@@ -257,52 +257,57 @@ def process_root(dirs=None):
     sns.despine()
 
     ax = fig.add_subplot(3, 2, 5)
-    sns.regplot(
-        x="doubling_time",
-        y="length_ratio",
-        data=data,
-        ci=95
+    sns.distplot(
+        data.length_ratio, kde=False
     )
-    # get regression
-    pf = np.polyfit(data.doubling_time, data.length_ratio, 1)
-    x = np.linspace(data.doubling_time.min(), data.doubling_time.max(), 50)
-    y = pf[0] * x + pf[1]
-    pearson_r, pearson_p = scipy.stats.pearsonr(data.doubling_time, data.length_ratio)
-    plt.plot(x, y, color="none", alpha=1, label="y = mx + c")
-    plt.plot(x, y, color="none", alpha=1, label="m = {0:.5f}".format(pf[0]))
-    plt.plot(x, y, color="none", alpha=1, label="x = {0:.5f}".format(pf[1]))
-    plt.plot(x, y, color="none", alpha=1, label="r = {0:.5f}".format(pearson_r))
-    plt.plot(x, y, color="none", alpha=1, label="n = {0}".format(len(data)))
-    plt.legend(loc=2)
+    ax.set_xlabel("Length ratio (L_F / L_I)")
+#    sns.regplot(
+#        x="doubling_time",
+#        y="length_ratio",
+#        data=data,
+#        ci=95
+#    )
+#    # get regression
+#    pf = np.polyfit(data.doubling_time, data.length_ratio, 1)
+#    x = np.linspace(data.doubling_time.min(), data.doubling_time.max(), 50)
+#    y = pf[0] * x + pf[1]
+#    pearson_r, pearson_p = scipy.stats.pearsonr(data.doubling_time, data.length_ratio)
+#    plt.plot(x, y, color="none", alpha=1, label="y = mx + c")
+#    plt.plot(x, y, color="none", alpha=1, label="m = {0:.5f}".format(pf[0]))
+#    plt.plot(x, y, color="none", alpha=1, label="x = {0:.5f}".format(pf[1]))
+#    plt.plot(x, y, color="none", alpha=1, label="r = {0:.5f}".format(pearson_r))
+#    plt.plot(x, y, color="none", alpha=1, label="n = {0}".format(len(data)))
+#    plt.legend(loc=2)
     sns.despine()
 
     ax = fig.add_subplot(3, 2, 6)
-    sns.regplot(
-        x="growth_rate",
-        y="length_ratio",
-        data=data,
-        ci=95
+    sns.distplot(
+        data.area_ratio, kde=False
     )
-    # get regression
-    pf = np.polyfit(data.growth_rate, data.length_ratio, 1)
-    x = np.linspace(data.growth_rate.min(), data.growth_rate.max(), 50)
-    y = pf[0] * x + pf[1]
-    pearson_r, pearson_p = scipy.stats.pearsonr(data.growth_rate, data.length_ratio)
-    plt.plot(x, y, color="none", alpha=1, label="y = mx + c")
-    plt.plot(x, y, color="none", alpha=1, label="m = {0:.5f}".format(pf[0]))
-    plt.plot(x, y, color="none", alpha=1, label="x = {0:.5f}".format(pf[1]))
-    plt.plot(x, y, color="none", alpha=1, label="r = {0:.5f}".format(pearson_r))
-    plt.plot(x, y, color="none", alpha=1, label="n = {0}".format(len(data)))
-    plt.legend(loc=2)
-
+    ax.set_xlabel("Area ratio (A_F / A_I)")
+#    sns.regplot(
+#        x="growth_rate",
+#        y="length_ratio",
+#        data=data,
+#        ci=95
+#    )
+#    # get regression
+#    pf = np.polyfit(data.growth_rate, data.length_ratio, 1)
+#    x = np.linspace(data.growth_rate.min(), data.growth_rate.max(), 50)
+#    y = pf[0] * x + pf[1]
+#    pearson_r, pearson_p = scipy.stats.pearsonr(data.growth_rate, data.length_ratio)
+#    plt.plot(x, y, color="none", alpha=1, label="y = mx + c")
+#    plt.plot(x, y, color="none", alpha=1, label="m = {0:.5f}".format(pf[0]))
+#    plt.plot(x, y, color="none", alpha=1, label="x = {0:.5f}".format(pf[1]))
+#    plt.plot(x, y, color="none", alpha=1, label="r = {0:.5f}".format(pearson_r))
+#    plt.plot(x, y, color="none", alpha=1, label="n = {0}".format(len(data)))
+#    plt.legend(loc=2)
     sns.despine()
 
     plt.tight_layout()
-
     plt.savefig("noisy_linear_map.pdf")
 
     plt.close()
-
     fig = plt.figure()
     sns.pairplot(
         data,
