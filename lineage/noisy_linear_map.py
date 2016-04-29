@@ -204,12 +204,14 @@ def process_dir():
         "length_ratios": length_ratios,
         "area_ratios": area_ratios,
     }
+
     return data
 
 
 def process_root(dir_sources, dirs=None):
     if not dirs:
-        dirs = filter(lambda x: os.path.isdir(x), sorted(os.listdir()))
+        dirs = list(filter(lambda x: os.path.isdir(x), sorted(os.listdir())))
+        dir_sources = dirs
 
     initial_ids = []
     final_ids = []
@@ -252,6 +254,8 @@ def process_root(dir_sources, dirs=None):
         os.chdir(orig_dir)
 
     print("Got {0} cells that divide twice during observation period".format(len(initial_ids)))
+    if len(initial_ids) == 0:
+        return
 
     data = pd.DataFrame({
         "initial_id": initial_ids,
@@ -291,7 +295,7 @@ def process_root(dir_sources, dirs=None):
     sns.despine()
 
     ax = fig.add_subplot(3, 2, 2)
-    if not np.isnan(data.initial_area.values[0]):
+    if len(data.initial_area.dropna()) > 0:
         sns.regplot(
             x="initial_area",
             y="final_area",
@@ -355,7 +359,7 @@ def process_root(dir_sources, dirs=None):
 
     ax = fig.add_subplot(3, 2, 6)
 
-    if not np.isnan(data.initial_area.values[0]):
+    if len(data.initial_area) > 0:
         sns.distplot(
             data.area_ratio.dropna(), kde=False
         )
@@ -384,6 +388,8 @@ def process_root(dir_sources, dirs=None):
 
     plt.close()
     for source in np.unique(dir_sources):
+        if len(data[(data.source == source)]) == 0:
+            continue
         vars = [
             "initial_length", "final_length", "length_ratio",
             "doubling_time", "growth_rate"
