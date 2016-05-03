@@ -50,6 +50,8 @@ class ManualAssign(object):
         self.plot_c1(c1)
         self.plot_c0(c0, c1)
 
+        self.zoom(c0, c1)
+
     def get_assignment(self):
         plt.tight_layout()
         plt.show()
@@ -94,6 +96,28 @@ class ManualAssign(object):
         self.ax1.add_artist(self.handle0)
         self.ax1.add_artist(self.handle1)
 
+    def _get_bounds(self, c):
+        mesh_x = np.concatenate([c.mesh[:, 0], c.mesh[:, 2]])
+        mesh_y = np.concatenate([c.mesh[:, 1], c.mesh[:, 3]])
+        adder = c.length[0][0]
+        min_x = mesh_x.min() - adder
+        min_y = mesh_y.min() - adder
+        max_x = mesh_x.max() + adder
+        max_y = mesh_y.max() + adder
+        return min_x, max_x, min_y, max_y
+
+    def zoom(self, c0, c1):
+        if c0:
+            # zoom ax0
+            # box: top_x, top_y, width, height
+            x0, x1, y0, y1 = self._get_bounds(c0)
+            self.ax0.set_xlim([x0, x1])
+            self.ax0.set_ylim([y0, y1])
+
+        # zoom ax1
+        x0, x1, y0, y1 = self._get_bounds(c1)
+        self.ax1.set_xlim([x0, x1])
+        self.ax1.set_ylim([y0, y1])
 
 class PoleAssign(object):
     def __init__(self, frames=None):
@@ -164,7 +188,9 @@ class PoleAssign(object):
         assignments = {}
         # iterate through cell lineages
         progenitors = list(self.frames[0].cells)
+        progress = 1
         for progenitor in progenitors:
+            print("{0} of {1}".format(progress, len(progenitors)))
             # assign a pole to the first member of the lineage only
             # orientation parameter will cover rest in spot_analysis routines
             pole_assignment = self.assign_new_pole(progenitor.parent, progenitor.id)
@@ -180,6 +206,7 @@ class PoleAssign(object):
             if progenitor.children:
                 progenitors.append(self.frames.cell(progenitor.children[0]))
                 progenitors.append(self.frames.cell(progenitor.children[1]))
+            progress += 1
 
         open("poles.json", "w").write(json.dumps(assignments))
         return assignments
