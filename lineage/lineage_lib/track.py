@@ -16,11 +16,384 @@ import os
 import json
 import logging
 import glob
+import time
 
 from lineage_lib import poles
 
 __version__ = "0.1"
 __author__ = "Miles Priestman <priestman.miles@gmail.com>"
+
+
+class PoleAge(object):
+    def __init__(self, age_known=False, age_start=0):
+        self.age_known = age_known
+        self.age = age_start
+
+    def __iadd__(self, x):
+        self.age += x
+
+    def __add__(self, x):
+        new_age = self.age + 1
+        return PoleAge(self.age_known, new_age)
+
+    def __repr__(self):
+        if self.age_known:
+            return "{0}".format(self.age)
+        else:
+            return "+{0}".format(self.age)
+
+
+class SingleCellLineage(object):
+    """Class for defining and determining a single cell lineage"""
+    def __init__(self, init_id, L, pole1_age=None, pole2_age=None):
+        c = L.frames.cell(init_id)
+        self.cells = [c]
+        self.pole1_age = pole1_age or PoleAge()
+        self.pole2_age = pole2_age or PoleAge()
+
+        i = 0
+        while type(c.children) is str:
+            c = L.frames.cell(c.children)
+            prev_c = self.cells[i]
+            c = self._orient_cell(prev_c, c)
+            self.cells.append(c)
+            i += 1
+
+        # last cell
+        if type(c.children) is list:
+            pole_assignments = self.get_poles(
+                c,
+                c.children[0],
+                c.children[1],
+                L
+            )
+            child1_pole1 = PoleAge(True, 0)
+            child1_pole2 = PoleAge(True, 0)
+            child2_pole1 = PoleAge(True, 0)
+            child2_pole2 = PoleAge(True, 0)
+
+            old1 = pole_assignments["old1"]
+            old2 = pole_assignments["old2"]
+
+            if old1[0] == 0 and old1[1] == 0:
+                child1_pole1 = self.pole1_age + 1
+            elif old1[0] == 0 and old1[1] == 1:
+                child1_pole2 = self.pole1_age + 1
+            elif old1[0] == 1 and old1[1] == 0:
+                child2_pole1 = self.pole1_age + 1
+            elif old1[0] == 1 and old1[1] == 1:
+                child2_pole2 = self.pole1_age + 1
+
+            if old2[0] == 0 and old2[1] == 0:
+                child1_pole1 = self.pole2_age + 1
+            elif old2[0] == 0 and old2[1] == 1:
+                child1_pole2 = self.pole2_age + 1
+            elif old2[0] == 1 and old2[1] == 0:
+                child2_pole1 = self.pole2_age + 1
+            elif old2[0] == 1 and old2[1] == 1:
+                child2_pole2 = self.pole2_age + 1
+
+            self.children = [
+                SingleCellLineage(c.children[0], L, child1_pole1, child1_pole2),
+                SingleCellLineage(c.children[1], L, child2_pole1, child2_pole2)
+            ]
+        else:
+            self.children = None
+
+    def _calc_distance(self, p1, p2):
+        return (
+            np.sqrt(
+                (p2[0] - p1[0]) ** 2 +
+                (p2[1] - p1[1]) ** 2
+            )
+        )
+
+    def _manual_keypress(self, event):
+        if event.key not in ["enter", "escape"]:
+            return
+
+        if event.key == "escape":
+            # restart
+            self.fig._status = 1
+            for p in self.ax_work.patches:
+                p.set_picker(True)
+                p.set_facecolor((0.8, 0.8, 0.8, 0.5))
+                p.set_radius(3)
+            self.ax_work.set_title("Select NEW pole (child1)")
+            plt.draw()
+
+        elif event.key == "enter":
+            if self.fig._status < 4:
+                return
+            plt.close()
+
+    def _manual_pick(self, event):
+        if self.fig._status == 1 and event.artist._pole_id["child"] == 2:
+            return
+        elif self.fig._status == 2 and event.artist._pole_id["child"] == 1:
+            return
+
+        if (time.time() - self.fig._last_click) < 0.2:
+            return
+
+        if self.fig._status == 1:
+            self.fig._new_pole1 = event.artist._pole_id
+            self.ax_work.set_title("Select NEW pole (child2)")
+            event.artist.set_facecolor("none")
+            event.artist.set_radius(1)
+            plt.draw()
+        elif self.fig._status == 2:
+            self.fig._new_pole2 = event.artist._pole_id
+            self.ax_work.set_title("Select YELLOW pole")
+            event.artist.set_facecolor("none")
+            event.artist.set_radius(1)
+            plt.draw()
+        elif self.fig._status == 3:
+            self.fig._yellow_pole = event.artist._pole_id
+            self.ax_work.set_title("Select GREEN pole")
+            event.artist.set_facecolor("y")
+            plt.draw()
+        else:
+            self.fig._green_pole = event.artist._pole_id
+            self.ax_work.set_title("Press ENTER to accept")
+            event.artist.set_facecolor("g")
+            plt.draw()
+            return
+
+        event.artist.set_picker(None)
+        self.fig._status += 1
+        self.fig._last_click = time.time()
+
+    def _manual_fix(self, mother, child1, child2, mother_poles, child1_poles, child2_poles):
+        # manual fix
+        self.fig = plt.figure()
+        ax_mother = self.fig.add_subplot(121, aspect="equal")
+        ax_mother.plot(mother.mesh[:, 0], mother.mesh[:, 1], "k-")
+        ax_mother.plot(mother.mesh[:, 2], mother.mesh[:, 3], "k-")
+        mother_p1 = matplotlib.patches.Circle(mother_poles[0], radius=3, facecolor="y", lw=2)
+        mother_p2 = matplotlib.patches.Circle(mother_poles[1], radius=3, facecolor="g", lw=2)
+        ax_mother.add_patch(mother_p1)
+        ax_mother.add_patch(mother_p2)
+        ax_mother.axis("off")
+
+        self.ax_work = self.fig.add_subplot(122, aspect="equal")
+        self.ax_work.plot(child1.mesh[:, 0], child1.mesh[:, 1], "k-")
+        self.ax_work.plot(child1.mesh[:, 2], child1.mesh[:, 3], "k-")
+        self.ax_work.plot(child2.mesh[:, 0], child2.mesh[:, 1], "k-")
+        self.ax_work.plot(child2.mesh[:, 2], child2.mesh[:, 3], "k-")
+        kwargs = {
+            "facecolor": (0.8, 0.8, 0.8, 0.5),
+            "radius": 3,
+            "lw": 2,
+            "picker": True,
+        }
+
+        c11 = matplotlib.patches.Circle(child1_poles[0], **kwargs)
+        c11._pole_id = {"child": 1, "pole_num": 1}
+        c12 = matplotlib.patches.Circle(child1_poles[1], **kwargs)
+        c12._pole_id = {"child": 1, "pole_num": 2}
+        c21 = matplotlib.patches.Circle(child2_poles[0], **kwargs)
+        c21._pole_id = {"child": 2, "pole_num": 1}
+        c22 = matplotlib.patches.Circle(child2_poles[1], **kwargs)
+        c22._pole_id = {"child": 2, "pole_num": 2}
+        self.ax_work.add_patch(c11)
+        self.ax_work.add_patch(c12)
+        self.ax_work.add_patch(c21)
+        self.ax_work.add_patch(c22)
+        self.ax_work.axis("off")
+        self.ax_work.set_title("Select NEW pole (child1)")
+
+        self.fig.canvas.mpl_connect("pick_event", self._manual_pick)
+        self.fig.canvas.mpl_connect("key_press_event", self._manual_keypress)
+        self.fig._status = 1
+        self.fig._last_click = time.time()
+        plt.show()
+
+        new_pole1 = (0, self.fig._new_pole1["pole_num"] - 1)
+        new_pole2 = (1, self.fig._new_pole2["pole_num"] - 1)
+
+        ref = self.fig._yellow_pole
+        old_pole1 = (ref["child"] - 1, ref["pole_num"] - 1)
+
+        ref = self.fig._green_pole
+        old_pole2 = (ref["child"] - 1, ref["pole_num"] - 1)
+        return new_pole1, new_pole2, old_pole1, old_pole2
+
+    def get_poles(self, mother, child1_id, child2_id, L):
+        if os.path.exists(".pole_data/{0}.json".format(mother.id)):
+            return json.loads(open(".pole_data/{0}.json".format(mother.id)).read())
+
+        mother_poles = (
+            np.array([mother.mesh[0, 0], mother.mesh[0, 1]]),
+            np.array([mother.mesh[-1, 0], mother.mesh[-1, 1]])
+        )
+        child1 = L.frames.cell(child1_id)
+        child1_poles = (
+            np.array([child1.mesh[0, 0], child1.mesh[0, 1]]),
+            np.array([child1.mesh[-1, 0], child1.mesh[-1, 1]])
+        )
+        child2 = L.frames.cell(child2_id)
+        child2_poles = (
+            np.array([child2.mesh[0, 0], child2.mesh[0, 1]]),
+            np.array([child2.mesh[-1, 0], child2.mesh[-1, 1]])
+        )
+
+        # nearest child poles
+        pairs = [
+            (0, 0), (0, 1), (1, 0), (1, 1)
+        ]
+        d = [
+            self._calc_distance(child1_poles[a], child2_poles[b])
+            for a, b in pairs
+        ]
+        d_ref = pairs[d.index(min(d))]
+
+        new_pole1_idx = d_ref[0]
+        new_pole2_idx = d_ref[1]
+
+        avail = [child1_poles[not d_ref[0]], child2_poles[not d_ref[1]]]
+        avail_idxs = [int(not d_ref[0]), int(not d_ref[1])]
+
+        d1 = [
+            self._calc_distance(mother_poles[0], avail[0]),
+            self._calc_distance(mother_poles[0], avail[1])
+        ]
+        d2 = [
+            self._calc_distance(mother_poles[1], avail[0]),
+            self._calc_distance(mother_poles[1], avail[1])
+        ]
+        child_order = [d1.index(min(d1)), d2.index(min(d2))]
+        a1_idx = d1.index(min(d1))
+        old_pole1 = avail[a1_idx]
+        old_pole1_idx = avail_idxs[a1_idx]
+        a2_idx = d2.index(min(d2))
+        old_pole2 = avail[a2_idx]
+        old_pole2_idx = avail_idxs[a2_idx]
+
+        if old_pole1.sum() == old_pole2.sum() or min(d) > 20 or min(d1) > 20 or min(d2) > 20:
+            new_pole1, new_pole2, old_pole1, old_pole2 = self._manual_fix(
+                mother, child1, child2, mother_poles, child1_poles, child2_poles
+            )
+            child_order = [old_pole1[0], old_pole2[0]]
+            new_pole1_idx = new_pole1[1]
+            new_pole2_idx = new_pole2[1]
+            old_pole1_idx = old_pole1[1]
+            old_pole2_idx = old_pole2[1]
+
+        out_data = {
+            "old1": (child_order[0], old_pole1_idx),
+            "new1": (0, new_pole1_idx),
+            "new2": (1, new_pole2_idx),
+            "old2": (child_order[1], old_pole2_idx),
+        }
+        if not os.path.exists(".pole_data"):
+            os.mkdir(".pole_data")
+        with open(".pole_data/{0}.json".format(mother.id), "w") as fn:
+            fn.write(json.dumps(out_data))
+        return out_data
+
+    def _do_reversal(self, c):
+        c.mesh = c.mesh[::-1]
+        c.steparea = c.steparea[::-1]
+        c.steplength = c.steplength[::-1]
+        c.stepvolume = c.stepvolume[::-1]
+        return c
+
+    def _orient_cell(self, prev_cell, new_cell):
+        fn = os.path.join(".orientation_data/{0}-{1}".format(prev_cell.id, new_cell.id))
+        if os.path.exists(fn):
+            reversal = bool(open(fn).read())
+            if reversal:
+                return self._do_reversal(new_cell)
+            else:
+                return new_cell
+
+        reversal = False
+        prev1 = prev_cell.mesh[0, 0:2]
+        prev2 = prev_cell.mesh[-1, 0:2]
+
+        prev_centre = np.array(prev_cell.centre)
+        new_centre = np.array(new_cell.centre)
+        translation = new_centre - prev_centre
+
+        new_l = new_cell.mesh[:, 0:2] - translation
+
+        new1 = new_l[0]
+        new2 = new_l[-1]
+
+        d1 = [
+            self._calc_distance(prev1, new1),
+            self._calc_distance(prev1, new2)
+        ]
+        d2 = [
+            self._calc_distance(prev2, new1),
+            self._calc_distance(prev2, new2)
+        ]
+        # nearest new_pole to prev_pole1
+        d1_idx = d1.index(min(d1))
+        # nearest new_pole to prev_pole2
+        d2_idx = d2.index(min(d2))
+
+        if max([min(d1), min(d2)]) < 15 and d1_idx is not d2_idx:
+            if d1_idx != 0:
+                reversal = True
+        else:
+            # needs manual assignment
+            self._fig = plt.figure()
+            ax = self._fig.add_subplot(111, aspect="equal")
+            ax.axis("off")
+            ax.set_title("Select indicated pole")
+            ax.plot(prev_cell.mesh[:, 0], prev_cell.mesh[:, 1], "k-")
+            ax.plot(prev_cell.mesh[:, 2], prev_cell.mesh[:, 3], "k-")
+            ax.plot(prev_cell.mesh[0, 0], prev_cell.mesh[0, 1], "ro", ms=10)
+            new_r = new_cell.mesh[:, 2:4] - translation
+            ax.plot(new_l[:, 0], new_l[:, 1], "r-", zorder=-1)
+            ax.plot(new_r[:, 0], new_r[:, 1], "r-", zorder=-1)
+
+            kwargs = {
+                "radius": 2,
+                "edgecolor": "k",
+                "lw": 2,
+                "facecolor": (0.4, 0.4, 0.4, 0.5),
+                "picker": True,
+            }
+            c1 = matplotlib.patches.Circle(new_l[0], **kwargs)
+            c1._pole_num = 0
+            c2 = matplotlib.patches.Circle(new_l[-1], **kwargs)
+            c2._pole_num = 1
+            ax.add_patch(c1)
+            ax.add_patch(c2)
+
+            self._fig.canvas.mpl_connect("pick_event", self._pickevent)
+
+            plt.show()
+            plt.close()
+
+            if self._picked_pole == 1:
+                reversal = True
+
+        if not os.path.exists(".orientation_data"):
+            os.mkdir(".orientation_data")
+        with open(fn, "w") as x:
+            x.write(str(int(reversal)))
+
+        if reversal:
+            return self._do_reversal(new_cell)
+        else:
+            return new_cell
+
+    def _pickevent(self, event):
+        self._picked_pole = event.artist._pole_num
+        plt.close()
+
+    def lengths(self, px=None):
+        if px:
+            return [x.length[0][0] * px for x in self.cells]
+        else:
+            return [x.length[0][0] for x in self.cells]
+
+    def frames(self):
+        return [x.frame for x in self.cells]
 
 
 class Cell(object):
