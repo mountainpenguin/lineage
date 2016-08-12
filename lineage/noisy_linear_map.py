@@ -19,6 +19,8 @@
 from lineage_lib import track
 import numpy as np
 import scipy.stats
+import scipy.special
+import statsmodels.formula.api as sm
 import json
 import datetime
 import os
@@ -27,6 +29,15 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 sns.set_style("white")
+sns.set_context("paper")
+
+plt.rc("font", family="sans-serif")
+plt.rc("text", usetex=True)
+plt.rcParams["text.latex.preamble"] = [
+    r"\usepackage{siunitx}",
+    r"\sisetup{detect-all}",
+    r"\setlength\parindent{0pt}",
+]
 
 
 def _gettimestamp(day, time, *args):
@@ -55,15 +66,20 @@ def get_timings():
     pixel = timing_data["px"]
     T = []
     t0 = _gettimestamp(*timings[0])
-    rif_add = _timediff(
-        *timing_data["add"], t0
-    )
+    if "add" in timing_data:
+        rif_add = _timediff(
+            *timing_data["add"], t0
+        )
+    else:
+        rif_add = _timediff(
+            timings[-1][0], timings[-1][1], t0
+        ) + timings[-1][2] * pass_delay
 
     for d1, t1, frames in timings:
-        sm = _timediff(d1, t1, t0)
+        frame_time = _timediff(d1, t1, t0)
         for _ in range(frames):
-            T.append(sm)
-            sm += pass_delay
+            T.append(frame_time)
+            frame_time += pass_delay
 
     return T, rif_add, pixel
 
@@ -83,6 +99,7 @@ def process_old():
         "final_areas": [],
         "doubling_times": [],
         "growth_rates": [],
+        "elong_rates": [],
         "length_ratios": [],
         "area_ratios": [],
     }
@@ -104,6 +121,9 @@ def process_old():
             logL = np.log(lengths)
             growth_rate, _ = np.polyfit(times - times[0], logL, 1)
 
+            # get elongation rate
+            elong_rate, _ = np.polyfit(times, lengths, 1)
+
             data["initial_ids"].append(lineage[0][0])
             data["final_ids"].append(lineage[-1][0])
             data["initial_lengths"].append(initial_length)
@@ -112,6 +132,7 @@ def process_old():
             data["final_areas"].append(np.NaN)
             data["doubling_times"].append(doubling_time)
             data["growth_rates"].append(growth_rate)
+            data["elong_rates"].append(elong_rate)
             data["length_ratios"].append(length_ratio)
             data["area_ratios"].append(np.NaN)
 
@@ -148,6 +169,7 @@ def process_dir():
     area_ratios = []
     doubling_times = []
     growth_rates = []
+    elong_rates = []
 
     T, rif_add, pixel = get_timings()
     for cell in process_queue:
@@ -192,6 +214,9 @@ def process_dir():
             growth_rate, logL0 = np.polyfit(times - times[0], logL, 1)
             growth_rates.append(growth_rate)
 
+            elong_rate, _ = np.polyfit(times, lengths, 1)
+            elong_rates.append(elong_rate)
+
     data = {
         "initial_ids": initial_ids,
         "final_ids": final_ids,
@@ -201,16 +226,252 @@ def process_dir():
         "final_areas": final_areas,
         "doubling_times": doubling_times,
         "growth_rates": growth_rates,
+        "elong_rates": elong_rates,
         "length_ratios": length_ratios,
         "area_ratios": area_ratios,
     }
 
     return data
 
+def get_stats(xdata, ydata, fit="linear", ci=95):
+    """ Return data statistics
+
+    Input arguments:
+        `xdata`
+        `ydata`
+        `fit`
+        `ci`
+
+    Fit Types:
+        linear:
+            Fits a linear regression line to the data
+
+            Returns:
+                (gradient, \pm 95%),
+                (y-intercept, \pm 95%),
+                pearson r^2,
+
+    """
+    if fit == "linear":
+        twotail = 1 - (1 - ci / 100) / 2
+        tstatistic = scipy.stats.t.ppf(twotail, df=(len(xdata) - 2))
+
+        A = np.vstack([xdata, np.ones(len(xdata))]).T
+#        results = sm.OLS(
+#            ydata, A
+#        ).fit()
+#        print(results.summary())
+#        input("...")
+
+        linalg = scipy.linalg.lstsq(A, ydata)
+        m, c = linalg[0]
+        sum_y_residuals = np.sum((ydata - ydata.mean()) ** 2)
+        Syx = np.sqrt(sum_y_residuals / (len(xdata) - 2))
+        sum_x_residuals = np.sum((xdata - xdata.mean()) ** 2)
+        Sb = Syx / np.sqrt(sum_x_residuals)
+        merror = tstatistic * Sb
+
+        Sa = Syx * np.sqrt(
+            np.sum(xdata ** 2) / (len(xdata) * sum_x_residuals)
+        )
+        cerror = tstatistic * Sa
+
+        r, rp = scipy.stats.pearsonr(xdata, ydata)
+
+        return [
+            (m, merror),
+            (c, cerror),
+            (r ** 2, rp),
+        ]
+    else:
+        raise NotImplementedError
+
+#def get_mstd(data):
+#    xdata = data.initial_length
+#    ydata = data.final_length
+#    tstatistic = scipy.stats.t.ppf(0.975, df=(len(xdata) - 2))
+#    A = np.vstack([xdata, np.ones(len(xdata))]).T
+#    linalg = scipy.linalg.lstsq(A, ydata)
+#    m, c = linalg[0]
+#    sum_y_residuals = np.sum((ydata - ydata.mean()) ** 2)
+#    Syx = np.sqrt(sum_y_residuals / (len(xdata) - 2))
+#    sum_x_residuals = np.sum((xdata - xdata.mean()) ** 2)
+#    Sb = Syx / np.sqrt(sum_x_residuals)
+#
+#    return (m, Sb, len(xdata))
+
+def plot_fake(ax, label):
+    x = np.mean(ax.get_xlim())
+    y = np.mean(ax.get_ylim())
+    ax.plot(x, y, color="none", alpha=1, label=label)
+
+def fmt_dec(var, places):
+    distance = -int(np.log10(np.abs(var)))
+    if distance < places:
+        fmtter = "{{0:.{0}f}}".format(places)
+    elif distance > places:
+        fmtter = "{0:.3g}"
+    else:
+        fmtter = "{{0:.{0}f}}".format(distance)
+    return fmtter.format(var)
+
+
+def add_stats(ax, xdata, ydata, msymbol="m", csymbol="c"):
+    (stats_m, stats_merr), (stats_c, stats_cerr), (rsq, rpval) = get_stats(
+        xdata, ydata
+    )
+    plot_fake(
+        ax,
+        "{msymbol} = {0} $\pm$ {1}".format(
+            fmt_dec(stats_m, 5),
+            fmt_dec(stats_merr, 3),
+            msymbol=msymbol,
+        )
+    )
+    plot_fake(
+        ax,
+        "{csymbol} = {0} $\pm$ {1}".format(
+            fmt_dec(stats_c, 5),
+            fmt_dec(stats_cerr, 3),
+            csymbol=csymbol,
+        )
+    )
+    # plot_fake(ax, r"r$^2$ = {rsq} (p = {rpval})".format(
+    plot_fake(ax, r"r$^2$ = {rsq:.3g}".format(
+        rsq=rsq,
+        rpval=fmt_dec(rpval, 3),
+    ))
+    plot_fake(ax, "n = {0}".format(len(xdata)))
+
+
+def plot_joint(xdata, ydata, xlab, ylab, fn="noisy_linear_map", suffix=""):
+    fig = plt.figure()
+    g = sns.jointplot(
+        x=xdata,
+        y=ydata,
+        kind="reg",
+        joint_kws={
+            "ci": 95,
+            "scatter_kws": {
+                "s": 40,
+                "color": "darkred",
+                "alpha": 0.5,
+            },
+            "marker": "x",
+        },
+    )
+    ((stats_m, stats_merror),
+     (stats_c, stats_cerror),
+     (stats_r2, stats_rp)) = get_stats(xdata, ydata)
+    annotation = r"""
+a = {m} $\pm$ {me},\newline
+b = {c} $\pm$ {ce},\newline
+r$^2$ = {rsq}, p = {rp}\newline
+n = {n}
+    """.format(
+        m=fmt_dec(stats_m, 5),
+        me=fmt_dec(stats_merror, 3),
+        c=fmt_dec(stats_c, 5),
+        ce=fmt_dec(stats_cerror, 3),
+        rsq=fmt_dec(stats_r2, 3),
+        rp=fmt_dec(stats_rp, 3),
+        n=len(xdata),
+    )
+    annotation = "\n".join(annotation.split("\n")[1:-1])
+    g.annotate(
+        lambda x,y: (x,y),
+        template=annotation,
+        loc="upper left",
+        fontsize=12,
+    )
+#    xlab = "Initial cell length (\si{\micro\metre})"
+#    ylab = "Final cell length (\si{\micro\metre})"
+    g.set_axis_labels(xlab, ylab, fontsize=12)
+
+    plt.savefig("{0}{1}.pdf".format(fn, suffix))
+    plt.close()
+
+
+def plot_error(ax, xdata, ydata):
+    fig = plt.figure()
+    ax_resid = fig.add_subplot(1, 2, 1)
+    ax_resid.set_title("Residuals")
+    ax_resid.set_xlabel("Residual")
+    ax_resid.set_ylabel("Frequency")
+    ax_qq = fig.add_subplot(1, 2, 2)
+
+#    o = np.ones((len(xdata),))
+#    A = np.vstack([xdata, np.ones(len(xdata))]).T
+#    result = sm.OLS(
+#        ydata, A
+#    ).fit()
+#    m, c = result.params
+    (m, _), (c, _), _ = get_stats(xdata, ydata)
+    expected = m * xdata + c
+    residuals = ydata - expected
+    sns.distplot(residuals, ax=ax_resid, kde=False, norm_hist=True)
+
+    # fit Gaussian
+    hist, bin_edges = np.histogram(residuals, density=True)
+    bin_centres = (bin_edges[:-1] + bin_edges[1:]) / 2
+    gauss = lambda x, A, mu, sigma: A * np.exp(-(x - mu) ** 2 / (2 * sigma ** 2))
+    p0 = [1.0, 0.0, 1.0]
+    coeff, var_matrix = scipy.optimize.curve_fit(gauss, bin_centres, hist, p0=p0)
+    limits = ax_resid.get_xlim()
+    xspace = np.linspace(limits[0], limits[1], 200)
+    hist_fit = gauss(xspace, *coeff)
+    ax_resid.plot(xspace, hist_fit, label="Fitted Gaussian")
+    plot_fake(ax_resid, "$\mu =$ {0:.5f}".format(coeff[1]))
+    plot_fake(ax_resid, "$\sigma =$ {0:.5f}".format(coeff[2]))
+
+    ax_resid.legend(loc=1)
+
+    # plot Q-Q probability plot
+    scipy.stats.probplot(residuals, plot=ax_qq)
+    lines = ax_qq.lines
+    for l in lines:
+        if l.get_marker() == "o" and l.get_color() == "b":
+            l.set_color(sns.color_palette()[0])
+            l.set_alpha(0.5)
+        else:
+            l.set_color(sns.color_palette()[1])
+    # test normality
+    normal_kscore, normal_pvalue = scipy.stats.mstats.normaltest(residuals)
+    plot_fake(ax_qq, "isnormal $p=$ {0:.5g}".format(normal_pvalue))
+    ax_qq.legend(loc=2)
+
+    sns.despine()
+
+    fig.savefig("noisy-noise.pdf")
+    plt.close()
+
+
+def plot_regplot(ax, xdata, ydata, xlabel, ylabel, mlabel="m", clabel="c"):
+    common_kws = {
+        "ci": 95,
+        "scatter_kws": {
+            "s": 10,
+            "color": "darkred",
+            "alpha": 0.5,
+        },
+        "marker": "x",
+    }
+    sns.regplot(
+        x=xdata,
+        y=ydata,
+        **common_kws
+    )
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    add_stats(ax, xdata, ydata, mlabel, clabel)
+    plt.legend(loc=2)
+    sns.despine()
+
 
 def process_root(dir_sources, dirs=None):
     if not dirs:
-        dirs = list(filter(lambda x: os.path.isdir(x), sorted(os.listdir())))
+        dirs = "."
+#        dirs = list(filter(lambda x: os.path.isdir(x), sorted(os.listdir())))
         dir_sources = dirs
 
     initial_ids = []
@@ -221,6 +482,7 @@ def process_root(dir_sources, dirs=None):
     final_areas = []
     doubling_times = []
     growth_rates = []
+    elong_rates = []
     length_ratios = []
     area_ratios = []
     sources = []
@@ -241,6 +503,7 @@ def process_root(dir_sources, dirs=None):
                 initial_areas.extend(out_data["initial_areas"])
                 final_areas.extend(out_data["final_areas"])
                 doubling_times.extend(out_data["doubling_times"])
+                elong_rates.extend(out_data["elong_rates"])
                 growth_rates.extend(out_data["growth_rates"])
                 length_ratios.extend(out_data["length_ratios"])
                 area_ratios.extend(out_data["area_ratios"])
@@ -268,160 +531,40 @@ def process_root(dir_sources, dirs=None):
         "area_ratio": area_ratios,
         "doubling_time": doubling_times,
         "growth_rate": growth_rates,
+        "elong_rate": elong_rates,
         "source": sources,
     })
 
-    fig = plt.figure(figsize=(8, 10))
-    ax = fig.add_subplot(3, 2, 1)
-    sns.regplot(
-        x="initial_length",
-        y="final_length",
-        data=data,
-        ci=95,
+    xlab = "Initial cell length (\si{\micro\metre})"
+    plot_joint(
+        data.initial_length, data.final_length,
+        xlab, "Final cell length (\si{\micro\metre})"
     )
-    ax.set_xlabel("Initial cell length (um)")
-    ax.set_ylabel("Final cell length (um)")
+    plot_error(None, data.initial_length, data.final_length)
 
-    # get regression
-    pf = np.polyfit(data.initial_length, data.final_length, 1)
-    x = np.linspace(data.initial_length.min(), data.initial_length.max(), 50)
-    y = pf[0] * x + pf[1]
-    pearson_r, pearson_p = scipy.stats.pearsonr(data.initial_length, data.final_length)
-    plt.plot(x, y, color="none", alpha=1, label="a = {0:.5f}".format(pf[0]))
-    plt.plot(x, y, color="none", alpha=1, label="b = {0:.5f}".format(pf[1]))
-    plt.plot(x, y, color="none", alpha=1, label="r = {0:.5f}".format(pearson_r))
-    plt.plot(x, y, color="none", alpha=1, label="n = {0}".format(len(data)))
-    plt.legend(loc=2)
-    sns.despine()
-
-    ax = fig.add_subplot(3, 2, 2)
-    if len(data.initial_area.dropna()) > 0:
-        sns.regplot(
-            x="initial_area",
-            y="final_area",
-            data=data,
-            ci=95,
-        )
-        ax.set_xlabel("Initial cell area (um^2)")
-        ax.set_ylabel("Final cell area (um^2)")
-        # get regression
-        pf = np.polyfit(data.initial_area.dropna(), data.final_area.dropna(), 1)
-        x = np.linspace(data.initial_area.min(), data.initial_area.max(), 50)
-        y = pf[0] * x + pf[1]
-        pearson_r, pearson_p = scipy.stats.pearsonr(data.initial_area.dropna(), data.final_area.dropna())
-        plt.plot(x, y, color="none", alpha=1, label="a = {0:.5f}".format(pf[0]))
-        plt.plot(x, y, color="none", alpha=1, label="b = {0:.5f}".format(pf[1]))
-        plt.plot(x, y, color="none", alpha=1, label="r = {0:.5f}".format(pearson_r))
-        plt.plot(x, y, color="none", alpha=1, label="n = {0}".format(len(data.initial_area.dropna())))
-        plt.legend(loc=2)
-    ax.set_xlabel("Initial cell area (um^2)")
-    ax.set_ylabel("Final cell area (um^2)")
-
-    sns.despine()
-
-    ax = fig.add_subplot(3, 2, 3)
-    sns.distplot(
-        data.doubling_time, kde=False
+    plot_joint(
+        data.initial_length, data.final_length - data.initial_length,
+        xlab, "Added Length (\si{\micro\metre})",
+        "initial-added"
     )
-    ax.set_xlabel("Doubling Time (h)")
-    sns.despine()
-
-    ax = fig.add_subplot(3, 2, 4)
-    sns.distplot(
-        data.growth_rate, kde=False
+    plot_joint(
+        data.initial_length, data.doubling_time,
+        xlab, "Doubling Time (\si{\hour})",
+        "initial-doubling"
     )
-    ax.set_xlabel("Growth Rate (h^{-1})")
-    sns.despine()
 
-    ax = fig.add_subplot(3, 2, 5)
-    sns.distplot(
-        data.length_ratio, kde=False
+    plot_joint(
+        data.initial_length, data.elong_rate,
+        xlab, "Elongation Rate (\si{\micro\metre\per\hour})",
+        "initial-elongation"
     )
-    ax.set_xlabel("Length ratio (L_F / L_I)")
-#    sns.regplot(
-#        x="doubling_time",
-#        y="length_ratio",
-#        data=data,
-#        ci=95
-#    )
-#    # get regression
-#    pf = np.polyfit(data.doubling_time, data.length_ratio, 1)
-#    x = np.linspace(data.doubling_time.min(), data.doubling_time.max(), 50)
-#    y = pf[0] * x + pf[1]
-#    pearson_r, pearson_p = scipy.stats.pearsonr(data.doubling_time, data.length_ratio)
-#    plt.plot(x, y, color="none", alpha=1, label="y = mx + c")
-#    plt.plot(x, y, color="none", alpha=1, label="m = {0:.5f}".format(pf[0]))
-#    plt.plot(x, y, color="none", alpha=1, label="x = {0:.5f}".format(pf[1]))
-#    plt.plot(x, y, color="none", alpha=1, label="r = {0:.5f}".format(pearson_r))
-#    plt.plot(x, y, color="none", alpha=1, label="n = {0}".format(len(data)))
-#    plt.legend(loc=2)
-    sns.despine()
 
-    ax = fig.add_subplot(3, 2, 6)
-
-    if len(data.initial_area) > 0:
-        sns.distplot(
-            data.area_ratio.dropna(), kde=False
-        )
-    ax.set_xlabel("Area ratio (A_F / A_I)")
-#    sns.regplot(
-#        x="growth_rate",
-#        y="length_ratio",
-#        data=data,
-#        ci=95
-#    )
-#    # get regression
-#    pf = np.polyfit(data.growth_rate, data.length_ratio, 1)
-#    x = np.linspace(data.growth_rate.min(), data.growth_rate.max(), 50)
-#    y = pf[0] * x + pf[1]
-#    pearson_r, pearson_p = scipy.stats.pearsonr(data.growth_rate, data.length_ratio)
-#    plt.plot(x, y, color="none", alpha=1, label="y = mx + c")
-#    plt.plot(x, y, color="none", alpha=1, label="m = {0:.5f}".format(pf[0]))
-#    plt.plot(x, y, color="none", alpha=1, label="x = {0:.5f}".format(pf[1]))
-#    plt.plot(x, y, color="none", alpha=1, label="r = {0:.5f}".format(pearson_r))
-#    plt.plot(x, y, color="none", alpha=1, label="n = {0}".format(len(data)))
-#    plt.legend(loc=2)
-    sns.despine()
-
-    plt.tight_layout()
-    plt.savefig("noisy_linear_map.pdf")
-
+    plot_joint(
+        data.initial_length, data.growth_rate,
+        xlab, "Growth Rate (\si{\per\hour})",
+        "initial-growth"
+    )
     plt.close()
-    for source in np.unique(dir_sources):
-        if len(data[(data.source == source)]) == 0:
-            continue
-        vars = [
-            "initial_length", "final_length", "length_ratio",
-            "doubling_time", "growth_rate"
-        ]
-        if not np.isnan(data[(data.source == source)].initial_area.values[0]):
-            vars = [
-                "initial_length", "final_length", "length_ratio",
-                "initial_area", "final_area", "area_ratio",
-                "doubling_time", "growth_rate"
-            ]
-
-        fig = plt.figure()
-        sns.pairplot(
-            data[(data.source == source)],
-            vars=vars,
-        )
-        plt.tight_layout()
-        plt.savefig("{0}.pdf".format(source))
-        plt.close()
-
-    fig = plt.figure()
-    sns.pairplot(
-        data,
-        vars=[
-            "initial_length", "final_length", "length_ratio",
-            "doubling_time", "growth_rate",
-        ],
-        hue="source"
-    )
-    plt.tight_layout()
-    plt.savefig("all_data.pdf")
-
     data.to_pickle("data.pandas")
 
 
