@@ -7,7 +7,6 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.transforms
-from mpl_toolkits.mplot3d import Axes3D
 import json
 import os
 import datetime
@@ -23,9 +22,6 @@ plt.rcParams["text.latex.preamble"] = [
 ]
 import seaborn as sns
 sns.set_style("white")
-
-if not Axes3D:
-    print("Uh oh")
 
 
 class Storage(object):
@@ -155,12 +151,20 @@ class Storage(object):
                 std
             ))
 
+    def save_data(self):
+        if not os.path.exists("data"):
+            os.mkdir("data")
+        d = np.array(self.all_data)
+        np.save(
+            "data/{0}".format(self.description.replace(" ", "_").lower()),
+            d
+        )
+
 
 class Plotter(object):
     def __init__(self, paths, method, suffix, phases, write_excel=True, write_pdf=True, print_data=True):
         self.PATHS = paths
         self.PASS_DELAY = 15  # pass delay in minutes
-        self.PX = 0.12254  # calibration of 1px in um for 63x objective (WF2)
         self.FLUOR_THRESH = 2500
         self.ORIGINAL_DIR = os.getcwd()
         self.METHOD = method
@@ -193,6 +197,7 @@ class Plotter(object):
         else:
             self.growth_rate = Storage("Elongation Rate", "\u03BCm/h")
         self.div_length = Storage("Division Length", "\u03BCm")
+        self.birth_length = Storage("Birth Length", "\u03BCm")
         self.end_length = []
         self.septum_placement = Storage("Septum Placement", "%")
         for path in self.PATHS:
@@ -204,12 +209,20 @@ class Plotter(object):
             self.doubling_time.print_data()
             self.growth_rate.print_data()
             self.div_length.print_data()
+            self.birth_length.print_data()
             self.septum_placement.print_data()
         elif not self.PHASES and self.PRINT:
             self.doubling_time.print_all_data()
             self.growth_rate.print_all_data()
             self.div_length.print_all_data()
+            self.birth_length.print_all_data()
             self.septum_placement.print_all_data()
+
+        self.doubling_time.save_data()
+        self.growth_rate.save_data()
+        self.div_length.save_data()
+        self.birth_length.save_data()
+        self.septum_placement.save_data()
 
         r = 1
         for x in [self.doubling_time, self.growth_rate, self.div_length]:
@@ -539,7 +552,7 @@ class Plotter(object):
         t_array[t_array < 0] = np.inf
         p3 = np.argmin(t_array)
 
-        fig = plt.figure()
+        fig = plt.figure(figsize=(11.69, 8.27))
         ax_all = fig.add_subplot(111, projection="3d")
         # bins = None
         bins = np.linspace(0, 4, 20)
@@ -618,36 +631,50 @@ class Plotter(object):
 
         os.chdir(self.ORIGINAL_DIR)
 
+    def get_px(self):
+        if os.path.exists(".WF1_100"):
+            self.PX = 0.062893  # calibration for 1px in um for 100x objective (WF1)
+        elif os.path.exists(".WF2_63"):
+            self.PX = 0.12254  # calibration of 1px in um for 63x objective (WF2)
+        elif os.path.exists("timings.json"):
+            self.PX = json.loads(open("timings.json").read())["px"]
+        else:
+            self.PX = 0.1031746  # calibration of 1px in um for 63x objective (WF3)
+
     def process(self, path):
         os.chdir(path)
 
-        if os.path.exists(".WF1_100"):
-            self.PX = 0.062893  # calibration for 1px in um for 100x objective (WF1)
-
+        self.get_px()
         L = track.Lineage()
         self.T, self.RIF_ADD, self.RIF_REMOVE, self.T0 = self.get_timings(t0=True)
         F = self.get_fluoresence()
 
-        start_delta = self.RIF_ADD - self.T0
-        start = start_delta.days * 24 * 60 * 60
-        start += start_delta.seconds
-        start /= 60
-        t_array = np.array(self.T) - start
-        t_array[t_array < 0] = np.inf
-        p2 = np.argmin(t_array) + 1
+        if self.PHASES:
+            start_delta = self.RIF_ADD - self.T0
+            start = start_delta.days * 24 * 60 * 60
+            start += start_delta.seconds
+            start /= 60
+            t_array = np.array(self.T) - start
+            t_array[t_array < 0] = np.inf
+            p2 = np.argmin(t_array) + 1
 
-        end_delta = self.RIF_REMOVE - self.RIF_ADD
-        end = end_delta.days * 24 * 60 * 60
-        end += end_delta.seconds
-        end /= 60
-        t_array = np.array(self.T) - end - start
-        t_array[t_array < 0] = np.inf
-        p3 = np.argmin(t_array) + 1
+            end_delta = self.RIF_REMOVE - self.RIF_ADD
+            end = end_delta.days * 24 * 60 * 60
+            end += end_delta.seconds
+            end /= 60
+            t_array = np.array(self.T) - end - start
+            t_array[t_array < 0] = np.inf
+            p3 = np.argmin(t_array) + 1
+        else:
+            p2 = len(self.T) - 1
+            p3 = len(self.T) - 1
 
         self.doubling_time.set_phase_boundaries(p2, p3)
         self.growth_rate.set_phase_boundaries(p2, p3)
         self.div_length.set_phase_boundaries(p2, p3)
+        self.birth_length.set_phase_boundaries(p2, p3)
 
+        division_events = []
         cell_queue = L.frames[0].cells
         while True:
             try:
@@ -709,11 +736,25 @@ class Plotter(object):
                         L.frames.cell(cell.children[0]).length[0][0],
                         L.frames.cell(cell.children[1]).length[0][0]
                     ])
+
+                    self.birth_length.append(child_lengths[0] * self.PX)
+                    self.birth_length.append(child_lengths[1] * self.PX)
+
                     child_deviation = np.abs(
                         child_lengths[0] - child_lengths[1]
                     ) / 2
                     placement = (child_deviation / child_lengths.sum()) * 100
                     self.septum_placement.append(placement)
+
+                    de = (
+                        (self.T[lineage[-1][0] - 1] / 60, dl[0][0]),
+                        (self.T[lineage[-1][0]] / 60, child_lengths[0] * self.PX),
+                        (self.T[lineage[-1][0]] / 60, child_lengths[1] * self.PX)
+                    )
+                    # (final_cell time, final_length),
+                    # (child1_time, child1_length),
+                    # (child2_time, child2_length)
+                    division_events.append(de)
 
                     self.divideandconquer(lineage, p2, p3, div=True)
                     break
@@ -730,7 +771,25 @@ class Plotter(object):
                     break
 
             l = np.array(lineage)
-            plt.plot(self.ftt(l[:, 0]), l[:, 1] * self.PX)
+            plt.plot(self.ftt(l[:, 0]), l[:, 1] * self.PX, lw=0.5)
+#            for de in division_events:
+#                plt.plot(
+#                    [de[0][0], de[1][0]],
+#                    [de[0][1], de[1][1]],
+#                    ls="-",
+#                    color=(0.8, 0.8, 0.8, 1),
+#                    lw=1,
+#                    zorder=-1,
+#                )
+#                plt.plot(
+#                    [de[0][0], de[2][0]],
+#                    [de[0][1], de[2][1]],
+#                    ls="-",
+#                    color=(0.8, 0.8, 0.8, 1),
+#                    lw=1,
+#                    zorder=-1,
+#                )
+
             if dead_lineage:
                 d = np.array(dead_lineage)
                 plt.plot(self.ftt(d[:, 0]), d[:, 1] * self.PX, "k-", alpha=0.4)
