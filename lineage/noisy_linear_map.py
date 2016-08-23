@@ -16,6 +16,7 @@
 """
 
 
+import argparse
 from lineage_lib import track
 import numpy as np
 import scipy.stats
@@ -569,21 +570,74 @@ def process_root(dir_sources, dirs=None):
 
 
 def main():
-    try:
-        process_list = sys.argv[1]
-    except IndexError:
-        sources = None
-        dirlist = None
-    else:
-        a = json.loads(open(process_list).read())
+    parser = argparse.ArgumentParser(
+        description="Noisy Linear Mapper"
+    )
+
+    excl_group = parser.add_mutually_exclusive_group()
+    excl_group.add_argument(
+        "-p", "--poles", default=False, action="store_true",
+        help="""
+            split cells by pole inheritance (new/old inheritors)
+        """
+    )
+    excl_group.add_argument(
+        "-a", "--age", default=False, action="store_true",
+        help="""
+            split cells by age of the oldest pole
+        """
+    )
+    parser.add_argument(
+        "-c", "--comparison", default=False, action="store_true",
+        help="""
+            compare maps for different conditions, expects at least one
+            `process_list` argument
+        """
+    )
+    parser.add_argument(
+        "-f", "--force", default=False, action="store_true",
+        help="""
+            force reacquisition of data
+        """
+    )
+    parser.add_argument(
+        "-d", "--debug", default=False, action="store_true",
+        help="""
+            debug pole assignments on division
+        """
+    )
+    parser.add_argument(
+        "process_list", metavar="process", type=str, nargs="*",
+        help="""
+            specify which process_list to handle.
+            if multiple arguments and -c is False:
+                combines datasets into a single plot
+            elif multiple arguments and -c is True:
+                handles each dataset individually
+            elif no arguments:
+                handles the current directory
+        """
+    )
+
+    args = parser.parse_args()
+    if args.comparison and len(args.process_list) < 2:
+        parser.error("Comparisons require at least two inputs")
+    elif args.comparison:
+        raise NotImplementedError("Arbitrary comparisons haven't been written")
+
+    if len(args.process_list) > 1:
+        raise NotImplementedError("Combining datasets hasn't been implemented")
+    elif args.process_list:
         dirlist = []
         sources = []
+        a = json.loads(open(args.process_list[0]).read())
         for x, y in a.items():
             dirlist.extend([os.path.join(x, _) for _ in y])
             sources.extend([os.path.basename(x) for _ in y])
+    else:
+        sources, dirlist = None, None
 
-    process_root(sources, dirlist)
-
+    process_root(sources, dirlist, with_poles=args.poles, with_age=args.age, force=args.force, debug=args.debug)
 
 if __name__ == "__main__":
     main()
