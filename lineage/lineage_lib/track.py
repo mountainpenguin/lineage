@@ -83,28 +83,43 @@ class PoleAge(object):
 
 class SingleCellLineage(object):
     """Class for defining and determining a single cell lineage"""
-    def __init__(self, init_id, L, pole1_age=None, pole2_age=None):
+    def __init__(self, init_id, L, pole1_age=None, pole2_age=None, assign_poles=True, orient=True, debug=False):
         c = L.frames.cell(init_id)
+        self.lineage_id = init_id
         self.cells = [c]
         self.pole1_age = pole1_age or PoleAge()
         self.pole2_age = pole2_age or PoleAge()
+
+        if debug:
+            debugpath = "/home/miles/Data/Work/PhD/noisy_linear_map/debug"
+            if not os.path.exists(debugpath):
+                os.mkdir(debugpath)
 
         i = 0
         while type(c.children) is str:
             c = L.frames.cell(c.children)
             prev_c = self.cells[i]
-            c = self._orient_cell(prev_c, c)
+            if orient:
+                c = self._orient_cell(prev_c, c)
             self.cells.append(c)
             i += 1
 
         # last cell
         if type(c.children) is list:
-            pole_assignments = self.get_poles(
-                c,
-                c.children[0],
-                c.children[1],
-                L
-            )
+            if not assign_poles:
+                pole_assignments = {
+                    "old1": (0, 1),
+                    "old2": (1, 1),
+                    "new1": (0, 0),
+                    "new2": (1, 0),
+                }
+            else:
+                pole_assignments = self.get_poles(
+                    c,
+                    c.children[0],
+                    c.children[1],
+                    L
+                )
             child1_pole1 = PoleAge(True, 0)
             child1_pole2 = PoleAge(True, 0)
             child2_pole1 = PoleAge(True, 0)
@@ -132,9 +147,207 @@ class SingleCellLineage(object):
                 child2_pole2 = self.pole2_age + 1
 
             self.children = [
-                SingleCellLineage(c.children[0], L, child1_pole1, child1_pole2),
-                SingleCellLineage(c.children[1], L, child2_pole1, child2_pole2)
+                SingleCellLineage(
+                    c.children[0],
+                    L,
+                    child1_pole1,
+                    child1_pole2,
+                    assign_poles=assign_poles,
+                    orient=orient,
+                    debug=debug,
+                ),
+                SingleCellLineage(
+                    c.children[1],
+                    L,
+                    child2_pole1,
+                    child2_pole2,
+                    assign_poles=assign_poles,
+                    orient=orient,
+                    debug=debug,
+                )
             ]
+
+            if debug:
+                im_paths = self._get_im_paths()
+                parent_img = scipy.misc.imread(im_paths[c.frame - 1])
+                y_alignment, x_alignment = self._get_alignment(c.frame - 1)
+                fig = plt.figure()
+                ax1 = fig.add_subplot(121, aspect="equal")
+                ax1.plot(
+                    c.mesh[:, 0] - x_alignment,
+                    c.mesh[:, 1] - y_alignment,
+                    "w-"
+                )
+                ax1.plot(
+                    c.mesh[:, 2] - x_alignment,
+                    c.mesh[:, 3] - y_alignment,
+                    "w-"
+                )
+                c_poles = (
+                    np.array([c.mesh[0, 0], c.mesh[0, 1]]),
+                    np.array([c.mesh[-1, 0], c.mesh[-1, 1]])
+                )
+#                c_p1 = matplotlib.patches.Circle(
+#                    c_poles[0] - np.array([x_alignment, y_alignment]),
+#                    radius=3,
+#                    facecolor="y",
+#                    lw=2
+#                )
+#                c_p2 = matplotlib.patches.Circle(
+#                    c_poles[1] - np.array([x_alignment, y_alignment]),
+#                    radius=3,
+#                    facecolor="y",
+#                    lw=2
+#                )
+#                ax1.add_patch(c_p1)
+#                ax1.add_patch(c_p2)
+                ax1.text(
+                    *(c_poles[0] - np.array([x_alignment - 5, y_alignment - 5])),
+                    r"\textbf{%s}" % self.pole1_age,
+                    ha="center",
+                    va="center",
+                    color="w",
+                    fontsize=12
+                )
+                ax1.text(
+                    *(c_poles[1] - np.array([x_alignment - 5, y_alignment - 5])),
+                    r"\textbf{%s}" % self.pole2_age,
+                    ha="center",
+                    va="center",
+                    color="w",
+                    fontsize=12
+                )
+                ax1.axis("off")
+                ax1.imshow(parent_img, cmap=plt.cm.gray)
+                ax1.set_xlim(
+                    min([
+                        c.mesh[:, 0].min(),
+                        c.mesh[:, 2].min()
+                    ]) - x_alignment - 50,
+                    max([
+                        c.mesh[:, 0].max(),
+                        c.mesh[:, 2].max()
+                    ]) - x_alignment + 50
+                )
+                ax1.set_ylim(
+                    min([
+                        c.mesh[:, 1].min(),
+                        c.mesh[:, 3].min()
+                    ]) - y_alignment - 50,
+                    max([
+                        c.mesh[:, 1].max(),
+                        c.mesh[:, 3].max()
+                    ]) - y_alignment + 50
+                )
+                del parent_img
+
+                child_img = scipy.misc.imread(im_paths[c.frame])
+                y_alignment, x_alignment = self._get_alignment(c.frame)
+
+                child1 = L.frames.cell(c.children[0])
+                child2 = L.frames.cell(c.children[1])
+                ax2 = fig.add_subplot(122, aspect="equal")
+                ax2.plot(
+                    np.concatenate([
+                        child1.mesh[:, 0], child1.mesh[:, 2][::-1]
+                    ]) - x_alignment,
+                    np.concatenate([
+                        child1.mesh[:, 1], child1.mesh[:, 3][::-1]
+                    ]) - y_alignment,
+                    "y-"
+                )
+                ax2.plot(
+                    np.concatenate([
+                        child2.mesh[:, 0], child2.mesh[:, 2][::-1]
+                    ]) - x_alignment,
+                    np.concatenate([
+                        child2.mesh[:, 1], child2.mesh[:, 3][::-1]
+                    ]) - y_alignment,
+                    "w-"
+                )
+                c1_poles = (
+                    np.array([child1.mesh[0, 0], child1.mesh[0, 1]]),
+                    np.array([child1.mesh[-1, 0], child1.mesh[-1, 1]])
+                )
+                ax2.text(
+                    *(c1_poles[0] - np.array([x_alignment - 5, y_alignment - 5])),
+                    r"\textbf{%s}" % child1_pole1,
+                    ha="center",
+                    va="center",
+                    color="y",
+                    fontsize=12
+                )
+                ax2.text(
+                    *(c1_poles[1] - np.array([x_alignment - 5, y_alignment - 5])),
+                    r"\textbf{%s}" % child1_pole2,
+                    ha="center",
+                    va="center",
+                    color="y",
+                    fontsize=12
+                )
+
+                c2_poles = (
+                    np.array([child2.mesh[0, 0], child2.mesh[0, 1]]),
+                    np.array([child2.mesh[-1, 0], child2.mesh[-1, 1]])
+                )
+                ax2.text(
+                    *(c2_poles[0] - np.array([x_alignment - 5, y_alignment - 5])),
+                    r"\textbf{%s}" % child2_pole1,
+                    ha="center",
+                    va="center",
+                    color="w",
+                    fontsize=12
+                )
+                ax2.text(
+                    *(c2_poles[1] - np.array([x_alignment - 5, y_alignment - 5])),
+                    r"\textbf{%s}" % child2_pole2,
+                    ha="center",
+                    va="center",
+                    color="w",
+                    fontsize=12
+                )
+
+                ax2.imshow(child_img, cmap=plt.cm.gray)
+                ax2.axis("off")
+                ax2.set_xlim(
+                    min([
+                        child1.mesh[:, 0].min(),
+                        child1.mesh[:, 2].min(),
+                        child2.mesh[:, 0].min(),
+                        child2.mesh[:, 2].min(),
+                    ]) - x_alignment - 50,
+                    max([
+                        child1.mesh[:, 0].max(),
+                        child1.mesh[:, 2].max(),
+                        child2.mesh[:, 0].max(),
+                        child2.mesh[:, 2].max(),
+                    ]) - x_alignment + 50
+                )
+                ax2.set_ylim(
+                    min([
+                        child1.mesh[:, 1].min(),
+                        child1.mesh[:, 3].min(),
+                        child2.mesh[:, 1].min(),
+                        child2.mesh[:, 3].min(),
+                    ]) - y_alignment - 50,
+                    max([
+                        child1.mesh[:, 1].max(),
+                        child1.mesh[:, 3].max(),
+                        child2.mesh[:, 1].max(),
+                        child2.mesh[:, 3].max(),
+                    ]) - y_alignment + 50
+                )
+
+                fig.savefig(os.path.join(
+                    debugpath,
+                    "{0}-{1}.png".format(
+                        c.frame, self.lineage_id
+                    )
+                ))
+                plt.close()
+
+
+
         else:
             self.children = None
 
@@ -162,6 +375,8 @@ class SingleCellLineage(object):
 
         elif event.key == "enter":
             if self.fig._status < 4:
+                return
+            if not hasattr(self.fig, "_green_pole"):
                 return
             plt.close()
 
@@ -202,23 +417,110 @@ class SingleCellLineage(object):
         self.fig._status += 1
         self.fig._last_click = time.time()
 
-    def _manual_fix(self, mother, child1, child2, mother_poles, child1_poles, child2_poles):
+    def _get_im_paths(self):
+        if os.path.exists("BF"):
+            im_root = "BF"
+        elif os.path.exists("B"):
+            im_root = "B"
+        else:
+            im_root = input("Phase directory: ")
+        im_paths = sorted(
+            glob.glob("{0}/*.tif".format(im_root)),
+            key=lambda x: int(x.split("{0}/".format(im_root))[1].split(".tif")[0])
+        )
+        return im_paths
+
+    def _get_alignment(self, frame_idx):
+        alignment = scipy.io.loadmat("mt/alignment.mat")["shiftframes"]
+        alignment_x = alignment[0][0][0][0]
+        alignment_y = alignment[0][0][1][0]
+        alignment = np.array([alignment_x, alignment_y]).T
+        y_alignment, x_alignment = alignment[frame_idx]
+        return y_alignment, x_alignment
+
+    def _manual_fix(self, mother, child1, child2, mother_poles, child1_poles, child2_poles, guess_new=None, guess_old=None):
         # manual fix
-        self.fig = plt.figure()
+        im_paths = self._get_im_paths()
+        im1 = scipy.misc.imread(im_paths[mother.frame - 1])
+        im2 = scipy.misc.imread(im_paths[child1.frame - 1])
+        y1_alignment, x1_alignment = self._get_alignment(mother.frame - 1)
+        y2_alignment, x2_alignment = self._get_alignment(child1.frame - 1)
+
+        self.fig = plt.figure(figsize=(20, 10))
         ax_mother = self.fig.add_subplot(121, aspect="equal")
-        ax_mother.plot(mother.mesh[:, 0], mother.mesh[:, 1], "k-")
-        ax_mother.plot(mother.mesh[:, 2], mother.mesh[:, 3], "k-")
-        mother_p1 = matplotlib.patches.Circle(mother_poles[0], radius=3, facecolor="y", lw=2)
-        mother_p2 = matplotlib.patches.Circle(mother_poles[1], radius=3, facecolor="g", lw=2)
+        ax_mother.plot(
+            mother.mesh[:, 0] - x1_alignment,
+            mother.mesh[:, 1] - y1_alignment,
+            "w-"
+        )
+        ax_mother.plot(
+            mother.mesh[:, 2] - x1_alignment,
+            mother.mesh[:, 3] - y1_alignment,
+            "w-"
+        )
+        mother_p1 = matplotlib.patches.Circle(
+            mother_poles[0] - np.array([x1_alignment, y1_alignment]),
+            radius=3,
+            facecolor="y",
+            lw=2
+        )
+        mother_p2 = matplotlib.patches.Circle(
+            mother_poles[1] - np.array([x1_alignment, y1_alignment]),
+            radius=3,
+            facecolor="g",
+            lw=2
+        )
         ax_mother.add_patch(mother_p1)
         ax_mother.add_patch(mother_p2)
+        ax_mother.imshow(im1, cmap=plt.cm.gray)
         ax_mother.axis("off")
+        ax_mother.set_xlim(
+            min([
+                mother_poles[0][0],
+                mother_poles[1][0],
+                mother.centre[0]
+            ]) - x1_alignment - 50,
+            max([
+                mother_poles[0][0],
+                mother_poles[1][0],
+                mother.centre[0]
+            ]) - x1_alignment + 50
+        )
+        ax_mother.set_ylim(
+            min([
+                mother_poles[0][1],
+                mother_poles[1][1],
+                mother.centre[1]
+            ]) - y1_alignment - 50,
+            max([
+                mother_poles[0][1],
+                mother_poles[1][1],
+                mother.centre[1]
+            ]) - y1_alignment + 50
+        )
+        del im1
 
         self.ax_work = self.fig.add_subplot(122, aspect="equal")
-        self.ax_work.plot(child1.mesh[:, 0], child1.mesh[:, 1], "k-")
-        self.ax_work.plot(child1.mesh[:, 2], child1.mesh[:, 3], "k-")
-        self.ax_work.plot(child2.mesh[:, 0], child2.mesh[:, 1], "k-")
-        self.ax_work.plot(child2.mesh[:, 2], child2.mesh[:, 3], "k-")
+        self.ax_work.plot(
+            child1.mesh[:, 0] - x2_alignment,
+            child1.mesh[:, 1] - y2_alignment,
+            "w-"
+        )
+        self.ax_work.plot(
+            child1.mesh[:, 2] - x2_alignment,
+            child1.mesh[:, 3] - y2_alignment,
+            "w-"
+        )
+        self.ax_work.plot(
+            child2.mesh[:, 0] - x2_alignment,
+            child2.mesh[:, 1] - y2_alignment,
+            "w-"
+        )
+        self.ax_work.plot(
+            child2.mesh[:, 2] - x2_alignment,
+            child2.mesh[:, 3] - y2_alignment,
+            "w-"
+        )
         kwargs = {
             "facecolor": (0.8, 0.8, 0.8, 0.5),
             "radius": 3,
@@ -226,24 +528,126 @@ class SingleCellLineage(object):
             "picker": True,
         }
 
-        c11 = matplotlib.patches.Circle(child1_poles[0], **kwargs)
+        f2a = np.array([x2_alignment, y2_alignment])
+        c11 = matplotlib.patches.Circle(
+            child1_poles[0] - f2a,
+            **kwargs
+        )
         c11._pole_id = {"child": 1, "pole_num": 1}
-        c12 = matplotlib.patches.Circle(child1_poles[1], **kwargs)
+        c12 = matplotlib.patches.Circle(
+            child1_poles[1] - f2a,
+            **kwargs
+        )
         c12._pole_id = {"child": 1, "pole_num": 2}
-        c21 = matplotlib.patches.Circle(child2_poles[0], **kwargs)
+        c21 = matplotlib.patches.Circle(
+            child2_poles[0] - f2a,
+            **kwargs
+        )
         c21._pole_id = {"child": 2, "pole_num": 1}
-        c22 = matplotlib.patches.Circle(child2_poles[1], **kwargs)
+        c22 = matplotlib.patches.Circle(
+            child2_poles[1] - f2a,
+            **kwargs
+        )
         c22._pole_id = {"child": 2, "pole_num": 2}
         self.ax_work.add_patch(c11)
         self.ax_work.add_patch(c12)
         self.ax_work.add_patch(c21)
         self.ax_work.add_patch(c22)
+        self.ax_work.imshow(im2, cmap=plt.cm.gray)
         self.ax_work.axis("off")
-        self.ax_work.set_title("Select NEW pole (child1)")
+
+        if guess_new:
+            self.ax_work.set_title("Press ENTER to confirm guess")
+            self.fig._status = 4
+            self.fig._new_pole1 = {"child": 1, "pole_num": guess_new[0] + 1}
+            if guess_new[0] == 0:
+                target = c11
+            else:
+                target = c12
+            target.set_facecolor("none")
+            target.set_radius(1)
+            self.fig._new_pole2 = {"child": 2, "pole_num": guess_new[1] + 1}
+            if guess_new[1] == 0:
+                target = c21
+            else:
+                target = c22
+            target.set_facecolor("none")
+            target.set_radius(1)
+
+            self.fig._yellow_pole = {
+                "child": guess_old[0][0] + 1,
+                "pole_num": guess_old[0][1] + 1
+            }
+            if guess_old[0][0] == 0:
+                if guess_old[0][1] == 0:
+                    target = c11
+                else:
+                    target = c12
+            else:
+                if guess_old[0][1] == 0:
+                    target = c21
+                else:
+                    target = c22
+            target.set_facecolor("y")
+            self.fig._green_pole = {
+                "child": guess_old[1][0] + 1,
+                "pole_num": guess_old[1][1] + 1
+            }
+            if guess_old[1][0] == 0:
+                if guess_old[1][1] == 0:
+                    target = c11
+                else:
+                    target = c12
+            else:
+                if guess_old[1][1] == 0:
+                    target = c21
+                else:
+                    target = c22
+            target.set_facecolor("g")
+
+        else:
+            self.ax_work.set_title("Select NEW pole (child1)")
+            self.fig._status = 1
+        self.ax_work.set_xlim(
+            min([
+                child1_poles[0][0],
+                child2_poles[0][0],
+                child1_poles[1][0],
+                child2_poles[1][0],
+                child1.centre[0],
+                child2.centre[0]
+            ]) - x2_alignment - 50,
+            max([
+                child1_poles[0][0],
+                child2_poles[0][0],
+                child1_poles[1][0],
+                child2_poles[1][0],
+                child1.centre[0],
+                child2.centre[0]
+            ]) - x2_alignment + 50
+        )
+        self.ax_work.set_ylim(
+            min([
+                child1_poles[0][1],
+                child2_poles[0][1],
+                child1_poles[1][1],
+                child2_poles[1][1],
+                child1.centre[1],
+                child2.centre[1]
+            ]) - y2_alignment - 50,
+            max([
+                child1_poles[0][1],
+                child2_poles[0][1],
+                child1_poles[1][1],
+                child2_poles[1][1],
+                child1.centre[1],
+                child2.centre[1]
+            ]) - y2_alignment + 50
+        )
+        del im2
 
         self.fig.canvas.mpl_connect("pick_event", self._manual_pick)
         self.fig.canvas.mpl_connect("key_press_event", self._manual_keypress)
-        self.fig._status = 1
         self.fig._last_click = time.time()
         plt.show()
 
@@ -310,7 +714,12 @@ class SingleCellLineage(object):
 
         if old_pole1.sum() == old_pole2.sum() or min(d) > 20 or min(d1) > 20 or min(d2) > 20:
             new_pole1, new_pole2, old_pole1, old_pole2 = self._manual_fix(
-                mother, child1, child2, mother_poles, child1_poles, child2_poles
+                mother, child1, child2, mother_poles, child1_poles, child2_poles,
+                guess_new=(new_pole1_idx, new_pole2_idx),
+                guess_old=(
+                    (child_order[0], old_pole1_idx),
+                    (child_order[1], old_pole2_idx)
+                ),
             )
             child_order = [old_pole1[0], old_pole2[0]]
             new_pole1_idx = new_pole1[1]
@@ -340,7 +749,7 @@ class SingleCellLineage(object):
     def _orient_cell(self, prev_cell, new_cell):
         fn = os.path.join(".orientation_data/{0}-{1}".format(prev_cell.id, new_cell.id))
         if os.path.exists(fn):
-            reversal = bool(open(fn).read())
+            reversal = bool(int(open(fn).read()))
             if reversal:
                 return self._do_reversal(new_cell)
             else:
@@ -377,16 +786,85 @@ class SingleCellLineage(object):
                 reversal = True
         else:
             # needs manual assignment
+            im_paths = self._get_im_paths()
+            im1 = scipy.misc.imread(im_paths[prev_cell.frame - 1])
+            im2 = scipy.misc.imread(im_paths[new_cell.frame - 1])
+            alignment = scipy.io.loadmat("mt/alignment.mat")["shiftframes"]
+            alignment_x = alignment[0][0][0][0]
+            alignment_y = alignment[0][0][1][0]
+            alignment = np.array([alignment_x, alignment_y]).T
+            y1_alignment, x1_alignment = self._get_alignment(prev_cell.frame - 1)
+            y2_alignment, x2_alignment = self._get_alignment(new_cell.frame - 1)
+
             self._fig = plt.figure()
-            ax = self._fig.add_subplot(111, aspect="equal")
-            ax.axis("off")
-            ax.set_title("Select indicated pole")
-            ax.plot(prev_cell.mesh[:, 0], prev_cell.mesh[:, 1], "k-")
-            ax.plot(prev_cell.mesh[:, 2], prev_cell.mesh[:, 3], "k-")
-            ax.plot(prev_cell.mesh[0, 0], prev_cell.mesh[0, 1], "ro", ms=10)
+            ax_frame1 = self._fig.add_subplot(131, aspect="equal")
+            ax_frame1.axis("off")
+            ax_frame1.imshow(im1, cmap=plt.cm.gray)
+            ax_frame1.plot(
+                prev_cell.mesh[:, 0] - x1_alignment,
+                prev_cell.mesh[:, 1] - y1_alignment,
+                "w-"
+            )
+            ax_frame1.plot(
+                prev_cell.mesh[:, 2] - x1_alignment,
+                prev_cell.mesh[:, 3] - y1_alignment,
+                "w-"
+            )
+            ax_frame1.plot(
+                prev_cell.mesh[0, 0] - x1_alignment,
+                prev_cell.mesh[0, 1] - y1_alignment,
+                "ro", ms=10
+            )
+            del im1
+
+            ax_frame2 = self._fig.add_subplot(
+                132,
+                aspect="equal",
+                sharex=ax_frame1,
+                sharey=ax_frame1
+            )
+            ax_frame2.axis("off")
+            ax_frame2.imshow(im2, cmap=plt.cm.gray)
+            ax_frame2.plot(
+                new_cell.mesh[:, 0] - x2_alignment,
+                new_cell.mesh[:, 1] - y2_alignment,
+                "w-"
+            )
+            ax_frame2.plot(
+                new_cell.mesh[:, 2] - x2_alignment,
+                new_cell.mesh[:, 3] - y2_alignment,
+                "w-"
+            )
+            ax_frame2.plot(
+                new_cell.mesh[0, 0] - x2_alignment,
+                new_cell.mesh[0, 1] - y2_alignment,
+                "ko", ms=10, alpha=0.5
+            )
+            ax_frame2.plot(
+                new_cell.mesh[-1, 0] - x2_alignment,
+                new_cell.mesh[-1, 1] - y2_alignment,
+                "ko", ms=10, alpha=0.5
+            )
+            del im2
+
+            ax_frame1.set_xlim([
+                prev_cell.centre[0] - x1_alignment - 50,
+                prev_cell.centre[0] - x1_alignment + 50
+            ])
+            ax_frame1.set_ylim([
+                prev_cell.centre[1] - y1_alignment - 50,
+                prev_cell.centre[1] - y1_alignment + 50
+            ])
+
+            ax_assign = self._fig.add_subplot(133, aspect="equal")
+            ax_assign.axis("off")
+            ax_assign.set_title("Select indicated pole")
+            ax_assign.plot(prev_cell.mesh[:, 0], prev_cell.mesh[:, 1], "k-")
+            ax_assign.plot(prev_cell.mesh[:, 2], prev_cell.mesh[:, 3], "k-")
+            ax_assign.plot(prev_cell.mesh[0, 0], prev_cell.mesh[0, 1], "ro", ms=10)
             new_r = new_cell.mesh[:, 2:4] - translation
-            ax.plot(new_l[:, 0], new_l[:, 1], "r-", zorder=-1)
-            ax.plot(new_r[:, 0], new_r[:, 1], "r-", zorder=-1)
+            ax_assign.plot(new_l[:, 0], new_l[:, 1], "r-", zorder=-1)
+            ax_assign.plot(new_r[:, 0], new_r[:, 1], "r-", zorder=-1)
 
             kwargs = {
                 "radius": 2,
@@ -399,8 +877,8 @@ class SingleCellLineage(object):
             c1._pole_num = 0
             c2 = matplotlib.patches.Circle(new_l[-1], **kwargs)
             c2._pole_num = 1
-            ax.add_patch(c1)
-            ax.add_patch(c2)
+            ax_assign.add_patch(c1)
+            ax_assign.add_patch(c2)
 
             self._fig.canvas.mpl_connect("pick_event", self._pickevent)
 
