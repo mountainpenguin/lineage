@@ -1079,7 +1079,9 @@ class Lineage(object):
         logging.info("Guessing lineages based on positions...")
         temp_lineage = {}
         progenitors = list(self.frames[0].cells)
-        for progenitor in progenitors:
+        while len(progenitors) > 0:
+            progenitor = progenitors.pop()
+#        for progenitor in progenitors:
             logging.debug(">>> Parent cell: %s", progenitor.id)
             lineage = [progenitor.id]
 #            # radius
@@ -1196,7 +1198,7 @@ class Lineage(object):
         logging.info("Reloading cells...")
         self.load_cells()
 
-    def interactive_track(self):
+    def interactive_track(self, p_ref=None):
         """Launch manual lineage tracker.
 
         Initiates a :class:`LineageMaker` instance, and proceeds through
@@ -1248,16 +1250,26 @@ class Lineage(object):
             fluor = None
         progenitors = list(self.frames[0].cells)
         p_idx = 0
-        for progenitor in progenitors:
+        self.accept_all_previews = False
+        while len(progenitors) > 0:
+#        for progenitor in progenitors:
+            progenitor = progenitors.pop()
             p_idx += 1
+#            logging.info(
+#                "Lineage %i with %i progenitors (%i remaining)",
+#                p_idx, len(progenitors), len(progenitors) - p_idx + 1
+#            )
             logging.info(
-                "Lineage %i with %i progenitors (%i remaining)",
-                p_idx, len(progenitors), len(progenitors) - p_idx + 1
+                "Lineage %i (%i remaining)",
+                p_idx, len(progenitors) + 1,
             )
             l = LineageMaker(
                 progenitor, phase, self.alignment, self.frames, fluor=fluor
             )
-            l.start(bool(fluor))
+            if self.accept_all_previews:
+                p_ref = 100000
+
+            self.accept_all_previews = l.start(bool(fluor), p_idx, p_ref)
             lineage = l.lineage
             logging.info("Lineage completed, %i members", len(lineage))
             logging.debug("Lineage members: %r", lineage)
@@ -1314,10 +1326,10 @@ class Lineage(object):
                 progenitors.append(daughter1)
                 progenitors.append(daughter2)
         self.lineages = final_lineage
-        logging.info("Assigning poles")
-        P = poles.PoleAssign(self.frames)
-        P.assign_poles()
-        logging.info("Writing poles to <poles.json>")
+#        logging.info("Assigning poles")
+#        P = poles.PoleAssign(self.frames)
+#        P.assign_poles()
+#        logging.info("Writing poles to <poles.json>")
         self.write_lineage()
 
     def write_lineage(self, fn="lineages.json"):
@@ -1419,6 +1431,7 @@ class LineageMaker(object):
         self.parent = self.progenitor.parent
         self.lineage = [self.mother]
         self.death = False
+        self.growth_confirm = False
         if os.path.exists("fluorescence.json"):
             self.fluor_data = json.loads(
                 open("fluorescence.json").read()
@@ -1643,6 +1656,7 @@ class LineageMaker(object):
                 ax.add_patch(poly)
 
     def next_frame(self):
+        self.growth_confirm = False
         self.parent = self.mother
         self.mother = self.daughters[0]
 
@@ -1821,8 +1835,11 @@ class LineageMaker(object):
         elif e.key == "control":
             self.preview_conclusion = "review"
             plt.close()
+        elif e.key == "escape":
+            self.preview_conclusion = "accept"
+            plt.close()
 
-    def preview(self):
+    def preview(self, p_idx=None, p_ref=None):
         self.preview_conclusion = None
         # run through lineage
         cell = self.progenitor
@@ -1844,12 +1861,11 @@ class LineageMaker(object):
             lin.append(child)
             cell = self.frames.cell(child)
 
-#        pause_cells = [
-#        ]
-#        if self.progenitor.id not in pause_cells:
-#            return lin
-#        else:
-#            return
+        if p_idx and p_ref and p_idx < p_ref:
+            if p_ref == 100000:
+                return (lin, "accept")
+            else:
+                return (lin, "skip")
 
         num_frames = len(lin)
         if lin.end == "death":
@@ -1993,7 +2009,10 @@ class LineageMaker(object):
         if self.preview_conclusion == "skip":
             # assign lineage and move on
             logging.info("Lineage confirmed, skipping to next progenitor cell")
-            return lin
+            return (lin, "skip")
+        elif self.preview_conclusion == "accept":
+            logging.info("All lineages confirmed, skipping to end")
+            return (lin, "accept")
         else:
             logging.info("Lineage rejected, moving to review")
 
@@ -2002,18 +2021,21 @@ class LineageMaker(object):
         # allow restarting if not satifactory
 
         # input("Write ending code!")
-        pass
+        return
 
-    def start(self, fluor=None):
+    def start(self, fluor=None, p_idx=None, p_ref=None):
         # preview lineage if exists
-        response = self.preview()
+        response = self.preview(p_idx, p_ref)
         if response:
             # get fluorescence for members of lineage
             if fluor:
-                self.get_fluor(response)
+                self.get_fluor(response[0])
             # assign this lineage
-            self.lineage = response
-            return
+            self.lineage = response[0]
+            if response[1] == "skip":
+                return False
+            elif response[1] == "accept":
+                return True
 
         fig = plt.figure()
         self.frame_idx = self.progenitor.frame - 1
@@ -2203,10 +2225,17 @@ class LineageMaker(object):
 
             elif len(self.daughters) == 1:
                 self.death = False
-                logging.info("Growth event")
-                self.lineage.append(self.daughters[0])
-                # move to next frame
-                self.next_frame()
+                test_cell = self.n2_frame.cell(self.daughters[0])
+                mother_cell = self.n1_frame.cell(self.mother)
+                if mother_cell.length[0][0] > test_cell.length[0][0] * 1.1:
+                    self.growth_confirm = True
+                    self.n2.set_title("Press y to confirm growth")
+                    plt.draw()
+                else:
+                    logging.info("Growth event")
+                    self.lineage.append(self.daughters[0])
+                    # move to next frame
+                    self.next_frame()
 
             elif len(self.daughters) == 2:
                 self.death = False
@@ -2221,14 +2250,24 @@ class LineageMaker(object):
                 self.death = False
                 logging.warning("Too many daughters")
 
-        elif e.key == "escape":
+        elif e.key == "escape" and self.death:
             self.death = False
             self.n2.set_title("Death averted")
+            plt.draw()
+
+        elif e.key == "escape" and self.growth_confirm:
+            self.growth_confirm = False
+            self.n2.set_title("Growth averted")
             plt.draw()
 
         elif e.key == "y" and self.death and len(self.daughters) == 0:
             logging.info("Death event confirmed")
             plt.close()
+
+        elif e.key == "y" and self.growth_confirm and len(self.daughters) == 1:
+            logging.info("Growth event confirmed")
+            self.lineage.append(self.daughters[0])
+            self.next_frame()
 
         elif e.key == "m":
             logging.info("Maximising frames")
