@@ -18,7 +18,7 @@ import logging
 import glob
 import time
 
-from lineage_lib import poles
+# from lineage_lib import poles
 
 __version__ = "0.1"
 __author__ = "Miles Priestman <priestman.miles@gmail.com>"
