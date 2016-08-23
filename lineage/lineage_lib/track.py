@@ -36,6 +36,44 @@ class PoleAge(object):
         new_age = self.age + 1
         return PoleAge(self.age_known, new_age)
 
+    def __eq__(self, x):
+        if not self.age_known or not x.age_known:
+            return False
+
+        if self.age == x.age:
+            return True
+
+    def __ne__(self, x):
+        if not self.age_known or not x.age_known:
+            return True
+
+        if self.age != x.age:
+            return True
+
+    def __lt__(self, x):
+        if self.age < x.age:
+            return True
+
+    def __gt__(self, x):
+        if self.age > x.age:
+            return True
+
+    def __le__(self, x):
+        if self.age <= x.age:
+            return True
+
+    def __ge__(self, x):
+        if self.age >= x.age:
+            return True
+
+    def __cmp__(self, x):
+        if self.age < x.age:
+            return -1
+        elif self.age == x.age:
+            return 0
+        elif self.age > x.age:
+            return 1
+
     def __repr__(self):
         if self.age_known:
             return "{0}".format(self.age)
