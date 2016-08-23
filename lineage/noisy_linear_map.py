@@ -91,21 +91,16 @@ def process_old():
     lineage_info = json.loads(open("lineages.json").read())
     T, rif_add, pixel = get_timings()
 
-    data = {
-        "initial_ids": [],
-        "final_ids": [],
-        "initial_lengths": [],
-        "final_lengths": [],
-        "initial_areas": [],
-        "final_areas": [],
-        "doubling_times": [],
-        "growth_rates": [],
-        "elong_rates": [],
-        "length_ratios": [],
-        "area_ratios": [],
-    }
+    data = pd.DataFrame(columns=[
+        "initial_id", "final_id",
+        "initial_length", "final_length",
+        "initial_area", "final_area",
+        "length_ratio", "area_ratio",
+        "doubling_time", "growth_rate", "elong_rate",
+    ])
     for lin in lineage_info:
         if lin["parent"] and lin["children"] and len(lin["lineage"]) > 5:
+            lin_data = {}
             lineage = lin["lineage"]
             initial_length = lineage[0][2] * pixel
             final_length = lineage[-1][2] * pixel
@@ -125,54 +120,31 @@ def process_old():
             # get elongation rate
             elong_rate, _ = np.polyfit(times, lengths, 1)
 
-            data["initial_ids"].append(lineage[0][0])
-            data["final_ids"].append(lineage[-1][0])
-            data["initial_lengths"].append(initial_length)
-            data["final_lengths"].append(final_length)
-            data["initial_areas"].append(np.NaN)
-            data["final_areas"].append(np.NaN)
-            data["doubling_times"].append(doubling_time)
-            data["growth_rates"].append(growth_rate)
-            data["elong_rates"].append(elong_rate)
-            data["length_ratios"].append(length_ratio)
-            data["area_ratios"].append(np.NaN)
+            lin_data["initial_id"] = lineage[0][0]
+            lin_data["final_id"] = lineage[-1][0]
+            lin_data["initial_length"] = initial_length
+            lin_data["final_length"] = final_length
+            lin_data["initial_area"] = np.NaN
+            lin_data["final_area"] = np.NaN
+            lin_data["doubling_time"] = doubling_time
+            lin_data["growth_rate"] = growth_rate
+            lin_data["elong_rate"] = elong_rate
+            lin_data["length_ratio"] = length_ratio
+            lin_data["area_ratio"] = np.NaN
+            lin_series = pd.Series(lin_data)
+            data = data.append(lin_series, ignore_index=True)
 
     return data
 
+def process_process(process_queue, L, T, rif_add, pixel):
+    out_data = pd.DataFrame(columns=[
+        "initial_id", "final_id",
+        "initial_length", "final_length",
+        "initial_area", "final_area",
+        "length_ratio", "area_ratio",
+        "doubling_time", "growth_rate", "elong_rate",
+    ])
 
-def process_dir():
-    try:
-        L = track.Lineage()
-    except:
-        print("Error getting lineage information")
-        if os.path.exists("lineages.npz"):
-            print("But lineages.npz exists")
-            return process_old()
-        return {}
-    initial_cells = L.frames[0].cells
-    # only follow cells after first division
-    process_queue = []
-    for cell in initial_cells:
-        while type(cell.children) is str:
-            cell = L.frames.cell(cell.children)
-
-        if type(cell.children) is list:
-            process_queue.append(L.frames.cell(cell.children[0]))
-            process_queue.append(L.frames.cell(cell.children[1]))
-
-    initial_ids = []
-    final_ids = []
-    initial_lengths = []
-    final_lengths = []
-    length_ratios = []
-    initial_areas = []
-    final_areas = []
-    area_ratios = []
-    doubling_times = []
-    growth_rates = []
-    elong_rates = []
-
-    T, rif_add, pixel = get_timings()
     for cell in process_queue:
         num_frames = 1
         # get daughters
@@ -189,6 +161,7 @@ def process_dir():
                 cell.children = None
 
         if type(cell.children) is list and num_frames > 5:
+            lin_data = {}
             process_queue.append(L.frames.cell(cell.children[0]))
             process_queue.append(L.frames.cell(cell.children[1]))
 
@@ -198,41 +171,133 @@ def process_dir():
             initial_area = initial_cell.area[0][0] * pixel * pixel
             final_area = cell.area[0][0] * pixel * pixel
 
-            initial_ids.append(initial_cell.id)
-            initial_lengths.append(initial_length)
-            initial_areas.append(initial_area)
-            final_ids.append(cell.id)
-            final_lengths.append(final_length)
-            final_areas.append(final_area)
+            lin_data["initial_id"] = initial_cell.id
+            lin_data["initial_length"] = initial_length
+            lin_data["initial_area"] = initial_area
+            lin_data["final_id"] = cell.id
+            lin_data["final_length"] = final_length
+            lin_data["final_area"] = final_area
 
-            length_ratios.append(final_length / initial_length)
-            area_ratios.append(final_area / initial_area)
+            lin_data["length_ratio"] = final_length / initial_length
+            lin_data["area_ratio"] = final_area / initial_area
 
-            doubling_times.append((T[cell.frame - 1] - T[initial_cell.frame - 1]) / 60)
+            lin_data["doubling_time"] = (
+                T[cell.frame - 1] - T[initial_cell.frame - 1]
+            ) / 60
 
             times = np.array(times)
             logL = np.log(lengths)
             growth_rate, logL0 = np.polyfit(times - times[0], logL, 1)
-            growth_rates.append(growth_rate)
+            lin_data["growth_rate"] = growth_rate
 
             elong_rate, _ = np.polyfit(times, lengths, 1)
-            elong_rates.append(elong_rate)
+            lin_data["elong_rate"] = elong_rate
 
-    data = {
-        "initial_ids": initial_ids,
-        "final_ids": final_ids,
-        "initial_lengths": initial_lengths,
-        "final_lengths": final_lengths,
-        "initial_areas": initial_areas,
-        "final_areas": final_areas,
-        "doubling_times": doubling_times,
-        "growth_rates": growth_rates,
-        "elong_rates": elong_rates,
-        "length_ratios": length_ratios,
-        "area_ratios": area_ratios,
-    }
+            lin_series = pd.Series(lin_data)
+            out_data = out_data.append(lin_series, ignore_index=True)
 
-    return data
+    return out_data
+
+def process_process_with_poles(process_queue, T, rif_add, pixel):
+    out_data = pd.DataFrame(columns=[
+        "initial_id", "final_id",
+        "initial_length", "final_length",
+        "initial_area", "final_area",
+        "length_ratio", "area_ratio",
+        "doubling_time", "growth_rate", "elong_rate",
+        "old_pole", "pole_age", "age_known",
+    ])
+
+    for lin in process_queue:
+        if type(lin.children) is list:
+            lin_data = {}
+            initial_cell = lin.cells[0]
+            final_cell = lin.cells[-1]
+
+            if T[final_cell.frame - 1] > rif_add:
+                continue
+
+            if len(lin.cells) < 5:
+                continue
+
+            m = max(lin.pole1_age, lin.pole2_age).age
+            if lin.pole1_age.age_known and lin.pole2_age.age_known:
+                lin_data["age_known"] = True
+            else:
+                lin_data["age_known"] = False
+
+            lin_data["pole_age"] = m
+            if m > 1:
+                lin_data["old_pole"] = True
+            else:
+                lin_data["old_pole"] = False
+
+            lin_data["initial_id"] = initial_cell.id
+            lin_data["initial_length"] = initial_cell.length[0][0] * pixel
+            lin_data["initial_area"] = initial_cell.area[0][0] * pixel * pixel
+
+            lin_data["final_id"] = final_cell.id
+            lin_data["final_length"] = final_cell.length[0][0] * pixel
+            lin_data["final_area"] = final_cell.area[0][0] * pixel * pixel
+
+            lin_data["length_ratio"] = final_cell.length[0][0] / initial_cell.length[0][0]
+            lin_data["area_ratio"] = final_cell.area[0][0] / initial_cell.area[0][0]
+            lin_data["doubling_time"] = (
+                T[final_cell.frame - 1] - T[initial_cell.frame - 1]
+            ) / 60
+
+            cell_frames = lin.frames()
+            cell_lengths = lin.lengths(pixel)
+
+            times = np.array([T[x - 1] for x in cell_frames]) / 60
+            logL = np.log(cell_lengths)
+            growth_rate, _ = np.polyfit(times - times[0], logL, 1)
+            lin_data["growth_rate"] = growth_rate
+
+            elong_rate, _ = np.polyfit(times, cell_lengths, 1)
+            lin_data["elong_rate"] = elong_rate
+
+            lin_series = pd.Series(lin_data)
+            out_data = out_data.append(lin_series, ignore_index=True)
+
+            process_queue.append(lin.children[0])
+            process_queue.append(lin.children[1])
+
+    return out_data
+
+def process_dir(with_poles, with_age, debug=False):
+    try:
+        L = track.Lineage()
+    except:
+        print("Error getting lineage information")
+        if os.path.exists("lineages.npz"):
+            print("But lineages.npz exists")
+            return process_old()
+        return None
+    initial_cells = L.frames[0].cells
+    # only follow cells after first division
+    process_queue = []
+    for cell_lineage in initial_cells:
+        if with_poles or with_age:
+            cell_lineage = track.SingleCellLineage(cell_lineage.id, L, debug=debug)
+            if type(cell_lineage.children) is list:
+                process_queue.append(cell_lineage.children[0])
+                process_queue.append(cell_lineage.children[1])
+        else:
+            while type(cell_lineage.children) is str:
+                cell_lineage = L.frames.cell(cell_lineage.children)
+
+            if type(cell_lineage.children) is list:
+                process_queue.append(L.frames.cell(cell_lineage.children[0]))
+                process_queue.append(L.frames.cell(cell_lineage.children[1]))
+
+    T, rif_add, pixel = get_timings()
+    if with_poles or with_age:
+        result = process_process_with_poles(process_queue, T, rif_add, pixel)
+    else:
+        result = process_process(process_queue, L, T, rif_add, pixel)
+
+    return result
 
 def get_stats(xdata, ydata, fit="linear", ci=95):
     """ Return data statistics
@@ -250,7 +315,7 @@ def get_stats(xdata, ydata, fit="linear", ci=95):
             Returns:
                 (gradient, \pm 95%),
                 (y-intercept, \pm 95%),
-                pearson r^2,
+                pearson r,
 
     """
     if fit == "linear":
@@ -282,7 +347,7 @@ def get_stats(xdata, ydata, fit="linear", ci=95):
         return [
             (m, merror),
             (c, cerror),
-            (r ** 2, rp),
+            (r, rp),
         ]
     else:
         raise NotImplementedError
@@ -318,7 +383,7 @@ def fmt_dec(var, places):
 
 
 def add_stats(ax, xdata, ydata, msymbol="m", csymbol="c"):
-    (stats_m, stats_merr), (stats_c, stats_cerr), (rsq, rpval) = get_stats(
+    (stats_m, stats_merr), (stats_c, stats_cerr), (r, rpval) = get_stats(
         xdata, ydata
     )
     plot_fake(
@@ -338,8 +403,9 @@ def add_stats(ax, xdata, ydata, msymbol="m", csymbol="c"):
         )
     )
     # plot_fake(ax, r"r$^2$ = {rsq} (p = {rpval})".format(
-    plot_fake(ax, r"r$^2$ = {rsq:.3g}".format(
-        rsq=rsq,
+    plot_fake(ax, r"r = {r:.3g}, r$^2$ = {rsq:.3g}".format(
+        r=r,
+        rsq=r ** 2,
         rpval=fmt_dec(rpval, 3),
     ))
     plot_fake(ax, "n = {0}".format(len(xdata)))
@@ -363,25 +429,28 @@ def plot_joint(xdata, ydata, xlab, ylab, fn="noisy_linear_map", suffix=""):
     )
     ((stats_m, stats_merror),
      (stats_c, stats_cerror),
-     (stats_r2, stats_rp)) = get_stats(xdata, ydata)
+     (stats_r, stats_rp)) = get_stats(xdata, ydata)
     annotation = r"""
-a = {m} $\pm$ {me},\newline
-b = {c} $\pm$ {ce},\newline
-r$^2$ = {rsq}, p = {rp}\newline
+a = {m} $\pm$ {me}
+b = {c} $\pm$ {ce}
+r = {r}, r$^2$ = {rsq}
 n = {n}
+$\langle L_I \rangle$ = {im}
+$\langle L_F \rangle$ = {fm}
     """.format(
         m=fmt_dec(stats_m, 5),
         me=fmt_dec(stats_merror, 3),
         c=fmt_dec(stats_c, 5),
         ce=fmt_dec(stats_cerror, 3),
-        rsq=fmt_dec(stats_r2, 3),
-        rp=fmt_dec(stats_rp, 3),
+        r=fmt_dec(stats_r, 3),
+        rsq=fmt_dec(stats_r ** 2, 3),
         n=len(xdata),
+        im=fmt_dec(xdata.mean(), 4),
+        fm=fmt_dec(ydata.mean(), 4),
     )
-    annotation = "\n".join(annotation.split("\n")[1:-1])
     g.annotate(
         lambda x,y: (x,y),
-        template=annotation,
+        template="\n".join(annotation.split("\n")[1:-1]),
         loc="upper left",
         fontsize=12,
     )
@@ -469,72 +538,55 @@ def plot_regplot(ax, xdata, ydata, xlabel, ylabel, mlabel="m", clabel="c"):
     sns.despine()
 
 
-def process_root(dir_sources, dirs=None):
+def process_root(dir_sources, dirs=None, with_poles=False, with_age=False, force=False, debug=False):
     if not dirs:
         dirs = "."
 #        dirs = list(filter(lambda x: os.path.isdir(x), sorted(os.listdir())))
         dir_sources = dirs
 
-    initial_ids = []
-    final_ids = []
-    initial_lengths = []
-    final_lengths = []
-    initial_areas = []
-    final_areas = []
-    doubling_times = []
-    growth_rates = []
-    elong_rates = []
-    length_ratios = []
-    area_ratios = []
-    sources = []
+    if (os.path.exists("data.pandas") and force) or not os.path.exists("data.pandas"):
+        columns = [
+            "source", "sub_source",
+            "initial_id", "final_id",
+            "initial_length", "final_length",
+            "initial_area", "final_area",
+            "added_length",
+            "length_ratio", "area_ratio",
+            "doubling_time", "growth_rate", "elong_rate",
+        ]
+        if with_poles:
+            columns.extend(["old_pole", "pole_age", "age_known"])
 
-    orig_dir = os.getcwd()
-    i = 0
-    for d in dirs:
-        os.chdir(d)
-        source = dir_sources[i]
-        print("Processing {0}".format(d))
-        if os.path.exists("mt/alignment.mat") or os.path.exists("lineages.npz"):
-            out_data  = process_dir()
-            if out_data:
-                initial_ids.extend(out_data["initial_ids"])
-                final_ids.extend(out_data["final_ids"])
-                initial_lengths.extend(out_data["initial_lengths"])
-                final_lengths.extend(out_data["final_lengths"])
-                initial_areas.extend(out_data["initial_areas"])
-                final_areas.extend(out_data["final_areas"])
-                doubling_times.extend(out_data["doubling_times"])
-                elong_rates.extend(out_data["elong_rates"])
-                growth_rates.extend(out_data["growth_rates"])
-                length_ratios.extend(out_data["length_ratios"])
-                area_ratios.extend(out_data["area_ratios"])
-                sources.extend([source] * len(out_data["initial_ids"]))
-                print("Got {0} cells".format(len(out_data["initial_ids"])))
+        data = pd.DataFrame(columns=columns)
+
+        orig_dir = os.getcwd()
+        i = 0
+        for d in dirs:
+            os.chdir(d)
+            source = dir_sources[i]
+            print("Processing {0}".format(d))
+            if os.path.exists("mt/alignment.mat") or os.path.exists("lineages.npz"):
+                out_data  = process_dir(with_poles, with_age, debug)
+                if out_data is not None:
+                    out_data["source"] = [source] * len(out_data)
+                    out_data["sub_source"] = [os.path.basename(d)] * len(out_data)
+                    out_data["added_length"] = out_data.final_length - out_data.initial_length
+                    data = pd.concat([data, out_data], ignore_index=True)
+                    print("Got {0} cells".format(len(out_data)))
+                else:
+                    print("No cells returned")
             else:
-                print("No cells returned")
-        else:
-            print("Skipping, no cells")
-        i += 1
-        os.chdir(orig_dir)
+                print("Skipping, no cells")
+            i += 1
+            os.chdir(orig_dir)
 
-    print("Got {0} cells that divide twice during observation period".format(len(initial_ids)))
-    if len(initial_ids) == 0:
-        return
+        print("Got {0} cells that divide twice during observation period".format(len(data)))
+        if len(data) == 0:
+            return
 
-    data = pd.DataFrame({
-        "initial_id": initial_ids,
-        "final_id": final_ids,
-        "initial_length": initial_lengths,
-        "final_length": final_lengths,
-        "length_ratio": length_ratios,
-        "initial_area": initial_areas,
-        "final_area": final_areas,
-        "area_ratio": area_ratios,
-        "doubling_time": doubling_times,
-        "growth_rate": growth_rates,
-        "elong_rate": elong_rates,
-        "source": sources,
-    })
+        data.to_pickle("data.pandas")
+    else:
+        data = pd.read_pickle("data.pandas")
 
     xlab = "Initial cell length (\si{\micro\metre})"
     plot_joint(
@@ -544,7 +596,7 @@ def process_root(dir_sources, dirs=None):
     plot_error(None, data.initial_length, data.final_length)
 
     plot_joint(
-        data.initial_length, data.final_length - data.initial_length,
+        data.initial_length, data.added_length,
         xlab, "Added Length (\si{\micro\metre})",
         "initial-added"
     )
@@ -565,8 +617,194 @@ def process_root(dir_sources, dirs=None):
         xlab, "Growth Rate (\si{\per\hour})",
         "initial-growth"
     )
+
+    if with_age:
+#        for x in range(int(data.pole_age.max())):
+#            data_subset = data[data.pole_age == (x + 1)]
+#            try:
+#                plot_joint(
+#                    data_subset.initial_length, data_subset.final_length,
+#                    xlab, "Final cell length (\si{\micro\metre})",
+#                    "noisy-linear-map-gen-{0}".format(x + 1)
+#                )
+#            except ValueError:
+#                pass
+#
+        # plot pole data swarms
+        fig, ax = plt.subplots(3, 2, figsize=(8, 12))
+        sns.despine()
+        ax = ax.flatten()
+        for i, y in zip(range(6), [
+            "initial_length", "final_length", "added_length",
+            "doubling_time", "elong_rate", "growth_rate"
+        ]):
+#            sns.swarmplot(
+#                x="pole_age",
+#                y=y,
+#                data=data[data.age_known == True],
+#                color="0.25",
+#                alpha=0.75,
+#                ax=ax[i],
+#            )
+            sns.boxplot(
+                x="pole_age",
+                y=y,
+                data=data[data.age_known == True],
+                ax=ax[i],
+            )
+            # plot overall data mean
+            ax[i].axhline(
+                data[data.age_known == True][y].mean(),
+                color="r",
+                lw=1,
+                alpha=.5,
+                ls="--",
+            )
+            ax[i].set_xlabel("Pole age (generations)")
+        ax[0].set_ylabel("Initial length (\si{\micro\metre})")
+        ax[1].set_ylabel("Final length (\si{\micro\metre})")
+        ax[2].set_ylabel("Added length (\si{\micro\metre})")
+        ax[3].set_ylabel("Doubling time (\si{\hour})")
+        ax[4].set_ylabel("Elongation rate (\si{\micro\metre\per\hour})")
+        ax[5].set_ylabel("Growth rate (\si{\per\hour})")
+        fig.tight_layout()
+        sns.despine()
+        fig.savefig("pole_age_boxplots.pdf")
+        plt.close()
+
+    elif with_poles:
+        data_new = data[(data.pole_age == 1 & data.age_known)]
+        data_old = data[data.pole_age > 1]
+        plot_joint(
+            data_new.initial_length, data_new.final_length,
+            xlab, "Final cell length (\si{\micro\metre})",
+            "noisy-linear-map-new-pole"
+        )
+        plot_joint(
+            data_old.initial_length, data_old.final_length,
+            xlab, "Final cell length (\si{\micro\metre})",
+            "noisy-linear-map-old-pole"
+        )
+
+        # plot pole data histograms
+        plot_distplot_comparisons(
+            data[(data.pole_age == 1 & data.age_known)],
+            data[data.pole_age > 1],
+            labels=[
+                "New pole",
+                "Old pole"
+            ]
+        )
+
+        fig, ax = plt.subplots(3, 2, figsize=(5, 12))
+        sns.despine()
+        ax = ax.flatten()
+        for i, y in zip(range(6), [
+            "initial_length", "final_length", "added_length",
+            "doubling_time", "elong_rate", "growth_rate"
+        ]):
+#            sns.swarmplot(
+#                x="old_pole",
+#                y=y,
+#                data=data,
+#                color="0.25",
+#                alpha=0.75,
+#                ax=ax[i],
+#            )
+            sns.boxplot(
+                x="old_pole",
+                y=y,
+                data=data,
+                ax=ax[i],
+            )
+            ylims = ax[i].get_ylim()
+            stat_bar_spacing = (ylims[1] - ylims[0]) / 20
+            stat_bar_y = data[y].max() + stat_bar_spacing
+            ax[i].plot(
+                [0, 0, 1, 1],
+                [
+                    stat_bar_y,
+                    stat_bar_y + stat_bar_spacing / 5,
+                    stat_bar_y + stat_bar_spacing / 5,
+                    stat_bar_y
+                ],
+                lw=1.5,
+                color="k",
+            )
+            ttest = scipy.stats.ttest_ind(
+                data[data.pole_age == 1][y],
+                data[data.pole_age > 1][y],
+                equal_var=False
+            )
+            ax[i].text(
+                0.5,
+                stat_bar_y + stat_bar_spacing / 2,
+                r"$p=$ \num{{{0:.4g}}}".format(ttest.pvalue),
+                ha="center",
+                va="bottom",
+                color="k",
+                fontsize=12,
+            )
+            ax[i].set_xlabel("Pole inherited")
+            ax[i].xaxis.set_ticklabels(["New pole", "Old pole"])
+        ax[0].set_ylabel("Initial length (\si{\micro\metre})")
+        ax[1].set_ylabel("Final length (\si{\micro\metre})")
+        ax[2].set_ylabel("Added length (\si{\micro\metre})")
+        ax[3].set_ylabel("Doubling time (\si{\hour})")
+        ax[4].set_ylabel("Elongation rate (\si{\micro\metre\per\hour})")
+        ax[5].set_ylabel("Growth rate (\si{\per\hour})")
+        fig.tight_layout()
+        fig.savefig("pole_boxplots.pdf")
+        plt.close()
+
+
+def plot_distplot_comparisons(*datasets, labels=None, filename="pole_histograms"):
+    fig, axes = plt.subplots(3, 2)
+    ax = axes.flatten()
+    sns.despine()
+
+    # plot dists
+    variables = [
+        "initial_length", "final_length", "added_length",
+        "doubling_time", "elong_rate", "growth_rate",
+    ]
+
+    var_idx = 0
+    for var in variables:
+        for dataset, label in zip(datasets, labels):
+            if var == "doubling_time":
+                sns.distplot(
+                    dataset[var], kde=False, ax=ax[var_idx],
+                    bins=np.arange(
+                        min(dataset[var]),
+                        max(dataset[var]) + 0.25,
+                        0.25
+                    ),
+                    norm_hist=True,
+                )
+            elif var_idx == 5:
+                sns.distplot(
+                    dataset[var], kde=True, ax=ax[var_idx], label=label
+                )
+            else:
+                sns.distplot(dataset[var], kde=True, ax=ax[var_idx])
+        var_idx += 1
+
+    ax[3].set_xlim([0, ax[3].get_xlim()[1]])
+    ax[5].legend()
+
+    # set labels
+    ax[0].set_xlabel("Initial length (\si{\micro\metre})")
+    ax[1].set_xlabel("Final length (\si{\micro\metre})")
+    ax[2].set_xlabel("Added length (\si{\micro\metre})")
+    ax[3].set_xlabel("Doubling time (\si{\hour})")
+    ax[4].set_xlabel("Elongation rate (\si{\micro\metre\per\hour})")
+    ax[5].set_xlabel("Growth rate (\si{\per\hour})")
+
+    fig.tight_layout()
+    fig.savefig("{0}.pdf".format(filename))
     plt.close()
-    data.to_pickle("data.pandas")
+
 
 
 def main():
