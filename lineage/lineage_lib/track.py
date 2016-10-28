@@ -1023,6 +1023,15 @@ class Frame(object):
             return self.cells[self._idx[id]]
 
 
+class NullAlignment:
+    def __init__(self):
+        pass
+
+
+    def __getitem__(self, x):
+        return 0, 0
+
+
 class EmptyFrame(object):
     def __init__(self):
         self.frame = None
@@ -1086,15 +1095,16 @@ class Lineage(object):
         """
         logging.info("Loading alignment data...")
         if not os.path.exists(self.ALIGNMAT):
-            raise IOError("Alignment file not found ({0})".format(self.ALIGNMAT))
-
-        alignment = scipy.io.loadmat(self.ALIGNMAT)
-        logging.info(">>> loaded")
-        alignment = alignment["shiftframes"]
-        alignment_x = alignment[0][0][0][0]
-        alignment_y = alignment[0][0][1][0]
-        alignment = np.array([alignment_x, alignment_y]).T
-        logging.info(">>> parsed")
+            logging.info(">>> No alignment file found! Assuming no alignment data")
+            alignment = NullAlignment()
+        else:
+            alignment = scipy.io.loadmat(self.ALIGNMAT)
+            logging.info(">>> loaded")
+            alignment = alignment["shiftframes"]
+            alignment_x = alignment[0][0][0][0]
+            alignment_y = alignment[0][0][1][0]
+            alignment = np.array([alignment_x, alignment_y]).T
+            logging.info(">>> parsed")
         self.alignment = alignment
 
     def load_uuids(self):
