@@ -595,24 +595,24 @@ def process_root(dir_sources, dirs=None, with_poles=False, with_age=False, force
 
     plot_joint(
         data.initial_length, data.added_length,
-        xlab, "Added Length (\si{\micro\metre})",
+        xlab, "Added length (\si{\micro\metre})",
         "initial-added"
     )
     plot_joint(
         data.initial_length, data.doubling_time,
-        xlab, "Doubling Time (\si{\hour})",
+        xlab, "Interdivision time (\si{\hour})",
         "initial-doubling"
     )
 
     plot_joint(
         data.initial_length, data.elong_rate,
-        xlab, "Elongation Rate (\si{\micro\metre\per\hour})",
+        xlab, "Elongation rate (\si{\micro\metre\per\hour})",
         "initial-elongation"
     )
 
     plot_joint(
         data.initial_length, data.growth_rate,
-        xlab, "Growth Rate (\si{\per\hour})",
+        xlab, "Growth rate (\si{\per\hour})",
         "initial-growth"
     )
 
@@ -662,7 +662,7 @@ def process_root(dir_sources, dirs=None, with_poles=False, with_age=False, force
         ax[0].set_ylabel("Initial length (\si{\micro\metre})")
         ax[1].set_ylabel("Final length (\si{\micro\metre})")
         ax[2].set_ylabel("Added length (\si{\micro\metre})")
-        ax[3].set_ylabel("Doubling time (\si{\hour})")
+        ax[3].set_ylabel("Interdivision time (\si{\hour})")
         ax[4].set_ylabel("Elongation rate (\si{\micro\metre\per\hour})")
         ax[5].set_ylabel("Growth rate (\si{\per\hour})")
         fig.tight_layout()
@@ -748,7 +748,7 @@ def process_root(dir_sources, dirs=None, with_poles=False, with_age=False, force
         ax[0].set_ylabel("Initial length (\si{\micro\metre})")
         ax[1].set_ylabel("Final length (\si{\micro\metre})")
         ax[2].set_ylabel("Added length (\si{\micro\metre})")
-        ax[3].set_ylabel("Doubling time (\si{\hour})")
+        ax[3].set_ylabel("Interdivision time (\si{\hour})")
         ax[4].set_ylabel("Elongation rate (\si{\micro\metre\per\hour})")
         ax[5].set_ylabel("Growth rate (\si{\per\hour})")
         fig.tight_layout()
@@ -862,7 +862,7 @@ def plot_distplot_comparisons(*datasets, labels=None, filename="pole_histograms"
     ax[0].set_xlabel("Initial length (\si{\micro\metre})")
     ax[1].set_xlabel("Final length (\si{\micro\metre})")
     ax[2].set_xlabel("Added length (\si{\micro\metre})")
-    ax[3].set_xlabel("Doubling time (\si{\hour})")
+    ax[3].set_xlabel("Interdivision time (\si{\hour})")
     ax[4].set_xlabel("Elongation rate (\si{\micro\metre\per\hour})")
     ax[5].set_xlabel("Growth rate (\si{\per\hour})")
 
