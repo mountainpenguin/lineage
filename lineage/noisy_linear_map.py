@@ -297,6 +297,8 @@ def get_stats(xdata, ydata, fit="linear", ci=95):
         sum_x_residuals = np.sum((xdata - xdata.mean()) ** 2)
         Sb = Syx / np.sqrt(sum_x_residuals)
         merror = tstatistic * Sb
+        print("a:", m, "SE:", Sb, "merror:", merror)
+
 
         Sa = Syx * np.sqrt(
             np.sum(xdata ** 2) / (len(xdata) * sum_x_residuals)
