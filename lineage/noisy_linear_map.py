@@ -374,7 +374,7 @@ def add_stats(ax, xdata, ydata, msymbol="m", csymbol="c"):
 
 def plot_joint(xdata, ydata, xlab, ylab, fn="noisy_linear_map", suffix=""):
     fig = plt.figure()
-    g = sns.jointplot(
+    kws = dict(
         x=xdata,
         y=ydata,
         kind="reg",
@@ -388,6 +388,19 @@ def plot_joint(xdata, ydata, xlab, ylab, fn="noisy_linear_map", suffix=""):
             "marker": "x",
         },
     )
+    if fn == "initial-doubling":
+        kws["marginal_kws"] = {
+            "bins": np.arange(
+                min(ydata),
+                max(ydata) + 0.25,
+                0.25
+            )
+        }
+    if fn in ["noisy_linear_map", "noisy-linear-map-new-pole", "noisy-linear-map-old-pole"]:
+        kws["xlim"] = [1, 9]
+        kws["ylim"] = [2, 16]
+
+    g = sns.jointplot(**kws)
     ((stats_m, stats_merror),
      (stats_c, stats_cerror),
      (stats_r, stats_rp)) = get_stats(xdata, ydata)
@@ -395,10 +408,16 @@ def plot_joint(xdata, ydata, xlab, ylab, fn="noisy_linear_map", suffix=""):
 a = {m} $\pm$ {me}
 b = {c} $\pm$ {ce}
 r = {r}, r$^2$ = {rsq}
-n = {n}
+n = {n}"""
+    if fn == "noisy_linear_map" or "noisy-linear-map" in fn:
+        annotation += r"""
 $\langle L_I \rangle$ = {im}
-$\langle L_F \rangle$ = {fm}
-    """.format(
+$\langle L_F \rangle$ = {fm}"""
+        x_ci = float(np.diff(scipy.stats.t.interval(0.95, len(xdata) - 1, loc=xdata.mean(), scale=xdata.sem()))[0])
+        y_ci = float(np.diff(scipy.stats.t.interval(0.95, len(ydata) - 1, loc=ydata.mean(), scale=ydata.sem()))[0])
+        print("<L_I>=", xdata.mean(), "sd=", xdata.std(), "sem=", xdata.sem(), "ci=", x_ci)
+        print("<L_F>=", ydata.mean(), "sd=", ydata.std(), "sem=", ydata.sem(), "ci=", y_ci)
+    annotation = annotation.format(
         m=fmt_dec(stats_m, 5),
         me=fmt_dec(stats_merror, 3),
         c=fmt_dec(stats_c, 5),
@@ -409,6 +428,7 @@ $\langle L_F \rangle$ = {fm}
         im=fmt_dec(xdata.mean(), 4),
         fm=fmt_dec(ydata.mean(), 4),
     )
+    annotation += "\n"
     g.annotate(
         lambda x,y: (x,y),
         template="\n".join(annotation.split("\n")[1:-1]),
