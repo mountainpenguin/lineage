@@ -43,7 +43,7 @@ class ManualAssign(object):
 
         self.ax0 = NoAx(self.fig.add_subplot(121))
         self.ax1 = NoAx(self.fig.add_subplot(
-            122, sharex=self.ax0, sharey=self.ax0
+            122
         ))
         self.ax1.set_title(r"Select NEW pole")
 
