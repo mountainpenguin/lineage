@@ -30,6 +30,8 @@ import sys
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import warnings
+
 sns.set_style("white")
 sns.set_context("paper")
 
@@ -40,6 +42,8 @@ plt.rcParams["text.latex.preamble"] = [
     r"\sisetup{detect-all}",
     r"\setlength\parindent{0pt}",
 ]
+
+warnings.filterwarnings("ignore")
 
 
 def process_old():
