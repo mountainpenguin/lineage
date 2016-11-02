@@ -715,6 +715,18 @@ def process_root(dir_sources, dirs=None, with_poles=False, with_age=False, force
                 data=data,
                 ax=ax[i],
             )
+
+            for tf in [True, False]:
+                ax[i].plot(
+                    [-0.4 + (1 * tf), 0.4 + (1 * tf)],
+                    [data[data.old_pole == tf][y].mean(),
+                    data[data.old_pole == tf][y].mean()],
+                    color="r",
+                    lw=2,
+                    alpha=.5,
+                    ls="--",
+                )
+
             ylims = ax[i].get_ylim()
             stat_bar_spacing = (ylims[1] - ylims[0]) / 20
             stat_bar_y = data[y].max() + stat_bar_spacing
