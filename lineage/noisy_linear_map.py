@@ -519,6 +519,23 @@ def plot_regplot(ax, xdata, ydata, xlabel, ylabel, mlabel="m", clabel="c"):
     sns.despine()
 
 
+def _iqr(a):
+    """From seaborn/utils.py"""
+    q1 = scipy.stats.scoreatpercentile(a, 25)
+    q3 = scipy.stats.scoreatpercentile(a, 75)
+    return q3 - q1
+
+
+def _freedman_diaconis_bins(a):
+    """From seaborn/distributions.py"""
+    a = np.asarray(a)
+    h = 2 * _iqr(a) / (len(a) ** (1 / 3))
+    if h == 0:
+        return int(np.sqrt(a.size))
+    else:
+        return int(np.ceil((a.max() - a.min()) / h))
+
+
 def process_root(dir_sources, dirs=None, with_poles=False, with_age=False, force=False, debug=False):
     if not dirs:
         dirs = "."
@@ -752,8 +769,15 @@ def plot_distplot_comparisons(*datasets, labels=None, filename="pole_histograms"
 
     var_idx = 0
     for var in variables:
+        # determine significance
+        bins = None
         for dataset, label in zip(datasets, labels):
             if var == "doubling_time":
+                bins = np.arange(
+                    min(dataset[var]),
+                    max(dataset[var]) + 0.25,
+                    0.25
+                )
                 sns.distplot(
                     dataset[var], kde=False, ax=ax[var_idx],
                     bins=np.arange(
@@ -765,10 +789,70 @@ def plot_distplot_comparisons(*datasets, labels=None, filename="pole_histograms"
                 )
             elif var_idx == 5:
                 sns.distplot(
-                    dataset[var], kde=True, ax=ax[var_idx], label=label
+                    dataset[var],
+                    kde=True,
+                    ax=ax[var_idx],
+                    label=label,
+                    norm_hist=True,
                 )
             else:
-                sns.distplot(dataset[var], kde=True, ax=ax[var_idx])
+                sns.distplot(
+                    dataset[var],
+                    kde=True,
+                    ax=ax[var_idx],
+                    norm_hist=True,
+                )
+
+        ttest = scipy.stats.ttest_ind(
+            datasets[0][var], datasets[1][var],
+            equal_var=False
+        )
+        if ttest.pvalue < 0.0001:
+            plabel = "****"
+        elif ttest.pvalue < 0.001:
+            plabel = "***"
+        elif ttest.pvalue < 0.01:
+            plabel = "**"
+        elif ttest.pvalue < 0.05:
+            plabel = "*"
+        else:
+            plabel = "ns"
+        plabel = "$p=${0:.3g}".format(ttest.pvalue)
+        if bins is None:
+            bins0 = _freedman_diaconis_bins(datasets[0][var])
+            bins1 = _freedman_diaconis_bins(datasets[1][var])
+        else:
+            bins0 = bins
+            bins1 = bins
+        hist0 = np.histogram(datasets[0][var], bins0, density=True)
+        max0_idxs = np.argwhere(hist0[0] == np.max(hist0[0])).flatten()
+        if len(max0_idxs) == 1:
+            max0_x = hist0[1][max0_idxs[0]] + (hist0[1][2] - hist0[1][1]) / 2
+        elif len(max0_idxs) == 2:
+            max0_x = np.mean([
+                hist0[1][max0_idxs[0]] + (hist0[1][2] - hist0[1][1]) / 2,
+                hist0[1][max0_idxs[1]] + (hist0[1][2] - hist0[1][1]) / 2
+            ])
+        max0_y = np.max(hist0[0])
+
+        hist1 = np.histogram(datasets[1][var], bins1, density=True)
+        max1_idxs = np.argwhere(hist1[0] == np.max(hist1[0])).flatten()
+        if len(max1_idxs) == 1:
+            max1_x = hist1[1][max1_idxs[0]] + (hist1[1][2] - hist1[1][1]) / 2
+        elif len(max1_idxs) == 2:
+            max1_x = np.mean([
+                hist1[1][max1_idxs[0]] + (hist1[1][2] - hist1[1][1]) / 2,
+                hist1[1][max1_idxs[1]] + (hist1[1][2] - hist1[1][1]) / 2
+            ])
+        max1_y = np.max(hist1[0])
+
+        p_x = np.mean([max0_x, max1_x])
+        p_y = np.max([max0_y, max1_y]) + np.diff(ax[var_idx].get_ylim()) / 10
+
+        ax[var_idx].text(
+            p_x, p_y, plabel, ha="center", va="center", color="k", fontsize=12
+        )
+
         var_idx += 1
 
     ax[3].set_xlim([0, ax[3].get_xlim()[1]])
