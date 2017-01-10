@@ -619,17 +619,47 @@ def process_root(dir_sources, dirs=None, with_poles=False, with_age=False, force
     )
 
     if with_age:
-#        for x in range(int(data.pole_age.max())):
-#            data_subset = data[data.pole_age == (x + 1)]
-#            try:
-#                plot_joint(
-#                    data_subset.initial_length, data_subset.final_length,
-#                    xlab, "Final cell length (\si{\micro\metre})",
-#                    "noisy-linear-map-gen-{0}".format(x + 1)
-#                )
-#            except ValueError:
-#                pass
-#
+        dcolumns = ["generation", "gradient", "ci"]
+        generation_gradient = pd.DataFrame(columns=dcolumns)
+        for x in range(int(data.pole_age.max())):
+            data_subset = data[data.pole_age == (x + 1)]
+            try:
+                stats = get_stats(data_subset.initial_length, data_subset.final_length)
+                if x + 1 < 6:
+                    gen_data = pd.Series({
+                        "generation": x + 1,
+                        "gradient": stats[0][0],
+                        "ci": stats[0][1],
+                    })
+                    generation_gradient = generation_gradient.append(gen_data, ignore_index=True)
+                plot_joint(
+                    data_subset.initial_length, data_subset.final_length,
+                    xlab, "Final cell length (\si{\micro\metre})",
+                    "noisy-linear-map-gen-{0}".format(x + 1)
+                )
+            except ValueError:
+                pass
+
+        fig = plt.figure(figsize=(4, 4))
+        ax = fig.add_subplot(1, 1, 1)
+        generation_gradient.to_pickle("testing.pandas")
+        sns.despine()
+        ax.errorbar(
+            generation_gradient.generation,
+            generation_gradient.gradient,
+            yerr=generation_gradient.ci,
+            fmt="o",
+        )
+        ax.set_xlim([0, generation_gradient.generation.max() + 1])
+        ax.set_xticklabels([str(x) for x in range(int(generation_gradient.generation.max() + 2))])
+        ax.plot(ax.get_xlim(), [1, 1], linestyle="--")
+        max_y = ax.get_ylim()[1]
+        ax.set_ylim([0, max_y])
+
+        ax.set_xlabel("Age of inherited pole (generations)")
+        ax.set_ylabel("Slope of initial length against final length")
+        plt.savefig("noisy-linear-map-generation-gradient.pdf")
+
         # plot pole data swarms
         fig, ax = plt.subplots(3, 2, figsize=(8, 12))
         sns.despine()
