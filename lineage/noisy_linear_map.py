@@ -619,7 +619,7 @@ def process_root(dir_sources, dirs=None, with_poles=False, with_age=False, force
     )
 
     if with_age:
-        dcolumns = ["age", "gradient", "ci"]
+        dcolumns = ["age", "gradient", "ci", "n"]
         generation_gradient = pd.DataFrame(columns=dcolumns)
         for x in range(int(data.pole_age.max())):
             data_subset = data[(data.pole_age == (x + 1)) & (data.age_known)]
@@ -630,6 +630,7 @@ def process_root(dir_sources, dirs=None, with_poles=False, with_age=False, force
                         "age": x,
                         "gradient": stats[0][0],
                         "ci": stats[0][1],
+                        "n": len(data_subset),
                     })
                     generation_gradient = generation_gradient.append(gen_data, ignore_index=True)
                     plot_joint(
@@ -649,14 +650,49 @@ def process_root(dir_sources, dirs=None, with_poles=False, with_age=False, force
             yerr=generation_gradient.ci,
             fmt="o",
         )
-        ax.set_xticklabels([str(x) for x in range(0, int(generation_gradient.age.max() + 2))])
-        ax.set_xlim([0, generation_gradient.age.max() + 1])
+
+        # also plot "new" pole cells (i.e. pole_age = 1) and all old pole cells
+        new_pole_cells = data[(data.pole_age == 1) & (data.age_known)]
+        new_stats = get_stats(new_pole_cells.initial_length, new_pole_cells.final_length)
+        ax.errorbar(
+            0,
+            new_stats[0][0],
+            new_stats[0][1],
+            fmt="o"
+        )
+
+        old_pole_cells = data[(data.pole_age > 1)]
+        old_stats = get_stats(old_pole_cells.initial_length, old_pole_cells.final_length)
+        ax.errorbar(
+            generation_gradient.age.max() + 1,
+            old_stats[0][0],
+            old_stats[0][1],
+            fmt="o"
+        )
+
+        ax.set_xlim([-.5, generation_gradient.age.max() + 1.5])
         ax.plot(ax.get_xlim(), [1, 1], linestyle="--")
         max_y = ax.get_ylim()[1]
         ax.set_ylim([0, max_y])
 
         ax.set_xlabel("Age of inherited pole (generations)")
         ax.set_ylabel("Slope of initial length against final length")
+
+        fig.canvas.draw()
+
+        xticklabels = [x.get_text() for x in ax.get_xticklabels()]
+        try:
+            new_idx = xticklabels.index("$0$")
+            xticklabels[new_idx] = "New"
+            old_idx = xticklabels.index("${0}$".format(int(generation_gradient.age.max() + 1)))
+            xticklabels[old_idx] = "Old"
+        except (IndexError, ValueError):
+            print("'Manually' assigning xticklabels")
+            xticklabels = ["", "New"]
+            xticklabels.extend([str(x) for x in range(1, int(generation_gradient.age.max() + 1))])
+            xticklabels.append("Old")
+        ax.set_xticklabels(xticklabels)
+
         plt.savefig("noisy-linear-map-generation-gradient.pdf")
 
         # plot pole data swarms
@@ -702,7 +738,7 @@ def process_root(dir_sources, dirs=None, with_poles=False, with_age=False, force
         plt.close()
 
     elif with_poles:
-        data_new = data[(data.pole_age == 1 & data.age_known)]
+        data_new = data[((data.pole_age == 1) & (data.age_known))]
         data_old = data[data.pole_age > 1]
         plot_joint(
             data_new.initial_length, data_new.final_length,
@@ -717,7 +753,7 @@ def process_root(dir_sources, dirs=None, with_poles=False, with_age=False, force
 
         # plot pole data histograms
         plot_distplot_comparisons(
-            data[(data.pole_age == 1 & data.age_known)],
+            data[((data.pole_age == 1) & (data.age_known))],
             data[data.pole_age > 1],
             labels=[
                 "New pole",
