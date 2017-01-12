@@ -627,7 +627,7 @@ def process_root(dir_sources, dirs=None, with_poles=False, with_age=False, force
                 if x > 0 and len(data_subset) > 1:
                     stats = get_stats(data_subset.initial_length, data_subset.final_length)
                     gen_data = pd.Series({
-                        "age": x,
+                        "age": x + 1,
                         "gradient": stats[0][0],
                         "ci": stats[0][1],
                         "n": len(data_subset),
@@ -641,6 +641,7 @@ def process_root(dir_sources, dirs=None, with_poles=False, with_age=False, force
             except ValueError:
                 pass
 
+        generation_gradient.to_pickle("data/generation_gradient.pandas")
         fig = plt.figure(figsize=(4, 4))
         ax = fig.add_subplot(1, 1, 1)
         sns.despine()
@@ -655,7 +656,7 @@ def process_root(dir_sources, dirs=None, with_poles=False, with_age=False, force
         new_pole_cells = data[(data.pole_age == 1) & (data.age_known)]
         new_stats = get_stats(new_pole_cells.initial_length, new_pole_cells.final_length)
         ax.errorbar(
-            0,
+            1,
             new_stats[0][0],
             new_stats[0][1],
             fmt="o"
@@ -670,8 +671,8 @@ def process_root(dir_sources, dirs=None, with_poles=False, with_age=False, force
             fmt="o"
         )
 
-        ax.set_xlim([-.5, generation_gradient.age.max() + 1.5])
-        ax.plot(ax.get_xlim(), [1, 1], linestyle="--")
+        ax.set_xlim([.5, generation_gradient.age.max() + 1.5])
+        ax.plot(ax.get_xlim(), [1, 1], linestyle="--", color="k")
         max_y = ax.get_ylim()[1]
         ax.set_ylim([0, max_y])
 
@@ -682,15 +683,15 @@ def process_root(dir_sources, dirs=None, with_poles=False, with_age=False, force
 
         xticklabels = [x.get_text() for x in ax.get_xticklabels()]
         try:
-            new_idx = xticklabels.index("$0$")
-            xticklabels[new_idx] = "New"
+#            new_idx = xticklabels.index("$1$")
+#            xticklabels[new_idx] = "New"
             old_idx = xticklabels.index("${0}$".format(int(generation_gradient.age.max() + 1)))
-            xticklabels[old_idx] = "Old"
+            xticklabels[old_idx] = "$>1$"
         except (IndexError, ValueError):
             print("'Manually' assigning xticklabels")
-            xticklabels = ["", "New"]
+            xticklabels = ["", "$1$"]
             xticklabels.extend([str(x) for x in range(1, int(generation_gradient.age.max() + 1))])
-            xticklabels.append("Old")
+            xticklabels.append("$>1$")
         ax.set_xticklabels(xticklabels)
 
         plt.savefig("noisy-linear-map-generation-gradient.pdf")
@@ -699,6 +700,22 @@ def process_root(dir_sources, dirs=None, with_poles=False, with_age=False, force
         fig, ax = plt.subplots(3, 2, figsize=(8, 12))
         sns.despine()
         ax = ax.flatten()
+
+        age_known_data = data[data.age_known == True]
+        plottable = []
+        for age in range(1, int(age_known_data.pole_age.max()) + 1):
+            num_records = len(age_known_data[age_known_data.pole_age == age])
+            print("{0} cells with known age of {1}".format(num_records, age))
+            if num_records > 2:
+                plottable.append(age)
+
+        restricted_data = age_known_data[age_known_data.pole_age.isin(plottable)]
+        # add old pole data
+        old_pole_data = data[data.pole_age > 1]
+        print("{0} cells with age > 1 (including unknown)".format(len(old_pole_data)))
+        old_pole_data.pole_age = restricted_data.pole_age.max() + 1
+        restricted_data = restricted_data.append(old_pole_data)
+
         for i, y in zip(range(6), [
             "initial_length", "final_length", "added_length",
             "doubling_time", "elong_rate", "growth_rate"
@@ -714,18 +731,23 @@ def process_root(dir_sources, dirs=None, with_poles=False, with_age=False, force
             sns.boxplot(
                 x="pole_age",
                 y=y,
-                data=data[data.age_known == True],
+                data=restricted_data,
                 ax=ax[i],
             )
+
             # plot overall data mean
             ax[i].axhline(
-                data[data.age_known == True][y].mean(),
-                color="r",
+                restricted_data[restricted_data.pole_age < restricted_data.pole_age.max()][y].mean(),
+                color="k",
                 lw=1,
                 alpha=.5,
                 ls="--",
             )
             ax[i].set_xlabel("Pole age (generations)")
+            xticklabels = ["${0}$".format(str(x)) for x in range(1, int(restricted_data.pole_age.max()))]
+            xticklabels.append("$>1$")
+            ax[i].set_xticklabels(xticklabels)
+
         ax[0].set_ylabel("Initial length (\si{\micro\metre})")
         ax[1].set_ylabel("Final length (\si{\micro\metre})")
         ax[2].set_ylabel("Added length (\si{\micro\metre})")
@@ -734,6 +756,7 @@ def process_root(dir_sources, dirs=None, with_poles=False, with_age=False, force
         ax[5].set_ylabel("Growth rate (\si{\per\hour})")
         fig.tight_layout()
         sns.despine()
+
         fig.savefig("pole_age_boxplots.pdf")
         plt.close()
 
