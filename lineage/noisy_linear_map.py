@@ -401,6 +401,9 @@ def plot_joint(xdata, ydata, xlab, ylab, fn="noisy_linear_map", suffix=""):
     if fn in ["noisy_linear_map", "noisy-linear-map-new-pole", "noisy-linear-map-old-pole"]:
         kws["xlim"] = [1, 9]
         kws["ylim"] = [2, 16]
+    elif fn in ["initial-added", "initial-added-new-pole", "initial-added-old-pole"]:
+        kws["xlim"] = [1, 9]
+        kws["ylim"] = [1, 9]
 
     g = sns.jointplot(**kws)
     ((stats_m, stats_merror),
@@ -595,6 +598,20 @@ def process_root(dir_sources, dirs=None, with_poles=False, with_age=False, force
     )
     plot_error(None, data.initial_length, data.final_length)
 
+
+    plot_joint(
+        data.elong_rate, data.added_length,
+        "Elongation rate (\si{\micro\metre\per\hour})",
+        "Added length (\si{\micro\metre})",
+        "elongation-added"
+    )
+    plot_joint(
+        data.growth_rate, data.added_length,
+        "Growth rate (\si{\per\hour})",
+        "Added length (\si{\micro\metre})",
+        "growth-added"
+    )
+
     plot_joint(
         data.initial_length, data.added_length,
         xlab, "Added length (\si{\micro\metre})",
@@ -772,6 +789,18 @@ def process_root(dir_sources, dirs=None, with_poles=False, with_age=False, force
             data_old.initial_length, data_old.final_length,
             xlab, "Final cell length (\si{\micro\metre})",
             "noisy-linear-map-old-pole"
+        )
+
+        plot_joint(
+            data_new.initial_length, data_new.added_length,
+            xlab, "Added length (\si{\micro\metre})",
+            "initial-added-new-pole"
+        )
+
+        plot_joint(
+            data_old.initial_length, data_old.added_length,
+            xlab, "Added length (\si{\micro\metre})",
+            "initial-added-old-pole"
         )
 
         # plot pole data histograms
