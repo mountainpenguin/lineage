@@ -83,9 +83,28 @@ class PoleAge(object):
 
 class SingleCellLineage(object):
     """Class for defining and determining a single cell lineage"""
-    def __init__(self, init_id, L, pole1_age=None, pole2_age=None, assign_poles=True, orient=True, debug=False):
-        c = L.frames.cell(init_id)
+    def _annotate(self, cell):
+        if self.px_conversion:
+            try:
+                cell.volume = cell.volume[0][0] * self.px_conversion ** 3
+            except:
+                print(cell.id, cell.volume)
+                input(".?")
+            cell.area = cell.area[0][0] * self.px_conversion ** 2
+            cell.length = cell.length[0][0] * self.px_conversion
+        if self.timings:
+            cell.t = self.timings[cell.frame - 1]
+        else:
+            cell.t = None
+        return cell
+
+
+    def __init__(self, init_id, L, px_conversion=None, timings=None, pole1_age=None, pole2_age=None, assign_poles=True, orient=True, parent_lineage=None, debug=False):
         self.lineage_id = init_id
+        self.parent_lineage = parent_lineage
+        self.px_conversion = px_conversion
+        self.timings = timings
+        c = self._annotate(L.frames.cell(init_id))
         self.cells = [c]
         self.pole1_age = pole1_age or PoleAge()
         self.pole2_age = pole2_age or PoleAge()
@@ -101,7 +120,7 @@ class SingleCellLineage(object):
             prev_c = self.cells[i]
             if orient:
                 c = self._orient_cell(prev_c, c)
-            self.cells.append(c)
+            self.cells.append(self._annotate(c))
             i += 1
 
         # last cell
@@ -150,19 +169,25 @@ class SingleCellLineage(object):
                 SingleCellLineage(
                     c.children[0],
                     L,
-                    child1_pole1,
-                    child1_pole2,
+                    pole1_age=child1_pole1,
+                    pole2_age=child1_pole2,
                     assign_poles=assign_poles,
                     orient=orient,
+                    parent_lineage = self,
+                    px_conversion=self.px_conversion,
+                    timings=timings,
                     debug=debug,
                 ),
                 SingleCellLineage(
                     c.children[1],
                     L,
-                    child2_pole1,
-                    child2_pole2,
+                    pole1_age=child2_pole1,
+                    pole2_age=child2_pole2,
                     assign_poles=assign_poles,
                     orient=orient,
+                    parent_lineage = self,
+                    px_conversion=self.px_conversion,
+                    timings=timings,
                     debug=debug,
                 )
             ]
