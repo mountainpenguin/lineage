@@ -389,15 +389,19 @@ def plot_joint(xdata, ydata, xlab, ylab, fn="noisy_linear_map", suffix=""):
             },
             "marker": "x",
         },
+        marginal_kws={
+            "hist_kws": {
+                "edgecolor": "k",
+            },
+        },
     )
     if fn == "initial-doubling":
-        kws["marginal_kws"] = {
-            "bins": np.arange(
-                min(ydata),
-                max(ydata) + 0.25,
-                0.25
-            )
-        }
+        kws["marginal_kws"]["bins"] = np.arange(
+            min(ydata),
+            max(ydata) + 0.25,
+            0.25
+        )
+
     if fn in ["noisy_linear_map", "noisy-linear-map-new-pole", "noisy-linear-map-old-pole"]:
         kws["xlim"] = [1, 9]
         kws["ylim"] = [2, 16]
