@@ -374,7 +374,7 @@ def add_stats(ax, xdata, ydata, msymbol="m", csymbol="c"):
     plot_fake(ax, "n = {0}".format(len(xdata)))
 
 
-def plot_joint(xdata, ydata, xlab, ylab, fn="noisy_linear_map", suffix=""):
+def plot_joint(xdata, ydata, xlab, ylab, fn="noisy_linear_map", suffix="", xlim=None, ylim=None):
     fig = plt.figure()
     kws = dict(
         x=xdata,
@@ -408,6 +408,11 @@ def plot_joint(xdata, ydata, xlab, ylab, fn="noisy_linear_map", suffix=""):
     elif fn in ["initial-added", "initial-added-new-pole", "initial-added-old-pole"]:
         kws["xlim"] = [1, 9]
         kws["ylim"] = [1, 9]
+
+    if xlim:
+        kws["xlim"] = xlim
+    if ylim:
+        kws["ylim"] = ylim
 
     g = sns.jointplot(**kws)
     ((stats_m, stats_merror),
@@ -607,13 +612,15 @@ def process_root(dir_sources, dirs=None, with_poles=False, with_age=False, force
         data.elong_rate, data.added_length,
         "Elongation rate (\si{\micro\metre\per\hour})",
         "Added length (\si{\micro\metre})",
-        "elongation-added"
+        "elongation-added",
+        ylim=(0, 10),
     )
     plot_joint(
         data.growth_rate, data.added_length,
         "Growth rate (\si{\per\hour})",
         "Added length (\si{\micro\metre})",
-        "growth-added"
+        "growth-added",
+        ylim=(0, 10),
     )
 
     plot_joint(
