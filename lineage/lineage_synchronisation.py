@@ -29,6 +29,11 @@ sns.set_context("paper")
 from lineage_lib import track
 from lineage_lib import misc
 
+def get_ci(dataset, conf=0.95):
+    n = len(dataset)
+    se = scipy.stats.sem(dataset)
+    h = se * scipy.stats.t._ppf((1 + conf) / 2.0, n - 1)
+    return h
 
 def process_lineage(cell_lineage, timings, rif_add, pixel, generation=0, lineage_id=None):
     # time vs birth_length
