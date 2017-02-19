@@ -181,7 +181,7 @@ def process_sources(dir_sources, dirs=None, force=False):
     )
     ax1a.set_xlabel("Birth Time (\si{\hour})")
     ax1a.set_ylabel("Initial length (\si{\micro\metre})")
-    ax1a.set_title("Birth event timing (microcolony \#1)")
+    # ax1a.set_title("Birth event timing (microcolony \#1)")
 
     ax1b = ax1a.twinx()
     ax1b.spines["top"].set_visible(False)
@@ -215,7 +215,7 @@ def process_sources(dir_sources, dirs=None, force=False):
     )
     ax2a.set_xlabel("Birth Time (\si{\hour})")
     ax2a.set_ylabel("Initial length (\si{\micro\metre})")
-    ax2a.set_title("Birth event timing (microcolony \#2)")
+    # ax2a.set_title("Birth event timing (microcolony \#2)")
 
     ax2b = ax2a.twinx()
     ax2b.spines["top"].set_visible(False)
@@ -266,7 +266,7 @@ def process_sources(dir_sources, dirs=None, force=False):
 #    )
     ax3.set_xlabel("Microcolony")
     ax3.set_ylabel("Interdivision time (\si{\hour})")
-    ax3.set_title("Mean interdivision time")
+    # ax3.set_title("Mean interdivision time")
 
     fig4 = plt.figure(figsize=(6.4, 1.6))
     ax4 = fig4.add_subplot(111, sharex=ax3)
@@ -281,7 +281,7 @@ def process_sources(dir_sources, dirs=None, force=False):
     )
     ax4.set_xlabel("Microcolony")
     ax4.set_ylabel("CV (\si{\percent})")
-    ax4.set_title("Interdivision time coefficient of variation")
+    # ax4.set_title("Interdivision time coefficient of variation")
 
     fig1.tight_layout()
     fig1.savefig("glycerol-synchronisation-microcolony1.pdf")
