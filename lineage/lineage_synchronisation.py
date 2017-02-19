@@ -107,74 +107,179 @@ def process_sources(dir_sources, dirs=None, force=False):
     else:
         data = pd.read_pickle("synchro_data.pandas")
 
-    # Attempt at copying Aldridge 2012 Fig. 4B (Fourier analysis)
-    for lineage in data.lineage_id.unique():
-        # lineage = "ce6b27b4-73e8-4508-b4b4-4cf5a71f41ff"
-        dataset = data[data.lineage_id == lineage]
-        if dataset.generation.max() < 6:
-            continue
+    threshold_generations = 4
+    long_ids = []
+    for lineage_id in data.lineage_id.unique():
+        subset = data[data.lineage_id == lineage_id]
+        if max(subset.generation) >= threshold_generations:
+            long_ids.append(lineage_id)
 
-        fig = plt.figure()
-        ax1 = fig.add_subplot(211)
-        ax2 = ax1.twinx()
-        ax3 = fig.add_subplot(212)
+    long_data = data[data.lineage_id.isin(long_ids)]
 
-        ax1.plot(
-            dataset.birth_hour,
-            dataset.birth_length,
-            ls="none",
-            marker=".",
-            ms=8,
-        )
-        ax1.set_ylabel("Initial length (\si{\micro\metre})")
-        ax1.set_xlabel("Time (\si{\hour})")
+    mc_wanted = [
+        "3f04e754-f30c-43d8-bcee-612c8edc3447",
+        "4c2356fe-5486-46d9-ade4-29fd7bcb22e0",
+    ]
 
-        T = 0.75
-        # 0.75 as per Aldridge et al. 2012 (from visual inspection of Fig. 4B)
-        bins = np.arange(
-            min(dataset.birth_hour),
-            max(dataset.birth_hour) + T,
-            T
-        )
-        h = np.histogram(dataset.birth_hour, bins=bins)
-        ax2.plot(
-            bins[:-1] + (T / 2), h[0],
-            "r-",
-            lw=2,
-        )
-        ax2.set_ylabel("\# cells", color="r")
-        for ticklabel in ax2.get_yticklabels():
-            ticklabel.set_color("r")
+    u = list(long_data.lineage_id.unique())
+    u.pop(u.index(mc_wanted[0]))
+    u.pop(u.index(mc_wanted[1]))
+    unique = mc_wanted + u
+    microcolony_num = 1
+    general_stats = []
+    for lineage_id in unique:
+        dataset = long_data[long_data.lineage_id == lineage_id]
+        mean = dataset.doubling_time.mean()
+        std = dataset.doubling_time.std()
+        ci = get_ci(dataset.doubling_time)
+        n = len(dataset)
+        cv = 100 * std / mean
+        long_data.ix[long_data.lineage_id == lineage_id, "microcolony"] = microcolony_num
+        general_stats.append((
+            microcolony_num,
+            lineage_id,
+            mean,
+            std,
+            ci,
+            cv,
+            n
+        ))
+        microcolony_num += 1
 
-#        ax3.set_ylabel("PSD ($V^2$ \si{\per{\hertz}})")
-        ax3.set_xlabel(r"Periodicity (\si{\hour})")
-        a = np.abs(scipy.fftpack.rfft(h[0]))[1:]
-        freqs = 1 / scipy.fftpack.rfftfreq(len(h[0]), d=T)[1:]
-        max_freq = freqs[np.argmax(a)]
-        print("max_freq:", max_freq)
-        # f, Pxx = scipy.signal.periodogram(h[0], fs=T)
-#        ax3.bar(freqs, a, width=0.01, lw=2)
-        ax3.plot(freqs, a, "b--", alpha=.75)
-        # ax3.plot(xnew, ynew, "k-")
+    general_stats = pd.DataFrame(general_stats, columns=[
+        "microcolony",
+        "lineage_id",
+        "_mean",
+        "_std",
+        "_ci",
+        "_cv",
+        "_n",
+    ])
 
-        freq_data = pd.DataFrame({
-            "freq": freqs,
-            "a": a,
-        })
-        sns.tsplot(freq_data, time="freq", value="a")
+    # perform stats
+    # Kruskal-Wallis H-test
+    d = [np.array(long_data[long_data.microcolony == x].doubling_time) for x in long_data.microcolony.unique()]
+    print(d)
+    kw = scipy.stats.mstats.kruskalwallis(*d)
+    print(kw)
 
-#        histo_data = np.vstack([
-#            bins[:-1] + (T / 2),
-#            h[0]
-#        ]).T
-#        print(histo_data)
-#        print(scipy.signal.correlate(histo_data, histo_data))
+    fig = plt.figure(figsize=(6.4, 6.4))
 
-        fig.tight_layout()
-#        plt.show()
-        plt.savefig("synchronisation.pdf")
-        plt.close()
+    ax1a = fig.add_subplot(411)
+    ax1a.spines["top"].set_visible(False)
 
+    dataset = long_data[long_data.lineage_id == mc_wanted[0]]
+    ax1a.plot(
+        dataset.birth_hour,
+        dataset.birth_length,
+        marker=".",
+        ls="none",
+        ms=8,
+    )
+    ax1a.set_xlabel("Birth Time (\si{\hour})")
+    ax1a.set_ylabel("Initial length (\si{\micro\metre})")
+    ax1a.set_title("Birth event timing (microcolony \#1)")
+
+    ax1b = ax1a.twinx()
+    ax1b.spines["top"].set_visible(False)
+
+    T = 0.75
+    bins = np.arange(
+        min(dataset.birth_hour),
+        max(dataset.birth_hour) + T,
+        T
+    )
+    h = np.histogram(dataset.birth_hour, bins=bins)
+    ax1b.plot(
+        bins[:-1] + (T / 2), h[0],
+        "r-",
+        lw=2
+    )
+    ax1b.set_ylabel("\# cells", color="r")
+    for ticklabel in ax1b.get_yticklabels():
+        ticklabel.set_color("r")
+
+    ax2a = fig.add_subplot(412, sharex=ax1a)
+    ax2a.spines["top"].set_visible(False)
+    dataset = long_data[long_data.lineage_id == mc_wanted[1]]
+    ax2a.plot(
+        dataset.birth_hour,
+        dataset.birth_length,
+        marker=".",
+        ls="none",
+        ms=8,
+    )
+    ax2a.set_xlabel("Birth Time (\si{\hour})")
+    ax2a.set_ylabel("Initial length (\si{\micro\metre})")
+    ax2a.set_title("Birth event timing (microcolony \#2)")
+
+    ax2b = ax2a.twinx()
+    ax2b.spines["top"].set_visible(False)
+
+    T = 0.75
+    bins = np.arange(
+        min(dataset.birth_hour),
+        max(dataset.birth_hour) + T,
+        T
+    )
+    h = np.histogram(dataset.birth_hour, bins=bins)
+    ax2b.plot(
+        bins[:-1] + (T / 2), h[0],
+        "r-",
+        lw=2
+    )
+    ax2b.set_ylabel("\# cells", color="r")
+    for ticklabel in ax2b.get_yticklabels():
+        ticklabel.set_color("r")
+
+
+    ax3 = fig.add_subplot(413)
+    sns.despine(ax=ax3)
+    sns.barplot(
+        x="microcolony",
+        y="doubling_time",
+        data=long_data,
+        color="0.5",
+        ax=ax3
+    )
+#
+#    sns.swarmplot(
+#        x="microcolony",
+#        y="doubling_time",
+#        data=long_data,
+#        color="0.3",
+#        alpha=0.7,
+#        ax=ax3
+#    )
+#    ax3.errorbar(
+#        general_stats.microcolony,
+#        general_stats._mean,
+#        general_stats._std,
+#        marker=".",
+#        ms=12,
+#        linestyle="none",
+#        color="b",
+#    )
+    ax3.set_xlabel("Microcolony")
+    ax3.set_ylabel("Interdivision time (\si{\hour})")
+    ax3.set_title("Mean interdivision time")
+
+    ax4 = fig.add_subplot(414, sharex=ax3)
+    sns.despine(ax=ax4)
+
+    sns.barplot(
+        x="microcolony",
+        y="_cv",
+        data=general_stats,
+        color="0.8",
+        ax=ax4
+    )
+    ax4.set_xlabel("Microcolony")
+    ax4.set_ylabel("CV (\si{\percent})")
+    ax4.set_title("Interdivision time coefficient of variation")
+
+    fig.tight_layout()
+    fig.savefig("synchronisation.pdf")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
