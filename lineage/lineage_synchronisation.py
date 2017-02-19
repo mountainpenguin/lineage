@@ -164,9 +164,8 @@ def process_sources(dir_sources, dirs=None, force=False):
     # perform stats
     # Kruskal-Wallis H-test
     d = [np.array(long_data[long_data.microcolony == x].doubling_time) for x in long_data.microcolony.unique()]
-    print(d)
     kw = scipy.stats.mstats.kruskalwallis(*d)
-    print(kw)
+    print("Kruskal-Wallis H-test:", kw)
 
     fig = plt.figure(figsize=(6.4, 6.4))
 
