@@ -122,8 +122,8 @@ def process_sources(dir_sources, dirs=None, force=False):
     long_data = data[data.lineage_id.isin(long_ids)]
 
     mc_wanted = [
-        "3f04e754-f30c-43d8-bcee-612c8edc3447",
-        "4c2356fe-5486-46d9-ade4-29fd7bcb22e0",
+        "42bd6b60-210f-4e0d-b335-f7b5e9a59e6c",
+        "673d8584-70ab-4271-bfc0-bbb5b887ec88",
     ]
 
     u = list(long_data.lineage_id.unique())
