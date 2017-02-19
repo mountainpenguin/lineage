@@ -149,6 +149,13 @@ def process_sources(dir_sources, dirs=None, force=False):
             cv,
             n
         ))
+        print("Microcolony #{0}".format(microcolony_num))
+        print(" lineage_id: {0}".format(lineage_id))
+        print(" n: {0}".format(n))
+        print(" mean: {0}".format(mean))
+        print(" std: {0}".format(std))
+        print(" ci: {0}".format(ci))
+        print(" cv: {0}".format(cv))
         microcolony_num += 1
 
     general_stats = pd.DataFrame(general_stats, columns=[
@@ -287,7 +294,7 @@ def process_sources(dir_sources, dirs=None, force=False):
     fig1.savefig("glycerol-synchronisation-microcolony1.pdf")
 
     fig2.tight_layout()
-    fig1.savefig("glycerol-synchronisation-microcolony2.pdf")
+    fig2.savefig("glycerol-synchronisation-microcolony2.pdf")
 
     fig3.tight_layout()
     fig3.savefig("glycerol-synchronisation-mean.pdf")
