@@ -29,11 +29,13 @@ sns.set_context("paper")
 from lineage_lib import track
 from lineage_lib import misc
 
+
 def get_ci(dataset, conf=0.95):
     n = len(dataset)
     se = scipy.stats.sem(dataset)
     h = se * scipy.stats.t._ppf((1 + conf) / 2.0, n - 1)
     return h
+
 
 def process_lineage(cell_lineage, timings, rif_add, pixel, generation=0, lineage_id=None):
     # time vs birth_length
@@ -87,7 +89,6 @@ def process_dir():
 def process_sources(dir_sources, dirs=None, force=False):
     if not dirs:
         dirs = "."
-        dir_sources = dirs
 
     if (os.path.exists("synchro_data.pandas") and force) or not os.path.exists("synchro_data.pandas"):
         orig_dir = os.getcwd()
@@ -95,7 +96,6 @@ def process_sources(dir_sources, dirs=None, force=False):
         data = None
         for d in dirs:
             os.chdir(d)
-            source = dir_sources[i]
             print("Processing {0}".format(d))
             if os.path.exists("mt/alignment.mat"):
                 dir_data = process_dir()
@@ -167,9 +167,8 @@ def process_sources(dir_sources, dirs=None, force=False):
     kw = scipy.stats.mstats.kruskalwallis(*d)
     print("Kruskal-Wallis H-test:", kw)
 
-    fig = plt.figure(figsize=(6.4, 6.4))
-
-    ax1a = fig.add_subplot(411)
+    fig1 = plt.figure(figsize=(6.4, 1.6))
+    ax1a = fig1.add_subplot(111)
     ax1a.spines["top"].set_visible(False)
 
     dataset = long_data[long_data.lineage_id == mc_wanted[0]]
@@ -203,7 +202,8 @@ def process_sources(dir_sources, dirs=None, force=False):
     for ticklabel in ax1b.get_yticklabels():
         ticklabel.set_color("r")
 
-    ax2a = fig.add_subplot(412, sharex=ax1a)
+    fig2 = plt.figure(figsize=(6.4, 1.6))
+    ax2a = fig2.add_subplot(111, sharex=ax1a)
     ax2a.spines["top"].set_visible(False)
     dataset = long_data[long_data.lineage_id == mc_wanted[1]]
     ax2a.plot(
@@ -236,8 +236,8 @@ def process_sources(dir_sources, dirs=None, force=False):
     for ticklabel in ax2b.get_yticklabels():
         ticklabel.set_color("r")
 
-
-    ax3 = fig.add_subplot(413)
+    fig3 = plt.figure(figsize=(6.4, 1.6))
+    ax3 = fig3.add_subplot(111)
     sns.despine(ax=ax3)
     sns.barplot(
         x="microcolony",
@@ -268,7 +268,8 @@ def process_sources(dir_sources, dirs=None, force=False):
     ax3.set_ylabel("Interdivision time (\si{\hour})")
     ax3.set_title("Mean interdivision time")
 
-    ax4 = fig.add_subplot(414, sharex=ax3)
+    fig4 = plt.figure(figsize=(6.4, 1.6))
+    ax4 = fig4.add_subplot(111, sharex=ax3)
     sns.despine(ax=ax4)
 
     sns.barplot(
@@ -282,8 +283,17 @@ def process_sources(dir_sources, dirs=None, force=False):
     ax4.set_ylabel("CV (\si{\percent})")
     ax4.set_title("Interdivision time coefficient of variation")
 
-    fig.tight_layout()
-    fig.savefig("synchronisation.pdf")
+    fig1.tight_layout()
+    fig1.savefig("glycerol-synchronisation-microcolony1.pdf")
+
+    fig2.tight_layout()
+    fig1.savefig("glycerol-synchronisation-microcolony2.pdf")
+
+    fig3.tight_layout()
+    fig3.savefig("glycerol-synchronisation-mean.pdf")
+
+    fig4.tight_layout()
+    fig4.savefig("glycerol-synchronisation-cv.pdf")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
