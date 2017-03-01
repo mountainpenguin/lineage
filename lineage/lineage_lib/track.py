@@ -86,12 +86,14 @@ class SingleCellLineage(object):
     def _annotate(self, cell):
         if self.px_conversion:
             try:
-                cell.volume = cell.volume[0][0] * self.px_conversion ** 3
+                if type(cell.volume) is np.ndarray:
+                    cell.length = cell.length[0][0] * self.px_conversion
+                    cell.area = cell.area[0][0] * self.px_conversion ** 2
+                    cell.volume = cell.volume[0][0] * self.px_conversion ** 3
             except:
-                print(cell.id, cell.volume)
+                traceback.print_exc()
+                print(cell.id, cell.length, cell.area, cell.volume)
                 input(".?")
-            cell.area = cell.area[0][0] * self.px_conversion ** 2
-            cell.length = cell.length[0][0] * self.px_conversion
         if self.timings:
             cell.t = self.timings[cell.frame - 1]
         else:
@@ -99,7 +101,7 @@ class SingleCellLineage(object):
         return cell
 
 
-    def __init__(self, init_id, L, px_conversion=None, timings=None, pole1_age=None, pole2_age=None, assign_poles=True, orient=True, parent_lineage=None, debug=False):
+    def __init__(self, init_id, L, px_conversion=None, timings=None, pole1_age=None, pole2_age=None, assign_poles=True, orient=True, parent_lineage=None, debug=False, rif_cut=None):
         self.lineage_id = init_id
         self.parent_lineage = parent_lineage
         self.px_conversion = px_conversion
@@ -108,6 +110,7 @@ class SingleCellLineage(object):
         self.cells = [c]
         self.pole1_age = pole1_age or PoleAge()
         self.pole2_age = pole2_age or PoleAge()
+        self.rif_cut = rif_cut
 
         if debug:
             debugpath = "/home/miles/Data/Work/PhD/noisy_linear_map/debug"
@@ -117,6 +120,10 @@ class SingleCellLineage(object):
         i = 0
         while type(c.children) is str:
             c = L.frames.cell(c.children)
+            if self.timings and self.rif_cut:
+                t = self.timings[c.frame - 1]
+                if t >= self.rif_cut:
+                    c.children = None
             prev_c = self.cells[i]
             if orient:
                 c = self._orient_cell(prev_c, c)
@@ -177,6 +184,7 @@ class SingleCellLineage(object):
                     px_conversion=self.px_conversion,
                     timings=timings,
                     debug=debug,
+                    rif_cut=self.rif_cut,
                 ),
                 SingleCellLineage(
                     c.children[1],
@@ -189,6 +197,7 @@ class SingleCellLineage(object):
                     px_conversion=self.px_conversion,
                     timings=timings,
                     debug=debug,
+                    rif_cut=self.rif_cut,
                 )
             ]
 
@@ -1010,7 +1019,6 @@ class Frames(object):
 
     def __len__(self):
         return len(self.frames)
-
 
 class Frame(object):
     """Container class for all cells in a single image frame.

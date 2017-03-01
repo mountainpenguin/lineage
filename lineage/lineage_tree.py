@@ -5,6 +5,8 @@ import networkx as nx
 import os
 import numpy as np
 import textwrap
+import sys
+import argparse
 
 #import ete3
 # fix for ete3 Qt4/Qt5 stuff
@@ -94,11 +96,41 @@ def add_children(node, cell):
         node.add_edge(n0, n2)
         add_children(node, cell.children[1])
 
-def main():
-    if not os.path.exists("networks"):
-        os.mkdir("networks")
+def _check_dir(path):
+    if not os.path.exists(os.path.join(path, "timings.json")):
+        return False
+    return True
 
-    timings, _, px = misc.get_timings()
+def intercolate(prev_L, new_L):
+    if not prev_L:
+        return new_L
+
+    frame_idx = 0
+    for new_frame in new_L.frames:
+        try:
+            prev_frame = prev_L.frames[frame_idx]
+        except IndexError:
+            prev_L.frames.frames.append(new_frame)
+            for c in new_frame.cells:
+                prev_L.frames._idx[c.id] = c.frame - 1
+        else:
+            for c in new_frame.cells:
+                # add cell from new_frame into prev_frame
+                prev_frame.cells.append(c)
+                # update prev_frame index
+                prev_frame._idx[c.id] = c
+                # update prev_frames index
+                prev_L.frames._idx[c.id] = c.frame - 1
+
+        frame_idx += 1
+
+    return prev_L
+
+
+def process_path(path):
+    orig_dir = os.getcwd()
+    os.chdir(path)
+    timings, rif_add, px = misc.get_timings()
     L = track.Lineage()
     initial_cells = L.frames[0].cells
     i = 1
@@ -113,11 +145,15 @@ def main():
             init_cell.id,
             L,
             px_conversion=px,
-            timings=timings
+            timings=timings,
+            rif_cut=rif_add,
         )
         lineages.append(cell_lineage)
         tree.add_node(get_custom_node(cell_lineage))
         add_children(tree, cell_lineage)
+
+        if not os.path.exists("networks"):
+            os.mkdir("networks")
 
         nx.drawing.nx_agraph.write_dot(
             tree, "networks/network-{0}.dot".format(init_cell.id)
@@ -131,6 +167,50 @@ def main():
 
         graphs.append(tree)
 
+        i += 1
+    os.chdir(orig_dir)
+    return L, lineages, graphs
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Script to handle single cell data hopefully usefully."
+    )
+    parser.add_argument(
+        "process_list", metavar="directory", type=str, nargs="*",
+        help="""
+            Specify directories to process.
+            Set to "*" to process all directories in the current working directory.
+            Omit to process only the current directory.
+        """
+    )
+    args = parser.parse_args()
+    if not args.process_list:
+        dirlist = ["."]
+    elif args.process_list == ["*"]:
+        dirlist = os.listdir(".")
+    else:
+        dirlist = []
+        for d in args.process_list:
+            if os.path.exists("{0}/timings.json".format(d)):
+                dirlist.append(d)
+            else:
+                print("Directory <{0}> does not exist or isn't correctly arranged, skipping".format(d))
+
+    dirlist = list(filter(_check_dir, dirlist))
+
+    L = None
+    lineages = []
+    graphs = []
+    i = 1
+    for path in dirlist:
+        print("Processing directory <{0}> ({1} of {2})".format(
+            path, i, len(dirlist),
+        ))
+        this_L, this_lineages, this_graphs = process_path(path)
+        L = intercolate(L, this_L)
+        lineages.extend(this_lineages)
+        graphs.extend(this_graphs)
         i += 1
 
     launch_confirm = input("Start interactive console? (y/N): ")
