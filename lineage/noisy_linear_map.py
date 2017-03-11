@@ -588,7 +588,7 @@ def plot_joint(xdata, ydata, xlab, ylab, fn="noisy_linear_map", suffix="", xlim=
     draw_annotation(g, xdata, ydata, fn)
     g.set_axis_labels(xlab, ylab, fontsize=12)
 
-    plt.savefig("{0}{1}.pdf".format(fn, suffix))
+    plt.savefig("{0}{1}.pdf".format(fn, suffix), transparent=True)
     plt.close()
 
 
@@ -642,7 +642,7 @@ def plot_error(ax, xdata, ydata):
 
     sns.despine()
 
-    fig.savefig("noisy-noise.pdf")
+    fig.savefig("noisy-noise.pdf", transparent=True)
     plt.close()
 
 
@@ -857,7 +857,7 @@ def process_root(dir_sources, dirs=None, with_poles=False, with_age=False, force
             xticklabels.append("$>1$")
         ax.set_xticklabels(xticklabels)
 
-        plt.savefig("noisy-linear-map-generation-gradient.pdf")
+        plt.savefig("noisy-linear-map-generation-gradient.pdf", transparent=True)
 
         # plot pole data swarms
         fig, ax = plt.subplots(3, 2, figsize=(8, 12))
@@ -920,7 +920,7 @@ def process_root(dir_sources, dirs=None, with_poles=False, with_age=False, force
         fig.tight_layout()
         sns.despine()
 
-        fig.savefig("pole_age_boxplots.pdf")
+        fig.savefig("pole_age_boxplots.pdf", transparent=True)
         plt.close()
 
     elif with_poles:
@@ -1029,7 +1029,7 @@ def process_root(dir_sources, dirs=None, with_poles=False, with_age=False, force
         ax[4].set_ylabel("Elongation rate (\si{\micro\metre\per\hour})")
         ax[5].set_ylabel("Growth rate (\si{\per\hour})")
         fig.tight_layout()
-        fig.savefig("pole_boxplots.pdf")
+        fig.savefig("pole_boxplots.pdf", transparent=True)
         plt.close()
 
 
@@ -1144,7 +1144,7 @@ def plot_distplot_comparisons(*datasets, labels=None, filename="pole_histograms"
     ax[5].set_xlabel("Growth rate (\si{\per\hour})")
 
     fig.tight_layout()
-    fig.savefig("{0}.pdf".format(filename))
+    fig.savefig("{0}.pdf".format(filename), transparent=True)
     plt.close()
 
 
