@@ -45,6 +45,8 @@ plt.rcParams["text.latex.preamble"] = [
 
 warnings.filterwarnings("ignore")
 
+settings = {}
+
 
 def process_old():
 #    lineage_file = np.load("lineages.npz")
@@ -374,8 +376,176 @@ def add_stats(ax, xdata, ydata, msymbol="m", csymbol="c"):
     plot_fake(ax, "n = {0}".format(len(xdata)))
 
 
+def draw_annotation(g, xdata, ydata, fn):
+    ((stats_m, stats_merror),
+     (stats_c, stats_cerror),
+     (stats_r, stats_rp)) = get_stats(xdata, ydata)
+    annotation = r"""
+a = {m} $\pm$ {me}
+b = {c} $\pm$ {ce}
+r = {r}, r$^2$ = {rsq}
+n = {n}"""
+    if fn == "noisy_linear_map" or "noisy-linear-map" in fn:
+        annotation += r"""
+$\langle L_I \rangle$ = {im}
+$\langle L_F \rangle$ = {fm}"""
+        x_ci = float(np.diff(scipy.stats.t.interval(0.95, len(xdata) - 1, loc=xdata.mean(), scale=xdata.sem()))[0])
+        y_ci = float(np.diff(scipy.stats.t.interval(0.95, len(ydata) - 1, loc=ydata.mean(), scale=ydata.sem()))[0])
+        print("<L_I>=", xdata.mean(), "sd=", xdata.std(), "sem=", xdata.sem(), "ci=", x_ci)
+        print("<L_F>=", ydata.mean(), "sd=", ydata.std(), "sem=", ydata.sem(), "ci=", y_ci)
+    annotation = annotation.format(
+        m=fmt_dec(stats_m, 5),
+        me=fmt_dec(stats_merror, 3),
+        c=fmt_dec(stats_c, 5),
+        ce=fmt_dec(stats_cerror, 3),
+        r=fmt_dec(stats_r, 3),
+        rsq=fmt_dec(stats_r ** 2, 3),
+        n=len(xdata),
+        im=fmt_dec(xdata.mean(), 4),
+        fm=fmt_dec(ydata.mean(), 4),
+    )
+    annotation += "\n"
+    g.annotate(
+        lambda x,y: (x,y),
+        template="\n".join(annotation.split("\n")[1:-1]),
+        loc="upper left",
+        fontsize=12,
+    )
+
+
+def plot_joint_binned(xdata, ydata, xlab, ylab, fn, suffix, xlim, ylim):
+    # bin data by xdata
+    bins = np.histogram(xdata)
+    counts, bins = np.histogram(xdata)
+    bin_width = bins[1] - bins[0]
+
+    unbinned_data = pd.DataFrame([xdata, ydata]).transpose()
+    binned_data = pd.DataFrame()
+    binned_data_raw = pd.DataFrame()
+    for bin_min in bins[:-1]:
+        bin_max = bin_min + bin_width
+        if bin_max == bins[-1]:
+            upper_lim = (unbinned_data[xdata.name] <= bin_max)
+        else:
+            upper_lim = (unbinned_data[xdata.name] < bin_max)
+        yvals = unbinned_data[
+            (unbinned_data[xdata.name] >= bin_min) &
+            (upper_lim)
+        ][ydata.name]
+        binned_data = binned_data.append({
+            "x_centre": bin_min + (bin_width / 2),
+            "y_mean": yvals.mean(),
+            "y_std": yvals.std(),
+            "n": len(yvals)
+        }, ignore_index=True)
+
+        rows = []
+        for yval in yvals:
+            row = {}
+            row[xdata.name] = bin_min + (bin_width / 2)
+            row[ydata.name] = yval
+            rows.append(row)
+        binned_data_raw = binned_data_raw.append(rows, ignore_index=True)
+
+    if fn in ["noisy_linear_map", "noisy-linear-map-new-pole", "noisy-linear-map-old-pole"]:
+        xlim_set = [1, 9]
+        ylim_set = [2, 16]
+    elif fn in ["initial-added", "initial-added-new-pole", "initial-added-old-pole"]:
+        xlim_set = [1, 9]
+        ylim_set = [1, 9]
+    else:
+        xlim_set, ylim_set = None, None
+
+    if xlim:
+        xlim_set = xlim
+    if ylim:
+        ylim_set = ylim
+
+
+    xlim_set, ylim_set = None, None
+    g = sns.JointGrid(xdata, ydata, xlim=xlim_set, ylim=ylim_set)
+
+    if fn == "initial-doubling":
+        extra_kws = {
+            "bins": np.arange(
+                min(ydata),
+                max(ydata) + 0.25,
+                0.25
+            )
+        }
+    else:
+        extra_kws={}
+
+
+    g = g.plot_marginals(
+        sns.distplot,
+        kde=True,
+        hist_kws={
+            "edgecolor": "k"
+        },
+        **extra_kws
+    )
+    g.ax_joint.scatter(
+        xdata,
+        ydata,
+        s=40,
+        alpha=0.5,
+        color="darkred",
+        marker="x",
+    )
+    # actual data fit
+    sns.regplot(
+        xdata,
+        ydata,
+        scatter=False,
+        line_kws={
+            "color": "0.1",
+            "alpha": 0.7,
+            "ls": "--",
+        },
+        ax=g.ax_joint
+    )
+    # binned fit
+    sns.regplot(
+        x="x_centre",
+        y="y_mean",
+        data=binned_data,
+        scatter=False,
+        ax=g.ax_joint,
+    )
+
+    g.ax_joint.errorbar(
+        binned_data.x_centre, binned_data.y_mean, binned_data.y_std,
+        marker="o",
+        ms=10,
+        mec="0.1",
+        mew=3,
+        mfc="w",
+        lw=3,
+        color="0.1",
+        capsize=5,
+    )
+    # draw perfect adder
+#    fx = lambda x: x + (ydata.mean() - xdata.mean())
+#    x1, x2 = g.ax_joint.get_xlim()
+#    y1, y2 = fx(x1), fx(x2)
+#    g.ax_joint.plot(
+#        [x1, x2], [y1, y2],
+#        color="r",
+#        lw=3,
+#    )
+#
+    draw_annotation(g, xdata, ydata, fn)
+    g.set_axis_labels(xlab, ylab, fontsize=12)
+
+    plt.savefig("{0}{1}-binned.pdf".format(fn, suffix), transparent=True)
+    plt.close()
+
 def plot_joint(xdata, ydata, xlab, ylab, fn="noisy_linear_map", suffix="", xlim=None, ylim=None):
-    fig = plt.figure()
+    if settings["binned"]:
+        plot_joint_binned(xdata, ydata, xlab, ylab, fn=fn, suffix=suffix, xlim=xlim, ylim=ylim)
+        return
+
     kws = dict(
         x=xdata,
         y=ydata,
@@ -415,42 +585,7 @@ def plot_joint(xdata, ydata, xlab, ylab, fn="noisy_linear_map", suffix="", xlim=
         kws["ylim"] = ylim
 
     g = sns.jointplot(**kws)
-    ((stats_m, stats_merror),
-     (stats_c, stats_cerror),
-     (stats_r, stats_rp)) = get_stats(xdata, ydata)
-    annotation = r"""
-a = {m} $\pm$ {me}
-b = {c} $\pm$ {ce}
-r = {r}, r$^2$ = {rsq}
-n = {n}"""
-    if fn == "noisy_linear_map" or "noisy-linear-map" in fn:
-        annotation += r"""
-$\langle L_I \rangle$ = {im}
-$\langle L_F \rangle$ = {fm}"""
-        x_ci = float(np.diff(scipy.stats.t.interval(0.95, len(xdata) - 1, loc=xdata.mean(), scale=xdata.sem()))[0])
-        y_ci = float(np.diff(scipy.stats.t.interval(0.95, len(ydata) - 1, loc=ydata.mean(), scale=ydata.sem()))[0])
-        print("<L_I>=", xdata.mean(), "sd=", xdata.std(), "sem=", xdata.sem(), "ci=", x_ci)
-        print("<L_F>=", ydata.mean(), "sd=", ydata.std(), "sem=", ydata.sem(), "ci=", y_ci)
-    annotation = annotation.format(
-        m=fmt_dec(stats_m, 5),
-        me=fmt_dec(stats_merror, 3),
-        c=fmt_dec(stats_c, 5),
-        ce=fmt_dec(stats_cerror, 3),
-        r=fmt_dec(stats_r, 3),
-        rsq=fmt_dec(stats_r ** 2, 3),
-        n=len(xdata),
-        im=fmt_dec(xdata.mean(), 4),
-        fm=fmt_dec(ydata.mean(), 4),
-    )
-    annotation += "\n"
-    g.annotate(
-        lambda x,y: (x,y),
-        template="\n".join(annotation.split("\n")[1:-1]),
-        loc="upper left",
-        fontsize=12,
-    )
-#    xlab = "Initial cell length (\si{\micro\metre})"
-#    ylab = "Final cell length (\si{\micro\metre})"
+    draw_annotation(g, xdata, ydata, fn)
     g.set_axis_labels(xlab, ylab, fontsize=12)
 
     plt.savefig("{0}{1}.pdf".format(fn, suffix))
@@ -550,7 +685,7 @@ def _freedman_diaconis_bins(a):
         return int(np.ceil((a.max() - a.min()) / h))
 
 
-def process_root(dir_sources, dirs=None, with_poles=False, with_age=False, force=False, debug=False):
+def process_root(dir_sources, dirs=None, with_poles=False, with_age=False, force=False, binned=False, debug=False):
     if not dirs:
         dirs = "."
 #        dirs = list(filter(lambda x: os.path.isdir(x), sorted(os.listdir())))
@@ -1033,6 +1168,12 @@ def main():
         """
     )
     parser.add_argument(
+        "-b", "--binned", default=False, action="store_true",
+        help="""
+            bin (most) plots by initial length
+        """
+    )
+    parser.add_argument(
         "-c", "--comparison", default=False, action="store_true",
         help="""
             compare maps for different conditions, expects at least one
@@ -1082,7 +1223,14 @@ def main():
     else:
         sources, dirlist = None, None
 
-    process_root(sources, dirlist, with_poles=args.poles, with_age=args.age, force=args.force, debug=args.debug)
+    settings["dir_sources"] = sources
+    settings["dirs"] = dirlist
+    settings["with_poles"] = args.poles
+    settings["with_age"] = args.age
+    settings["force"] = args.force
+    settings["binned"] = args.binned
+    settings["debug"] = args.debug
+    process_root(sources, dirlist, with_poles=args.poles, with_age=args.age, force=args.force, binned=args.binned, debug=args.debug)
 
 if __name__ == "__main__":
     main()
