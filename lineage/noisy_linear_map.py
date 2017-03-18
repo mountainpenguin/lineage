@@ -485,6 +485,29 @@ def plot_joint_binned(xdata, ydata, xlab, ylab, fn, suffix, xlim, ylim):
         },
         **extra_kws
     )
+
+    if settings["regression"]:
+        # actual data fit
+#        sns.regplot(
+#            xdata,
+#            ydata,
+#            scatter=False,
+#            line_kws={
+#                "color": "0.1",
+#                "alpha": 0.7,
+#                "ls": "--",
+#            },
+#            ax=g.ax_joint
+#        )
+        lin_fit = np.polyfit(xdata, ydata, 1)
+        x_ = np.array(g.ax_joint.get_xlim())
+        g.ax_joint.plot(
+            x_, x_ * lin_fit[0] + lin_fit[1],
+            color="0.1",
+            alpha=0.7,
+            ls="--",
+        )
+
     g.ax_joint.scatter(
         xdata,
         ydata,
@@ -493,26 +516,15 @@ def plot_joint_binned(xdata, ydata, xlab, ylab, fn, suffix, xlim, ylim):
         color="darkred",
         marker="x",
     )
-    # actual data fit
-    sns.regplot(
-        xdata,
-        ydata,
-        scatter=False,
-        line_kws={
-            "color": "0.1",
-            "alpha": 0.7,
-            "ls": "--",
-        },
-        ax=g.ax_joint
-    )
+
     # binned fit
-    sns.regplot(
-        x="x_centre",
-        y="y_mean",
-        data=binned_data,
-        scatter=False,
-        ax=g.ax_joint,
-    )
+#    sns.regplot(
+#        x="x_centre",
+#        y="y_mean",
+#        data=binned_data,
+#        scatter=False,
+#        ax=g.ax_joint,
+#    )
 
     g.ax_joint.errorbar(
         binned_data.x_centre, binned_data.y_mean, binned_data.y_std,
@@ -583,6 +595,16 @@ def plot_joint(xdata, ydata, xlab, ylab, fn="noisy_linear_map", suffix="", xlim=
         kws["xlim"] = xlim
     if ylim:
         kws["ylim"] = ylim
+
+    if not settings["regression"]:
+        kws["kind"] = "scatter"
+        kws["joint_kws"] = {
+            "s": 40,
+            "color": "darkred",
+            "alpha": 0.5,
+            "marker": "x"
+        }
+        kws["marginal_kws"]["kde"] = True
 
     g = sns.jointplot(**kws)
     draw_annotation(g, xdata, ydata, fn)
@@ -1193,6 +1215,12 @@ def main():
         """
     )
     parser.add_argument(
+        "-r", "--regression", default=False, action="store_true",
+        help="""
+            plot regression line on plot
+        """
+    )
+    parser.add_argument(
         "process_list", metavar="process", type=str, nargs="*",
         help="""
             specify which process_list to handle.
@@ -1230,7 +1258,15 @@ def main():
     settings["force"] = args.force
     settings["binned"] = args.binned
     settings["debug"] = args.debug
-    process_root(sources, dirlist, with_poles=args.poles, with_age=args.age, force=args.force, binned=args.binned, debug=args.debug)
+    settings["regression"] = args.regression
+    process_root(
+        sources, dirlist,
+        with_poles=args.poles,
+        with_age=args.age,
+        force=args.force,
+        binned=args.binned,
+        debug=args.debug
+    )
 
 if __name__ == "__main__":
     main()
