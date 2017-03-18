@@ -415,7 +415,6 @@ $\langle L_F \rangle$ = {fm}"""
 
 def plot_joint_binned(xdata, ydata, xlab, ylab, fn, suffix, xlim, ylim):
     # bin data by xdata
-    bins = np.histogram(xdata)
     counts, bins = np.histogram(xdata)
     bin_width = bins[1] - bins[0]
 
@@ -445,7 +444,8 @@ def plot_joint_binned(xdata, ydata, xlab, ylab, fn, suffix, xlim, ylim):
             row[xdata.name] = bin_min + (bin_width / 2)
             row[ydata.name] = yval
             rows.append(row)
-        binned_data_raw = binned_data_raw.append(rows, ignore_index=True)
+        if rows:
+            binned_data_raw = binned_data_raw.append(rows, ignore_index=True)
 
     if fn in ["noisy_linear_map", "noisy-linear-map-new-pole", "noisy-linear-map-old-pole"]:
         xlim_set = [1, 9]
@@ -489,7 +489,7 @@ def plot_joint_binned(xdata, ydata, xlab, ylab, fn, suffix, xlim, ylim):
         xdata,
         ydata,
         s=40,
-        alpha=0.5,
+        alpha=0.3,
         color="darkred",
         marker="x",
     )
