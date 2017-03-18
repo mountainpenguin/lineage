@@ -198,11 +198,6 @@ def process_sources(dir_sources, dirs=None, force=False):
     else:
         data = pd.read_pickle("correlation_data.pandas")
 
-    fig = plt.figure(figsize=(8.27, 11.69))  # A4
-    fig2 = plt.figure(figsize=(8.27, 11.69))
-    random_ax = fig2.add_subplot(111)
-    random_ax.axis("off")
-
     i = 1
     parameters = [
         ("li", r"initial length (\si{\micro\metre})"),
@@ -219,47 +214,109 @@ def process_sources(dir_sources, dirs=None, force=False):
         co_data = data["co_{0}".format(param)]
         p2_data = p_data.append(p_data, ignore_index=True)
         c2_data = cn_data.append(co_data, ignore_index=True)
+        c2_data.name = param
 
-        ax = fig.add_subplot(3, 2, i)
-        ax.axis("equal")
-        lims = min([p_data.min(), c2_data.min()]), max([p_data.max(), c2_data.max()])
-        ax.set_xlim(lims)
-        ax.set_ylim(lims)
-        sns.despine(ax=ax)
-        sns.regplot(p_data, cn_data, ax=ax, label="New")
-        sns.regplot(p_data, co_data, ax=ax, label="Old")
-        sns.regplot(p2_data, c2_data, ax=ax, scatter=False)
-        ax.set_xlabel("Parent {0}".format(label))
-        ax.set_ylabel("Child {0}".format(label))
-        ax.legend()
-        all_stats = get_stats(p2_data, c2_data)
-        new_stats = get_stats(p_data, cn_data)
-        old_stats = get_stats(p_data, co_data)
-        x, y = 0.03, 0.97
-        ax.text(x, y, "All: {0}".format(all_stats.fmt_pearson()), transform=ax.transAxes)
-        ax.text(x, y - 0.05, "New: {0}".format(new_stats.fmt_pearson()), transform=ax.transAxes)
-        ax.text(x, y - 0.10, "Old: {0}".format(old_stats.fmt_pearson()), transform=ax.transAxes)
+        # ax = fig.add_subplot(3, 2, i)
+        # ax.axis("equal")
+        # lims = min([p_data.min(), c2_data.min()]), max([p_data.max(), c2_data.max()])
+        # ax.set_xlim(lims)
+        # ax.set_ylim(lims)
+        # sns.despine(ax=ax)
+        g = sns.JointGrid(p2_data, c2_data)
+        if param == "it":
+            extra_kws = {
+                "bins": np.arange(
+                    min([p2_data.min(), c2_data.min()]),
+                    max([p2_data.max(), c2_data.max()]) + 0.25,
+                    0.25
+                )
+            }
+        else:
+            extra_kws = {}
 
+        g = g.plot_marginals(
+            sns.distplot,
+            kde=True,
+            hist_kws={
+                "edgecolor": "k",
+            },
+            **extra_kws
+        )
+        g.ax_joint.scatter(
+            p2_data,
+            c2_data,
+            s=40,
+            alpha=0.3,
+            color="darkred",
+            marker="x",
+        )
 
-        child_stats = get_stats(cn_data, co_data)
-        ax2 = fig2.add_subplot(3, 2, i)
-        ax2.axis("equal")
-        lims = c2_data.min(), c2_data.max()
-        ax2.set_xlim(lims)
-        ax2.set_ylim(lims)
-        sns.despine(ax=ax2)
-        sns.regplot(cn_data, co_data, ax=ax2)
-        ax2.set_xlabel("New-pole child {0}".format(label))
-        ax2.set_ylabel("Old-pole child {0}".format(label))
-        ax2.text(x, y, child_stats.fmt_pearson(), transform=ax2.transAxes)
+        counts, bins = np.histogram(p2_data)
+        bin_width = bins[1] - bins[0]
+        unbinned_data = pd.DataFrame([p2_data, c2_data]).transpose()
+        binned_data = pd.DataFrame()
+        p_param = "p_{0}".format(param)
+        for bin_min in bins[:-1]:
+            bin_max = bin_min + bin_width
+            if bin_max == bins[-1]:
+                upper_lim = (unbinned_data[param] <= bin_max)
+            else:
+                upper_lim = (unbinned_data[param] < bin_max)
+            yvals = unbinned_data[
+                (unbinned_data[param] >= bin_min) &
+                (upper_lim)
+            ][p_param]
+            binned_data = binned_data.append({
+                "x_centre": bin_min + (bin_width / 2),
+                "y_mean": yvals.mean(),
+                "y_std": yvals.std(),
+                "n": len(yvals),
+            }, ignore_index=True)
 
+        g.ax_joint.errorbar(
+            binned_data.x_centre, binned_data.y_mean, binned_data.y_std,
+            marker="o",
+            ms=10,
+            mec="0.1",
+            mew=3,
+            mfc="w",
+            lw=3,
+            color="0.1",
+            capsize=5,
+        )
+
+        g.set_axis_labels("Parent {0}".format(label), "Child {0}".format(label), fontsize=12)
+        pearson = scipy.stats.pearsonr(p2_data, c2_data)
+
+        g.annotate(
+            lambda x, y: (x, y),
+            template=r"$r=$ {0:.03f}".format(pearson[0]),
+            loc="upper left",
+            fontsize=12
+        )
+
+#        child_stats = get_stats(cn_data, co_data)
+#        ax2 = fig2.add_subplot(3, 2, i)
+#        ax2.axis("equal")
+#        lims = c2_data.min(), c2_data.max()
+#        ax2.set_xlim(lims)
+#        ax2.set_ylim(lims)
+#        sns.despine(ax=ax2)
+#        sns.regplot(cn_data, co_data, ax=ax2)
+#        ax2.set_xlabel("New-pole child {0}".format(label))
+#        ax2.set_ylabel("Old-pole child {0}".format(label))
+#        ax2.text(x, y, child_stats.fmt_pearson(), transform=ax2.transAxes)
+
+        if not os.path.exists("correlations"):
+            os.mkdir("correlations")
+        plt.savefig("correlations/{0}.pdf".format(param))
         i += 1
 
-    fig.tight_layout()
-    fig.savefig("parent-daughter-correlation.pdf")
-
-    fig2.tight_layout()
-    fig2.savefig("daughter-daughter-correlation.pdf")
+#    fig.tight_layout()
+#    fig.savefig("parent-daughter-correlation.pdf")
+#
+#    fig2.tight_layout()
+#    fig2.savefig("daughter-daughter-correlation.pdf")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
