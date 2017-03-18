@@ -558,6 +558,7 @@ def plot_joint(xdata, ydata, xlab, ylab, fn="noisy_linear_map", suffix="", xlim=
         plot_joint_binned(xdata, ydata, xlab, ylab, fn=fn, suffix=suffix, xlim=xlim, ylim=ylim)
         return
 
+    print("Plotting {0} (xlab: {1}, ylab: {2}".format(fn, xlab, ylab))
     kws = dict(
         x=xdata,
         y=ydata,
