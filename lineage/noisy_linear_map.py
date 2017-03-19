@@ -22,11 +22,8 @@ from lineage_lib import misc
 import numpy as np
 import scipy.stats
 import scipy.special
-import statsmodels.formula.api as sm
 import json
-import datetime
 import os
-import sys
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -49,8 +46,8 @@ settings = {}
 
 
 def process_old():
-#    lineage_file = np.load("lineages.npz")
-#    lineage_data = lineage_file["lineages"]
+    # lineage_file = np.load("lineages.npz")
+    # lineage_data = lineage_file["lineages"]
     lineage_info = json.loads(open("lineages.json").read())
     T, rif_add, pixel = misc.get_timings()
 
@@ -98,6 +95,7 @@ def process_old():
             data = data.append(lin_series, ignore_index=True)
 
     return data
+
 
 def process_process(process_queue, L, T, rif_add, pixel):
     out_data = pd.DataFrame(columns=[
@@ -161,6 +159,7 @@ def process_process(process_queue, L, T, rif_add, pixel):
 
     return out_data
 
+
 def process_process_with_poles(process_queue, T, rif_add, pixel):
     out_data = pd.DataFrame(columns=[
         "initial_id", "final_id",
@@ -203,8 +202,14 @@ def process_process_with_poles(process_queue, T, rif_add, pixel):
             lin_data["final_length"] = final_cell.length[0][0] * pixel
             lin_data["final_area"] = final_cell.area[0][0] * pixel * pixel
 
-            lin_data["length_ratio"] = final_cell.length[0][0] / initial_cell.length[0][0]
-            lin_data["area_ratio"] = final_cell.area[0][0] / initial_cell.area[0][0]
+            lin_data["length_ratio"] = (
+                final_cell.length[0][0] /
+                initial_cell.length[0][0]
+            )
+            lin_data["area_ratio"] = (
+                final_cell.area[0][0] /
+                initial_cell.area[0][0]
+            )
             lin_data["doubling_time"] = (
                 T[final_cell.frame - 1] - T[initial_cell.frame - 1]
             ) / 60
@@ -228,6 +233,7 @@ def process_process_with_poles(process_queue, T, rif_add, pixel):
 
     return out_data
 
+
 def process_dir(with_poles, with_age, debug=False):
     try:
         L = track.Lineage()
@@ -242,7 +248,11 @@ def process_dir(with_poles, with_age, debug=False):
     process_queue = []
     for cell_lineage in initial_cells:
         if with_poles or with_age:
-            cell_lineage = track.SingleCellLineage(cell_lineage.id, L, debug=debug)
+            cell_lineage = track.SingleCellLineage(
+                cell_lineage.id,
+                L,
+                debug=debug
+            )
             if type(cell_lineage.children) is list:
                 process_queue.append(cell_lineage.children[0])
                 process_queue.append(cell_lineage.children[1])
@@ -261,6 +271,7 @@ def process_dir(with_poles, with_age, debug=False):
         result = process_process(process_queue, L, T, rif_add, pixel)
 
     return result
+
 
 def get_stats(xdata, ydata, fit="linear", ci=95):
     """ Return data statistics
@@ -286,11 +297,11 @@ def get_stats(xdata, ydata, fit="linear", ci=95):
         tstatistic = scipy.stats.t.ppf(twotail, df=(len(xdata) - 2))
 
         A = np.vstack([xdata, np.ones(len(xdata))]).T
-#        results = sm.OLS(
-#            ydata, A
-#        ).fit()
-#        print(results.summary())
-#        input("...")
+        # results = sm.OLS(
+        #     ydata, A
+        # ).fit()
+        # print(results.summary())
+        # input("...")
 
         linalg = scipy.linalg.lstsq(A, ydata)
         m, c = linalg[0]
@@ -300,7 +311,6 @@ def get_stats(xdata, ydata, fit="linear", ci=95):
         Sb = Syx / np.sqrt(sum_x_residuals)
         merror = tstatistic * Sb
         print("a:", m, "SE:", Sb, "merror:", merror)
-
 
         Sa = Syx * np.sqrt(
             np.sum(xdata ** 2) / (len(xdata) * sum_x_residuals)
@@ -317,24 +327,26 @@ def get_stats(xdata, ydata, fit="linear", ci=95):
     else:
         raise NotImplementedError
 
-#def get_mstd(data):
-#    xdata = data.initial_length
-#    ydata = data.final_length
-#    tstatistic = scipy.stats.t.ppf(0.975, df=(len(xdata) - 2))
-#    A = np.vstack([xdata, np.ones(len(xdata))]).T
-#    linalg = scipy.linalg.lstsq(A, ydata)
-#    m, c = linalg[0]
-#    sum_y_residuals = np.sum((ydata - ydata.mean()) ** 2)
-#    Syx = np.sqrt(sum_y_residuals / (len(xdata) - 2))
-#    sum_x_residuals = np.sum((xdata - xdata.mean()) ** 2)
-#    Sb = Syx / np.sqrt(sum_x_residuals)
+# def get_mstd(data):
+#     xdata = data.initial_length
+#     ydata = data.final_length
+#     tstatistic = scipy.stats.t.ppf(0.975, df=(len(xdata) - 2))
+#     A = np.vstack([xdata, np.ones(len(xdata))]).T
+#     linalg = scipy.linalg.lstsq(A, ydata)
+#     m, c = linalg[0]
+#     sum_y_residuals = np.sum((ydata - ydata.mean()) ** 2)
+#     Syx = np.sqrt(sum_y_residuals / (len(xdata) - 2))
+#     sum_x_residuals = np.sum((xdata - xdata.mean()) ** 2)
+#     Sb = Syx / np.sqrt(sum_x_residuals)
 #
-#    return (m, Sb, len(xdata))
+#     return (m, Sb, len(xdata))
+
 
 def plot_fake(ax, label):
     x = np.mean(ax.get_xlim())
     y = np.mean(ax.get_ylim())
     ax.plot(x, y, color="none", alpha=1, label=label)
+
 
 def fmt_dec(var, places):
     distance = -int(np.log10(np.abs(var)))
@@ -389,10 +401,30 @@ n = {n}"""
         annotation += r"""
 $\langle L_I \rangle$ = {im}
 $\langle L_F \rangle$ = {fm}"""
-        x_ci = float(np.diff(scipy.stats.t.interval(0.95, len(xdata) - 1, loc=xdata.mean(), scale=xdata.sem()))[0])
-        y_ci = float(np.diff(scipy.stats.t.interval(0.95, len(ydata) - 1, loc=ydata.mean(), scale=ydata.sem()))[0])
-        print("<L_I>=", xdata.mean(), "sd=", xdata.std(), "sem=", xdata.sem(), "ci=", x_ci)
-        print("<L_F>=", ydata.mean(), "sd=", ydata.std(), "sem=", ydata.sem(), "ci=", y_ci)
+        x_ci = float(np.diff(scipy.stats.t.interval(
+            0.95,
+            len(xdata) - 1,
+            loc=xdata.mean(),
+            scale=xdata.sem()
+        ))[0])
+        y_ci = float(np.diff(scipy.stats.t.interval(
+            0.95,
+            len(ydata) - 1,
+            loc=ydata.mean(),
+            scale=ydata.sem()
+        ))[0])
+        print(
+            "<L_I>=", xdata.mean(),
+            "sd=", xdata.std(),
+            "sem=", xdata.sem(),
+            "ci=", x_ci
+        )
+        print(
+            "<L_F>=", ydata.mean(),
+            "sd=", ydata.std(),
+            "sem=", ydata.sem(),
+            "ci=", y_ci
+        )
     annotation = annotation.format(
         m=fmt_dec(stats_m, 5),
         me=fmt_dec(stats_merror, 3),
@@ -406,7 +438,7 @@ $\langle L_F \rangle$ = {fm}"""
     )
     annotation += "\n"
     g.annotate(
-        lambda x,y: (x,y),
+        lambda x, y: (x, y),
         template="\n".join(annotation.split("\n")[1:-1]),
         loc="upper left",
         fontsize=12,
@@ -447,10 +479,18 @@ def plot_joint_binned(xdata, ydata, xlab, ylab, fn, suffix, xlim, ylim):
         if rows:
             binned_data_raw = binned_data_raw.append(rows, ignore_index=True)
 
-    if fn in ["noisy_linear_map", "noisy-linear-map-new-pole", "noisy-linear-map-old-pole"]:
+    if fn in [
+        "noisy_linear_map",
+        "noisy-linear-map-new-pole",
+        "noisy-linear-map-old-pole"
+    ]:
         xlim_set = [1, 9]
         ylim_set = [2, 16]
-    elif fn in ["initial-added", "initial-added-new-pole", "initial-added-old-pole"]:
+    elif fn in [
+        "initial-added",
+        "initial-added-new-pole",
+        "initial-added-old-pole"
+    ]:
         xlim_set = [1, 9]
         ylim_set = [1, 9]
     else:
@@ -460,7 +500,6 @@ def plot_joint_binned(xdata, ydata, xlab, ylab, fn, suffix, xlim, ylim):
         xlim_set = xlim
     if ylim:
         ylim_set = ylim
-
 
     xlim_set, ylim_set = None, None
     g = sns.JointGrid(xdata, ydata, xlim=xlim_set, ylim=ylim_set)
@@ -474,8 +513,7 @@ def plot_joint_binned(xdata, ydata, xlab, ylab, fn, suffix, xlim, ylim):
             )
         }
     else:
-        extra_kws={}
-
+        extra_kws = {}
 
     g = g.plot_marginals(
         sns.distplot,
@@ -487,18 +525,18 @@ def plot_joint_binned(xdata, ydata, xlab, ylab, fn, suffix, xlim, ylim):
     )
 
     if settings["regression"]:
-        # actual data fit
-#        sns.regplot(
-#            xdata,
-#            ydata,
-#            scatter=False,
-#            line_kws={
-#                "color": "0.1",
-#                "alpha": 0.7,
-#                "ls": "--",
-#            },
-#            ax=g.ax_joint
-#        )
+        ## actual data fit
+        # sns.regplot(
+        #     xdata,
+        #     ydata,
+        #     scatter=False,
+        #     line_kws={
+        #         "color": "0.1",
+        #         "alpha": 0.7,
+        #         "ls": "--",
+        #     },
+        #     ax=g.ax_joint
+        # )
         lin_fit = np.polyfit(xdata, ydata, 1)
         x_ = np.array(g.ax_joint.get_xlim())
         g.ax_joint.plot(
@@ -517,14 +555,14 @@ def plot_joint_binned(xdata, ydata, xlab, ylab, fn, suffix, xlim, ylim):
         marker="x",
     )
 
-    # binned fit
-#    sns.regplot(
-#        x="x_centre",
-#        y="y_mean",
-#        data=binned_data,
-#        scatter=False,
-#        ax=g.ax_joint,
-#    )
+    ## binned fit
+    # sns.regplot(
+    #     x="x_centre",
+    #     y="y_mean",
+    #     data=binned_data,
+    #     scatter=False,
+    #     ax=g.ax_joint,
+    # )
 
     g.ax_joint.errorbar(
         binned_data.x_centre, binned_data.y_mean, binned_data.y_std,
@@ -537,25 +575,37 @@ def plot_joint_binned(xdata, ydata, xlab, ylab, fn, suffix, xlim, ylim):
         color="0.1",
         capsize=5,
     )
-    # draw perfect adder
-#    fx = lambda x: x + (ydata.mean() - xdata.mean())
-#    x1, x2 = g.ax_joint.get_xlim()
-#    y1, y2 = fx(x1), fx(x2)
-#    g.ax_joint.plot(
-#        [x1, x2], [y1, y2],
-#        color="r",
-#        lw=3,
-#    )
-#
+    ## draw perfect adder
+    # fx = lambda x: x + (ydata.mean() - xdata.mean())
+    # x1, x2 = g.ax_joint.get_xlim()
+    # y1, y2 = fx(x1), fx(x2)
+    # g.ax_joint.plot(
+    #     [x1, x2], [y1, y2],
+    #     color="r",
+    #     lw=3,
+    # )
+
     draw_annotation(g, xdata, ydata, fn)
     g.set_axis_labels(xlab, ylab, fontsize=12)
 
     plt.savefig("{0}{1}-binned.pdf".format(fn, suffix), transparent=True)
     plt.close()
 
-def plot_joint(xdata, ydata, xlab, ylab, fn="noisy_linear_map", suffix="", xlim=None, ylim=None):
+
+def plot_joint(
+    xdata, ydata,
+    xlab, ylab,
+    fn="noisy_linear_map",
+    suffix="",
+    xlim=None, ylim=None
+):
     if settings["binned"]:
-        plot_joint_binned(xdata, ydata, xlab, ylab, fn=fn, suffix=suffix, xlim=xlim, ylim=ylim)
+        plot_joint_binned(
+            xdata, ydata,
+            xlab, ylab,
+            fn=fn, suffix=suffix,
+            xlim=xlim, ylim=ylim
+        )
         return
 
     print("Plotting {0} (xlab: {1}, ylab: {2}".format(fn, xlab, ylab))
@@ -585,10 +635,18 @@ def plot_joint(xdata, ydata, xlab, ylab, fn="noisy_linear_map", suffix="", xlim=
             0.25
         )
 
-    if fn in ["noisy_linear_map", "noisy-linear-map-new-pole", "noisy-linear-map-old-pole"]:
+    if fn in [
+        "noisy_linear_map",
+        "noisy-linear-map-new-pole",
+        "noisy-linear-map-old-pole"
+    ]:
         kws["xlim"] = [1, 9]
         kws["ylim"] = [2, 16]
-    elif fn in ["initial-added", "initial-added-new-pole", "initial-added-old-pole"]:
+    elif fn in [
+        "initial-added",
+        "initial-added-new-pole",
+        "initial-added-old-pole"
+    ]:
         kws["xlim"] = [1, 9]
         kws["ylim"] = [1, 9]
 
@@ -615,6 +673,10 @@ def plot_joint(xdata, ydata, xlab, ylab, fn="noisy_linear_map", suffix="", xlim=
     plt.close()
 
 
+def _gauss(x, A, mu, sigma):
+    return A * np.exp(-(x - mu) ** 2 / (2 * sigma ** 2))
+
+
 def plot_error(ax, xdata, ydata):
     fig = plt.figure()
     ax_resid = fig.add_subplot(1, 2, 1)
@@ -623,12 +685,12 @@ def plot_error(ax, xdata, ydata):
     ax_resid.set_ylabel("Frequency")
     ax_qq = fig.add_subplot(1, 2, 2)
 
-#    o = np.ones((len(xdata),))
-#    A = np.vstack([xdata, np.ones(len(xdata))]).T
-#    result = sm.OLS(
-#        ydata, A
-#    ).fit()
-#    m, c = result.params
+    # o = np.ones((len(xdata),))
+    # A = np.vstack([xdata, np.ones(len(xdata))]).T
+    # result = sm.OLS(
+    #     ydata, A
+    # ).fit()
+    # m, c = result.params
     (m, _), (c, _), _ = get_stats(xdata, ydata)
     expected = m * xdata + c
     residuals = ydata - expected
@@ -637,12 +699,13 @@ def plot_error(ax, xdata, ydata):
     # fit Gaussian
     hist, bin_edges = np.histogram(residuals, density=True)
     bin_centres = (bin_edges[:-1] + bin_edges[1:]) / 2
-    gauss = lambda x, A, mu, sigma: A * np.exp(-(x - mu) ** 2 / (2 * sigma ** 2))
     p0 = [1.0, 0.0, 1.0]
-    coeff, var_matrix = scipy.optimize.curve_fit(gauss, bin_centres, hist, p0=p0)
+    coeff, var_matrix = scipy.optimize.curve_fit(
+        _gauss, bin_centres, hist, p0=p0
+    )
     limits = ax_resid.get_xlim()
     xspace = np.linspace(limits[0], limits[1], 200)
-    hist_fit = gauss(xspace, *coeff)
+    hist_fit = _gauss(xspace, *coeff)
     ax_resid.plot(xspace, hist_fit, label="Fitted Gaussian")
     plot_fake(ax_resid, "$\mu =$ {0:.5f}".format(coeff[1]))
     plot_fake(ax_resid, "$\sigma =$ {0:.5f}".format(coeff[2]))
@@ -708,13 +771,24 @@ def _freedman_diaconis_bins(a):
         return int(np.ceil((a.max() - a.min()) / h))
 
 
-def process_root(dir_sources, dirs=None, with_poles=False, with_age=False, force=False, binned=False, debug=False):
+def process_root(
+    dir_sources,
+    dirs=None,
+    with_poles=False,
+    with_age=False,
+    force=False,
+    binned=False,
+    debug=False
+):
     if not dirs:
         dirs = "."
-#        dirs = list(filter(lambda x: os.path.isdir(x), sorted(os.listdir())))
+        # dirs = list(filter(lambda x: os.path.isdir(x), sorted(os.listdir())))
         dir_sources = dirs
 
-    if (os.path.exists("data.pandas") and force) or not os.path.exists("data.pandas"):
+    if (
+        (os.path.exists("data.pandas") and force) or
+        not os.path.exists("data.pandas")
+    ):
         columns = [
             "source", "sub_source",
             "initial_id", "final_id",
@@ -735,12 +809,19 @@ def process_root(dir_sources, dirs=None, with_poles=False, with_age=False, force
             os.chdir(d)
             source = dir_sources[i]
             print("Processing {0}".format(d))
-            if os.path.exists("mt/alignment.mat") or os.path.exists("lineages.npz"):
-                out_data  = process_dir(with_poles, with_age, debug)
+            if (
+                os.path.exists("mt/alignment.mat") or
+                os.path.exists("lineages.npz")
+            ):
+                out_data = process_dir(with_poles, with_age, debug)
                 if out_data is not None:
                     out_data["source"] = [source] * len(out_data)
-                    out_data["sub_source"] = [os.path.basename(d)] * len(out_data)
-                    out_data["added_length"] = out_data.final_length - out_data.initial_length
+                    out_data["sub_source"] = [
+                        os.path.basename(d)
+                    ] * len(out_data)
+                    out_data["added_length"] = (
+                        out_data.final_length - out_data.initial_length
+                    )
                     data = pd.concat([data, out_data], ignore_index=True)
                     print("Got {0} cells".format(len(out_data)))
                 else:
@@ -750,7 +831,11 @@ def process_root(dir_sources, dirs=None, with_poles=False, with_age=False, force
             i += 1
             os.chdir(orig_dir)
 
-        print("Got {0} cells that divide twice during observation period".format(len(data)))
+        print(
+            "Got {0} cells that divide twice during observation period".format(
+                len(data)
+            )
+        )
         if len(data) == 0:
             return
 
@@ -764,7 +849,6 @@ def process_root(dir_sources, dirs=None, with_poles=False, with_age=False, force
         xlab, "Final cell length (\si{\micro\metre})"
     )
     plot_error(None, data.initial_length, data.final_length)
-
 
     plot_joint(
         data.elong_rate, data.added_length,
@@ -811,14 +895,20 @@ def process_root(dir_sources, dirs=None, with_poles=False, with_age=False, force
             data_subset = data[(data.pole_age == (x + 1)) & (data.age_known)]
             try:
                 if x > 0 and len(data_subset) > 1:
-                    stats = get_stats(data_subset.initial_length, data_subset.final_length)
+                    stats = get_stats(
+                        data_subset.initial_length,
+                        data_subset.final_length
+                    )
                     gen_data = pd.Series({
                         "age": x + 1,
                         "gradient": stats[0][0],
                         "ci": stats[0][1],
                         "n": len(data_subset),
                     })
-                    generation_gradient = generation_gradient.append(gen_data, ignore_index=True)
+                    generation_gradient = generation_gradient.append(
+                        gen_data,
+                        ignore_index=True
+                    )
                     plot_joint(
                         data_subset.initial_length, data_subset.final_length,
                         xlab, "Final cell length (\si{\micro\metre})",
@@ -840,7 +930,10 @@ def process_root(dir_sources, dirs=None, with_poles=False, with_age=False, force
 
         # also plot "new" pole cells (i.e. pole_age = 1) and all old pole cells
         new_pole_cells = data[(data.pole_age == 1) & (data.age_known)]
-        new_stats = get_stats(new_pole_cells.initial_length, new_pole_cells.final_length)
+        new_stats = get_stats(
+            new_pole_cells.initial_length,
+            new_pole_cells.final_length
+        )
         ax.errorbar(
             1,
             new_stats[0][0],
@@ -849,7 +942,10 @@ def process_root(dir_sources, dirs=None, with_poles=False, with_age=False, force
         )
 
         old_pole_cells = data[(data.pole_age > 1)]
-        old_stats = get_stats(old_pole_cells.initial_length, old_pole_cells.final_length)
+        old_stats = get_stats(
+            old_pole_cells.initial_length,
+            old_pole_cells.final_length
+        )
         ax.errorbar(
             generation_gradient.age.max() + 1,
             old_stats[0][0],
@@ -869,18 +965,28 @@ def process_root(dir_sources, dirs=None, with_poles=False, with_age=False, force
 
         xticklabels = [x.get_text() for x in ax.get_xticklabels()]
         try:
-#            new_idx = xticklabels.index("$1$")
-#            xticklabels[new_idx] = "New"
-            old_idx = xticklabels.index("${0}$".format(int(generation_gradient.age.max() + 1)))
+            # new_idx = xticklabels.index("$1$")
+            # xticklabels[new_idx] = "New"
+            old_idx = xticklabels.index("${0}$".format(
+                int(generation_gradient.age.max() + 1)
+            ))
             xticklabels[old_idx] = "$>1$"
         except (IndexError, ValueError):
             print("'Manually' assigning xticklabels")
             xticklabels = ["", "$1$"]
-            xticklabels.extend([str(x) for x in range(1, int(generation_gradient.age.max() + 1))])
+            xticklabels.extend([
+                str(x) for x in range(
+                    1,
+                    int(generation_gradient.age.max() + 1)
+                )
+            ])
             xticklabels.append("$>1$")
         ax.set_xticklabels(xticklabels)
 
-        plt.savefig("noisy-linear-map-generation-gradient.pdf", transparent=True)
+        plt.savefig(
+            "noisy-linear-map-generation-gradient.pdf",
+            transparent=True
+        )
 
         # plot pole data swarms
         fig, ax = plt.subplots(3, 2, figsize=(8, 12))
@@ -895,10 +1001,14 @@ def process_root(dir_sources, dirs=None, with_poles=False, with_age=False, force
             if num_records > 2:
                 plottable.append(age)
 
-        restricted_data = age_known_data[age_known_data.pole_age.isin(plottable)]
+        restricted_data = age_known_data[
+            age_known_data.pole_age.isin(plottable)
+        ]
         # add old pole data
         old_pole_data = data[data.pole_age > 1]
-        print("{0} cells with age > 1 (including unknown)".format(len(old_pole_data)))
+        print("{0} cells with age > 1 (including unknown)".format(
+            len(old_pole_data)
+        ))
         old_pole_data.pole_age = restricted_data.pole_age.max() + 1
         restricted_data = restricted_data.append(old_pole_data)
 
@@ -906,14 +1016,14 @@ def process_root(dir_sources, dirs=None, with_poles=False, with_age=False, force
             "initial_length", "final_length", "added_length",
             "doubling_time", "elong_rate", "growth_rate"
         ]):
-#            sns.swarmplot(
-#                x="pole_age",
-#                y=y,
-#                data=data[data.age_known == True],
-#                color="0.25",
-#                alpha=0.75,
-#                ax=ax[i],
-#            )
+            # sns.swarmplot(
+            #     x="pole_age",
+            #     y=y,
+            #     data=data[data.age_known == True],
+            #     color="0.25",
+            #     alpha=0.75,
+            #     ax=ax[i],
+            # )
             sns.boxplot(
                 x="pole_age",
                 y=y,
@@ -923,14 +1033,19 @@ def process_root(dir_sources, dirs=None, with_poles=False, with_age=False, force
 
             # plot overall data mean
             ax[i].axhline(
-                restricted_data[restricted_data.pole_age < restricted_data.pole_age.max()][y].mean(),
+                restricted_data[
+                    restricted_data.pole_age < restricted_data.pole_age.max()
+                ][y].mean(),
                 color="k",
                 lw=1,
                 alpha=.5,
                 ls="--",
             )
             ax[i].set_xlabel("Pole age (generations)")
-            xticklabels = ["${0}$".format(str(x)) for x in range(1, int(restricted_data.pole_age.max()))]
+            xticklabels = [
+                "${0}$".format(str(x))
+                for x in range(1, int(restricted_data.pole_age.max()))
+            ]
             xticklabels.append("$>1$")
             ax[i].set_xticklabels(xticklabels)
 
@@ -989,14 +1104,14 @@ def process_root(dir_sources, dirs=None, with_poles=False, with_age=False, force
             "initial_length", "final_length", "added_length",
             "doubling_time", "elong_rate", "growth_rate"
         ]):
-#            sns.swarmplot(
-#                x="old_pole",
-#                y=y,
-#                data=data,
-#                color="0.25",
-#                alpha=0.75,
-#                ax=ax[i],
-#            )
+            # sns.swarmplot(
+            #     x="old_pole",
+            #     y=y,
+            #     data=data,
+            #     color="0.25",
+            #     alpha=0.75,
+            #     ax=ax[i],
+            # )
             sns.boxplot(
                 x="old_pole",
                 y=y,
@@ -1008,7 +1123,7 @@ def process_root(dir_sources, dirs=None, with_poles=False, with_age=False, force
                 ax[i].plot(
                     [-0.4 + (1 * tf), 0.4 + (1 * tf)],
                     [data[data.old_pole == tf][y].mean(),
-                    data[data.old_pole == tf][y].mean()],
+                     data[data.old_pole == tf][y].mean()],
                     color="r",
                     lw=2,
                     alpha=.5,
@@ -1056,7 +1171,11 @@ def process_root(dir_sources, dirs=None, with_poles=False, with_age=False, force
         plt.close()
 
 
-def plot_distplot_comparisons(*datasets, labels=None, filename="pole_histograms"):
+def plot_distplot_comparisons(
+        *datasets,
+        labels=None,
+        filename="pole_histograms"
+):
     fig, axes = plt.subplots(3, 2)
     ax = axes.flatten()
     sns.despine()
@@ -1171,7 +1290,6 @@ def plot_distplot_comparisons(*datasets, labels=None, filename="pole_histograms"
     plt.close()
 
 
-
 def main():
     parser = argparse.ArgumentParser(
         description="Noisy Linear Mapper"
@@ -1268,6 +1386,7 @@ def main():
         binned=args.binned,
         debug=args.debug
     )
+
 
 if __name__ == "__main__":
     main()
