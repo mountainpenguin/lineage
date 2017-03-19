@@ -26,6 +26,7 @@ import json
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.patches
 import seaborn as sns
 import warnings
 
@@ -445,39 +446,43 @@ $\langle L_F \rangle$ = {fm}"""
     )
 
 
-def plot_joint_binned(xdata, ydata, xlab, ylab, fn, suffix, xlim, ylim):
-    # bin data by xdata
-    counts, bins = np.histogram(xdata)
-    bin_width = bins[1] - bins[0]
+def plot_joint(
+    xdata, ydata,
+    xlab, ylab,
+    fn="noisy_linear_map",
+    suffix="",
+    xlim=None, ylim=None
+):
+    if settings["binned"]:
+        # bin data by xdata
+        counts, bins = np.histogram(xdata)
+        bin_width = bins[1] - bins[0]
 
-    unbinned_data = pd.DataFrame([xdata, ydata]).transpose()
-    binned_data = pd.DataFrame()
-    binned_data_raw = pd.DataFrame()
-    for bin_min in bins[:-1]:
-        bin_max = bin_min + bin_width
-        if bin_max == bins[-1]:
-            upper_lim = (unbinned_data[xdata.name] <= bin_max)
-        else:
-            upper_lim = (unbinned_data[xdata.name] < bin_max)
-        yvals = unbinned_data[
-            (unbinned_data[xdata.name] >= bin_min) &
-            (upper_lim)
-        ][ydata.name]
-        binned_data = binned_data.append({
-            "x_centre": bin_min + (bin_width / 2),
-            "y_mean": yvals.mean(),
-            "y_std": yvals.std(),
-            "n": len(yvals)
-        }, ignore_index=True)
+        unbinned_data = pd.DataFrame([xdata, ydata]).transpose()
+        binned_data = pd.DataFrame()
+        for bin_min in bins[:-1]:
+            bin_max = bin_min + bin_width
+            if bin_max == bins[-1]:
+                upper_lim = (unbinned_data[xdata.name] <= bin_max)
+            else:
+                upper_lim = (unbinned_data[xdata.name] < bin_max)
+            yvals = unbinned_data[
+                (unbinned_data[xdata.name] >= bin_min) &
+                (upper_lim)
+            ][ydata.name]
+            binned_data = binned_data.append({
+                "x_centre": bin_min + (bin_width / 2),
+                "y_mean": yvals.mean(),
+                "y_std": yvals.std(),
+                "n": len(yvals)
+            }, ignore_index=True)
+        # suffix = "{0}-binned".format(suffix)
+    else:
+        binned_data, unbinned_data = None, None
 
-        rows = []
-        for yval in yvals:
-            row = {}
-            row[xdata.name] = bin_min + (bin_width / 2)
-            row[ydata.name] = yval
-            rows.append(row)
-        if rows:
-            binned_data_raw = binned_data_raw.append(rows, ignore_index=True)
+    print("Plotting {0}{1} (xlab: {2}, ylab: {3}".format(
+        fn, suffix, xlab, ylab
+    ))
 
     if fn in [
         "noisy_linear_map",
@@ -504,168 +509,76 @@ def plot_joint_binned(xdata, ydata, xlab, ylab, fn, suffix, xlim, ylim):
     xlim_set, ylim_set = None, None
     g = sns.JointGrid(xdata, ydata, xlim=xlim_set, ylim=ylim_set)
 
+    marginal_args = [
+        sns.distplot
+    ]
+    marginal_kws = {
+        "kde": True,
+        "hist_kws": {
+            "edgecolor": "k",
+        },
+    }
+
     if fn == "initial-doubling":
-        extra_kws = {
-            "bins": np.arange(
-                min(ydata),
-                max(ydata) + 0.25,
-                0.25
-            )
-        }
-    else:
-        extra_kws = {}
-
-    g = g.plot_marginals(
-        sns.distplot,
-        kde=True,
-        hist_kws={
-            "edgecolor": "k"
-        },
-        **extra_kws
-    )
-
-    if settings["regression"]:
-        ## actual data fit
-        # sns.regplot(
-        #     xdata,
-        #     ydata,
-        #     scatter=False,
-        #     line_kws={
-        #         "color": "0.1",
-        #         "alpha": 0.7,
-        #         "ls": "--",
-        #     },
-        #     ax=g.ax_joint
-        # )
-        lin_fit = np.polyfit(xdata, ydata, 1)
-        x_ = np.array(g.ax_joint.get_xlim())
-        g.ax_joint.plot(
-            x_, x_ * lin_fit[0] + lin_fit[1],
-            color="0.1",
-            alpha=0.7,
-            ls="--",
-        )
-
-    g.ax_joint.scatter(
-        xdata,
-        ydata,
-        s=40,
-        alpha=0.3,
-        color="darkred",
-        marker="x",
-    )
-
-    ## binned fit
-    # sns.regplot(
-    #     x="x_centre",
-    #     y="y_mean",
-    #     data=binned_data,
-    #     scatter=False,
-    #     ax=g.ax_joint,
-    # )
-
-    g.ax_joint.errorbar(
-        binned_data.x_centre, binned_data.y_mean, binned_data.y_std,
-        marker="o",
-        ms=10,
-        mec="0.1",
-        mew=3,
-        mfc="w",
-        lw=3,
-        color="0.1",
-        capsize=5,
-    )
-    ## draw perfect adder
-    # fx = lambda x: x + (ydata.mean() - xdata.mean())
-    # x1, x2 = g.ax_joint.get_xlim()
-    # y1, y2 = fx(x1), fx(x2)
-    # g.ax_joint.plot(
-    #     [x1, x2], [y1, y2],
-    #     color="r",
-    #     lw=3,
-    # )
-
-    draw_annotation(g, xdata, ydata, fn)
-    g.set_axis_labels(xlab, ylab, fontsize=12)
-
-    plt.savefig("{0}{1}-binned.pdf".format(fn, suffix), transparent=True)
-    plt.close()
-
-
-def plot_joint(
-    xdata, ydata,
-    xlab, ylab,
-    fn="noisy_linear_map",
-    suffix="",
-    xlim=None, ylim=None
-):
-    if settings["binned"]:
-        plot_joint_binned(
-            xdata, ydata,
-            xlab, ylab,
-            fn=fn, suffix=suffix,
-            xlim=xlim, ylim=ylim
-        )
-        return
-
-    print("Plotting {0} (xlab: {1}, ylab: {2}".format(fn, xlab, ylab))
-    kws = dict(
-        x=xdata,
-        y=ydata,
-        kind="reg",
-        joint_kws={
-            "ci": 95,
-            "scatter_kws": {
-                "s": 40,
-                "color": "darkred",
-                "alpha": 0.5,
-            },
-            "marker": "x",
-        },
-        marginal_kws={
-            "hist_kws": {
-                "edgecolor": "k",
-            },
-        },
-    )
-    if fn == "initial-doubling":
-        kws["marginal_kws"]["bins"] = np.arange(
+        marginal_kws["bins"] = np.arange(
             min(ydata),
             max(ydata) + 0.25,
             0.25
         )
 
-    if fn in [
-        "noisy_linear_map",
-        "noisy-linear-map-new-pole",
-        "noisy-linear-map-old-pole"
-    ]:
-        kws["xlim"] = [1, 9]
-        kws["ylim"] = [2, 16]
-    elif fn in [
-        "initial-added",
-        "initial-added-new-pole",
-        "initial-added-old-pole"
-    ]:
-        kws["xlim"] = [1, 9]
-        kws["ylim"] = [1, 9]
+    g = g.plot_marginals(*marginal_args, **marginal_kws)
 
-    if xlim:
-        kws["xlim"] = xlim
-    if ylim:
-        kws["ylim"] = ylim
+    fit_kws = {
+        "color": "0.1",
+        "alpha": 0.7,
+        "ls": "--",
+    }
+    scatter_kws = {
+        "s": 40,
+        "alpha": 0.5,
+        "color": "darkred",
+        "marker": "x",
+    }
 
-    if not settings["regression"]:
-        kws["kind"] = "scatter"
-        kws["joint_kws"] = {
-            "s": 40,
-            "color": "darkred",
-            "alpha": 0.5,
-            "marker": "x"
-        }
-        kws["marginal_kws"]["kde"] = True
+    if settings["binned"]:
+        scatter_kws["alpha"] = 0.3
+        g.ax_joint.errorbar(
+            binned_data.x_centre, binned_data.y_mean, binned_data.y_std,
+            marker="o",
+            ms=10,
+            mec="0.1",
+            mew=3,
+            mfc="w",
+            lw=3,
+            color="0.1",
+            capsize=5,
+        )
+    if settings["regression"]:
+        m, c, r = get_stats(xdata, ydata)
+        x_ = np.array(g.ax_joint.get_xlim())
+        # draw line
+        g.ax_joint.plot(
+            x_, x_ * m[0] + c[0],
+            **fit_kws
+        )
+        # draw CI
+        ci_region = matplotlib.patches.Polygon(
+            [[0, c[0] - c[1]],
+             [0, c[0] + c[1]],
+             [x_[-1], x_[-1] * m[0] + c[0] - c[1]],
+             [x_[-1], x_[-1] * m[0] + c[0] + c[1]]],
+            color="0.1",
+            alpha=0.1,
+        )
+        g.ax_joint.add_patch(ci_region)
+        g.ax_joint.set_xlim(x_)
 
-    g = sns.jointplot(**kws)
+    g.ax_joint.scatter(
+        xdata,
+        ydata,
+        **scatter_kws
+    )
+
     draw_annotation(g, xdata, ydata, fn)
     g.set_axis_labels(xlab, ylab, fontsize=12)
 
