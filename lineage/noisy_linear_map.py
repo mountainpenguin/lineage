@@ -1103,6 +1103,12 @@ def plot_distplot_comparisons(
     for var in variables:
         # determine significance
         bins = None
+        shared_kws = {
+            "norm_hist": True,
+            "hist_kws": {
+                "edgecolor": "k",
+            },
+        }
         for dataset, label in zip(datasets, labels):
             if var == "doubling_time":
                 bins = np.arange(
@@ -1117,7 +1123,7 @@ def plot_distplot_comparisons(
                         max(dataset[var]) + 0.25,
                         0.25
                     ),
-                    norm_hist=True,
+                    **shared_kws
                 )
             elif var_idx == 5:
                 sns.distplot(
@@ -1125,14 +1131,14 @@ def plot_distplot_comparisons(
                     kde=True,
                     ax=ax[var_idx],
                     label=label,
-                    norm_hist=True,
+                    **shared_kws
                 )
             else:
                 sns.distplot(
                     dataset[var],
                     kde=True,
                     ax=ax[var_idx],
-                    norm_hist=True,
+                    **shared_kws
                 )
 
         ttest = scipy.stats.ttest_ind(
