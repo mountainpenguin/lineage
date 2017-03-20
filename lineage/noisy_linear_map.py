@@ -765,14 +765,14 @@ def process_root(
 
     plot_joint(
         data.elong_rate, data.added_length,
-        "Elongation rate (\si{\micro\metre\per\hour})",
+        "Linear elongation rate (\si{\micro\metre\per\hour})",
         "Added length (\si{\micro\metre})",
         "elongation-added",
         ylim=(0, 10),
     )
     plot_joint(
         data.growth_rate, data.added_length,
-        "Growth rate (\si{\per\hour})",
+        "Exponential elongation rate (\si{\per\hour})",
         "Added length (\si{\micro\metre})",
         "growth-added",
         ylim=(0, 10),
@@ -791,13 +791,13 @@ def process_root(
 
     plot_joint(
         data.initial_length, data.elong_rate,
-        xlab, "Elongation rate (\si{\micro\metre\per\hour})",
+        xlab, "Linear elongation rate (\si{\micro\metre\per\hour})",
         "initial-elongation"
     )
 
     plot_joint(
         data.initial_length, data.growth_rate,
-        xlab, "Growth rate (\si{\per\hour})",
+        xlab, "Exponential elongation rate (\si{\per\hour})",
         "initial-growth"
     )
 
@@ -966,8 +966,8 @@ def process_root(
         ax[1].set_ylabel("Final length (\si{\micro\metre})")
         ax[2].set_ylabel("Added length (\si{\micro\metre})")
         ax[3].set_ylabel("Interdivision time (\si{\hour})")
-        ax[4].set_ylabel("Elongation rate (\si{\micro\metre\per\hour})")
-        ax[5].set_ylabel("Growth rate (\si{\per\hour})")
+        ax[4].set_ylabel("Linear elongation rate (\si{\micro\metre\per\hour})")
+        ax[5].set_ylabel("Exponential elongation rate (\si{\per\hour})")
         fig.tight_layout()
         sns.despine()
 
@@ -1077,8 +1077,8 @@ def process_root(
         ax[1].set_ylabel("Final length (\si{\micro\metre})")
         ax[2].set_ylabel("Added length (\si{\micro\metre})")
         ax[3].set_ylabel("Interdivision time (\si{\hour})")
-        ax[4].set_ylabel("Elongation rate (\si{\micro\metre\per\hour})")
-        ax[5].set_ylabel("Growth rate (\si{\per\hour})")
+        ax[4].set_ylabel("Linear elongation rate (\si{\micro\metre\per\hour})")
+        ax[5].set_ylabel("Exponential elongation rate (\si{\per\hour})")
         fig.tight_layout()
         fig.savefig("pole_boxplots.pdf", transparent=True)
         plt.close()
@@ -1195,8 +1195,8 @@ def plot_distplot_comparisons(
     ax[1].set_xlabel("Final length (\si{\micro\metre})")
     ax[2].set_xlabel("Added length (\si{\micro\metre})")
     ax[3].set_xlabel("Interdivision time (\si{\hour})")
-    ax[4].set_xlabel("Elongation rate (\si{\micro\metre\per\hour})")
-    ax[5].set_xlabel("Growth rate (\si{\per\hour})")
+    ax[4].set_xlabel("Linear elongation rate (\si{\micro\metre\per\hour})")
+    ax[5].set_xlabel("Exponential elongation rate (\si{\per\hour})")
 
     fig.tight_layout()
     fig.savefig("{0}.pdf".format(filename), transparent=True)
