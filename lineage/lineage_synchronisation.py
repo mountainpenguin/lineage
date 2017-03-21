@@ -116,7 +116,7 @@ def process_sources(dir_sources, dirs=None, force=False):
     long_ids = []
     for lineage_id in data.lineage_id.unique():
         subset = data[data.lineage_id == lineage_id]
-        if max(subset.generation) >= threshold_generations:
+        if max(subset.generation) >= threshold_generations and len(subset) > 20:
             long_ids.append(lineage_id)
 
     long_data = data[data.lineage_id.isin(long_ids)]
@@ -317,12 +317,6 @@ if __name__ == "__main__":
         "process_list", metavar="process", type=str, nargs="*",
         help="""
             specify which process_list to handle.
-            if multiple arguments and -c is False:
-                combines datasets into a single plot
-            elif multiple arguments and -c is True:
-                handles each dataset individually
-            elif no arguments:
-                handles the current directory
         """
     )
 
