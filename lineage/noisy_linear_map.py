@@ -539,7 +539,7 @@ def plot_joint(
         "s": 40,
         "alpha": 0.5,
         "color": "darkred",
-        "marker": "x",
+        "marker": ".",
     }
 
     if settings["binned"]:
@@ -655,7 +655,7 @@ def plot_regplot(ax, xdata, ydata, xlabel, ylabel, mlabel="m", clabel="c"):
             "color": "darkred",
             "alpha": 0.5,
         },
-        "marker": "x",
+        "marker": ".",
     }
     sns.regplot(
         x=xdata,
