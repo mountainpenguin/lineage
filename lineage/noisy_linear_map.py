@@ -475,6 +475,7 @@ def plot_joint(
                     "x_centre": bin_min + (bin_width / 2),
                     "y_mean": yvals.mean(),
                     "y_std": yvals.std(),
+                    "y_err": yvals.std() / np.sqrt(len(yvals)),
                     "n": len(yvals)
                 }, ignore_index=True)
         # suffix = "{0}-binned".format(suffix)
@@ -544,7 +545,7 @@ def plot_joint(
     if settings["binned"]:
         scatter_kws["alpha"] = 0.3
         g.ax_joint.errorbar(
-            binned_data.x_centre, binned_data.y_mean, binned_data.y_std,
+            binned_data.x_centre, binned_data.y_mean, binned_data.y_err,
             marker="o",
             ms=10,
             mec="0.1",
