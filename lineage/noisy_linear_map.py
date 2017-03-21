@@ -470,12 +470,13 @@ def plot_joint(
                 (unbinned_data[xdata.name] >= bin_min) &
                 (upper_lim)
             ][ydata.name]
-            binned_data = binned_data.append({
-                "x_centre": bin_min + (bin_width / 2),
-                "y_mean": yvals.mean(),
-                "y_std": yvals.std(),
-                "n": len(yvals)
-            }, ignore_index=True)
+            if len(yvals) >= settings["binthreshold"]:
+                binned_data = binned_data.append({
+                    "x_centre": bin_min + (bin_width / 2),
+                    "y_mean": yvals.mean(),
+                    "y_std": yvals.std(),
+                    "n": len(yvals)
+                }, ignore_index=True)
         # suffix = "{0}-binned".format(suffix)
     else:
         binned_data, unbinned_data = None, None
@@ -1234,6 +1235,12 @@ def main():
         """
     )
     parser.add_argument(
+        "-t", "--binthreshold", default=0, type=int,
+        help="""
+            add threshold number of values per bin for plotting, defaults to 0
+        """
+    )
+    parser.add_argument(
         "-c", "--comparison", default=False, action="store_true",
         help="""
             compare maps for different conditions, expects at least one
@@ -1295,6 +1302,7 @@ def main():
     settings["with_age"] = args.age
     settings["force"] = args.force
     settings["binned"] = args.binned
+    settings["binthreshold"] = args.binthreshold
     settings["debug"] = args.debug
     settings["regression"] = args.regression
     process_root(
