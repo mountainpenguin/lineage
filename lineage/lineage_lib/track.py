@@ -2075,7 +2075,7 @@ class LineageMaker(object):
         y0, y1, x0, x1 = bounds
         xl, yl, xr, yr = mesh
         fluor_crop = fluor_img[
-            y0:y1, x0:x1
+            int(y0):int(y1), int(x0):int(x1)
         ]
         xs = np.array([xl, xr[::-1]]).flatten()
         ys = np.array([yl, yr[::-1]]).flatten()
@@ -2249,8 +2249,8 @@ class LineageMaker(object):
         grand_mother = self.n0_frame.cell(self.parent)
         bounds, shifts, offset = self.get_offset(grand_mother)
         n0_img = scipy.misc.imread(self.files_phase[self.frame_idx - 1])
-        x0, x1 = bounds[0] - offset[0], bounds[0] - offset[0] + width
-        y0, y1 = bounds[1] - offset[1], bounds[1] - offset[1] + width
+        x0, x1 = int(bounds[0] - offset[0]), int(bounds[0] - offset[0] + width)
+        y0, y1 = int(bounds[1] - offset[1]), int(bounds[1] - offset[1] + width)
         n0_crop = n0_img[
             x0:x1,
             y0:y1
@@ -2274,8 +2274,8 @@ class LineageMaker(object):
         mother = self.n1_frame.cell(self.mother)
         bounds, shifts, offset = self.get_offset(mother)
         n1_img = scipy.misc.imread(self.files_phase[self.frame_idx])
-        x0, x1 = bounds[0] - offset[0], bounds[0] - offset[0] + width
-        y0, y1 = bounds[1] - offset[1], bounds[1] - offset[1] + width
+        x0, x1 = int(bounds[0] - offset[0]), int(bounds[0] - offset[0] + width)
+        y0, y1 = int(bounds[1] - offset[1]), int(bounds[1] - offset[1] + width)
         n1_crop = n1_img[
             x0:x1,
             y0:y1
@@ -2305,12 +2305,12 @@ class LineageMaker(object):
             n2_img = np.zeros((1000, 1000))
             offset = [0, 0]
 
-        x0, x1 = bounds[0] - offset[0], bounds[0] - offset[0] + width
+        x0, x1 = int(bounds[0] - offset[0]), int(bounds[0] - offset[0] + width)
         if x0 < 0:
             x1 -= x0
             offset[0] -= x0
             x0 = 0
-        y0, y1 = bounds[1] - offset[1], bounds[1] - offset[1] + width
+        y0, y1 = int(bounds[1] - offset[1]), int(bounds[1] - offset[1] + width)
         if y0 < 0:
             y1 -= y0
             offset[1] -= y0
@@ -2469,8 +2469,8 @@ class LineageMaker(object):
             x_lower, y_lower = bounds
 
             f_crop = f[
-                bounds[0] - offset[0]:bounds[0] - offset[0] + 200,
-                bounds[1] - offset[1]:bounds[1] - offset[1] + 200
+                int(bounds[0] - offset[0]):int(bounds[0] - offset[0] + 200),
+                int(bounds[1] - offset[1]):int(bounds[1] - offset[1] + 200)
             ]
 
             plt.imshow(f_crop, cmap=plt.cm.gray)
@@ -2515,8 +2515,8 @@ class LineageMaker(object):
             yshift = shifts[1]
 
             f_crop = f[
-                bounds[0] - offset[0]:bounds[0] - offset[0] + 200,
-                bounds[1] - offset[1]:bounds[1] - offset[1] + 200,
+                int(bounds[0] - offset[0]):int(bounds[0] - offset[0] + 200),
+                int(bounds[1] - offset[1]):int(bounds[1] - offset[1] + 200),
             ]
 
             plt.imshow(f_crop, cmap=plt.cm.gray)
@@ -2551,8 +2551,8 @@ class LineageMaker(object):
             f = scipy.misc.imread(self.files_phase[lin.end_frame + 1])
             # use last used offset
             f_crop = f[
-                bounds[0] - offset[0]:bounds[0] - offset[0] + 200,
-                bounds[1] - offset[1]:bounds[1] - offset[1] + 200
+                int(bounds[0] - offset[0]):int(bounds[0] - offset[0] + 200),
+                int(bounds[1] - offset[1]):int(bounds[1] - offset[1] + 200)
             ]
             plt.subplot(rows, cols, death_idx)
             plt.imshow(f_crop, cmap=plt.cm.gray)
@@ -2613,8 +2613,8 @@ class LineageMaker(object):
             grand_mother = self.frames.cell(self.progenitor.parent)
             bounds, shifts, offset = self.get_offset(grand_mother)
             n0_crop = n0_img[
-                bounds[0] - offset[0]:bounds[0] - offset[0] + width,
-                bounds[1] - offset[1]:bounds[1] - offset[1] + width
+                int(bounds[0] - offset[0]):int(bounds[0] - offset[0] + width),
+                int(bounds[1] - offset[1]):int(bounds[1] - offset[1] + width)
             ]
             plt.imshow(n0_crop, cmap=plt.cm.gray)
             plt.plot(
@@ -2636,11 +2636,11 @@ class LineageMaker(object):
 
         bounds, shifts, offset = self.get_offset(self.progenitor)
 
-        x0, x1 = bounds[0] - offset[0], bounds[0] - offset[0] + width
-        y0, y1 = bounds[1] - offset[1], bounds[1] - offset[1] + width
+        x0, x1 = int(bounds[0] - offset[0]), int(bounds[0] - offset[0] + width)
+        y0, y1 = int(bounds[1] - offset[1]), int(bounds[1] - offset[1] + width)
         n1_crop = n1_img[
-            x0: x1,
-            y0: y1
+            x0:x1,
+            y0:y1
         ]
         plt.imshow(n1_crop, cmap=plt.cm.gray)
         plt.title("Frame {0}".format(self.frame_idx + 1))
@@ -2673,12 +2673,12 @@ class LineageMaker(object):
             n2_img = np.zeros((1000, 1000))
             offset = [0, 0]
 
-        x0, x1 = bounds[0] - offset[0], bounds[0] - offset[0] + width
+        x0, x1 = int(bounds[0] - offset[0]), int(bounds[0] - offset[0] + width)
         if x0 < 0:
             x1 -= x0
             # offset[0] -= x0
             x0 = 0
-        y0, y1 = bounds[1] - offset[1], bounds[1] - offset[1] + width
+        y0, y1 = int(bounds[1] - offset[1]), int(bounds[1] - offset[1] + width)
         if y0 < 0:
             y1 -= y0
             # offset[1] -= y0
