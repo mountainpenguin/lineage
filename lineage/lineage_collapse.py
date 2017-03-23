@@ -50,7 +50,7 @@ def main():
 #    fig2 = plt.figure(figsize=(11.69, 8.27))
 
     for data_type, label in parameters:
-        fig1 = plt.figure()
+        fig1 = plt.figure(figsize=(3.5, 2.4))
         ax1 = fig1.add_subplot(111)
 #        ax1 = fig1.add_subplot(2, 3, i)
         sns.despine(ax=ax1)
@@ -60,9 +60,10 @@ def main():
         ax1.set_xlabel(label)
         ax1.set_ylabel("Probability")
         ax1.legend()
+        fig1.tight_layout()
         fig1.savefig("collapsed/{0}-raw.pdf".format(data_type))
 
-        fig2 = plt.figure()
+        fig2 = plt.figure(figsize=(3.5, 2.4))
         ax2 = fig2.add_subplot(111)
 #        ax2 = fig2.add_subplot(2, 3, i)
         sns.despine(ax=ax2)
@@ -72,6 +73,7 @@ def main():
         ax2.set_xlabel("Normalised {0}".format(label.lower()))
         ax2.set_ylabel("Probability")
         ax2.legend()
+        fig2.tight_layout()
         fig2.savefig("collapsed/{0}-scaled.pdf".format(data_type))
 
         i += 1
