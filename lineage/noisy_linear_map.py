@@ -819,6 +819,16 @@ def process_root(
                         "gradient": stats[0][0],
                         "ci": stats[0][1],
                         "n": len(data_subset),
+                        "initial_length_mean": data_subset.initial_length.mean(),
+                        "initial_length_std": data_subset.initial_length.std(),
+                        "initial_length_ci": float(
+                            np.diff(scipy.stats.t.interval(
+                                0.95,
+                                len(data_subset.initial_length) - 1,
+                                loc=data_subset.initial_length.mean(),
+                                scale=data_subset.initial_length.sem()
+                            ))[0]
+                        ),
                     })
                     generation_gradient = generation_gradient.append(
                         gen_data,
@@ -900,6 +910,55 @@ def process_root(
 
         plt.savefig(
             "noisy-linear-map-generation-gradient.pdf",
+            transparent=True
+        )
+
+        # plot pole age vs initial length
+        fig = plt.figure(figsize=(4, 4))
+        ax = fig.add_subplot(1, 1, 1)
+        sns.despine()
+        ax.errorbar(
+            generation_gradient.age,
+            generation_gradient.initial_length_mean,
+            yerr=generation_gradient.initial_length_ci,
+            fmt="o",
+        )
+
+        ax.errorbar(
+            1,
+            new_pole_cells.initial_length.mean(),
+            float(
+                np.diff(scipy.stats.t.interval(
+                    0.95,
+                    len(new_pole_cells.initial_length) - 1,
+                    loc=new_pole_cells.initial_length.mean(),
+                    scale=new_pole_cells.initial_length.sem()
+                ))[0]
+            ),
+            fmt="o",
+        )
+        ax.errorbar(
+            generation_gradient.age.max() + 1,
+            old_pole_cells.initial_length.mean(),
+            float(
+                np.diff(scipy.stats.t.interval(
+                    0.95,
+                    len(old_pole_cells.initial_length) - 1,
+                    loc=old_pole_cells.initial_length.mean(),
+                    scale=old_pole_cells.initial_length.sem()
+                ))[0]
+            ),
+            fmt="o",
+        )
+
+        ax.set_xlim([.5, generation_gradient.age.max() + 1.5])
+        max_y = ax.get_ylim()[1]
+        # ax.set_ylim([0, max_y])
+        ax.set_xlabel("Age of inherited pole (generations)")
+        ax.set_ylabel(r"Initial length (\si{\micro\metre})")
+        ax.set_xticklabels(xticklabels)
+        fig.savefig(
+            "noisy-linear-map-generation-initial-length.pdf",
             transparent=True
         )
 
