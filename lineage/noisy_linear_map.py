@@ -508,7 +508,7 @@ def plot_joint(
     if ylim:
         ylim_set = ylim
 
-    xlim_set, ylim_set = None, None
+    # xlim_set, ylim_set = None, None
     g = sns.JointGrid(xdata, ydata, xlim=xlim_set, ylim=ylim_set)
 
     marginal_args = [
