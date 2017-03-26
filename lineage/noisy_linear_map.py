@@ -59,6 +59,15 @@ class CustomNode(object):
         self.initial_time = self.times[0]
         self.final_time = self.times[-1]
         self.source = os.path.basename(os.getcwd())
+        self.pole1_age = lineage.pole1_age
+        self.pole2_age = lineage.pole2_age
+        if self.pole1_age.age_known and self.pole2_age.age_known:
+            self.age_known = True
+        else:
+            self.age_known = False
+        self.pole_age = max(self.pole1_age, self.pole2_age).age
+        self.old_pole = self.pole_age > 1
+
         if not lineage.children:
             self.loss = True
             self.interdivision_time = None
@@ -858,6 +867,11 @@ def process_tree(dirs):
                         "initial_time": node.initial_time,
                         "final_time": node.final_time,
                         "source": node.source,
+                        "pole1_age": node.pole1_age,
+                        "pole2_age": node.pole2_age,
+                        "age_known": node.age_known,
+                        "pole_age": node.pole_age,
+                        "old_pole": node.old_pole,
                     })
                     data = data.append(row, ignore_index=True)
         data.to_pickle("data-tree.pandas")
