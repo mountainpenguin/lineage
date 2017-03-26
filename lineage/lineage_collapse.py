@@ -15,13 +15,16 @@ plt.rcParams["text.latex.preamble"] = [
 ]
 import numpy as np
 
+
 def distplot(data, label, ax, **kws):
-    counts, bins= np.histogram(data)
+    counts, bins = np.histogram(data, density=True)
     bin_width = bins[1] - bins[0]
     x_centres = (bins + bin_width)[:-1]
-    freq = counts / counts.sum()
-    ax.plot(x_centres, freq, label=label)
+    ax.plot(x_centres, counts, label=label)
+#    freq = counts / counts.sum()
+#    ax.plot(x_centres, freq, label=label)
 #    sns.distplot(data, label=label, ax=ax, **kws)
+
 
 def main():
     glycerol = pd.read_pickle("glycerol/data.pandas")
@@ -58,7 +61,7 @@ def main():
         distplot(acetate[data_type], label="Acetate", ax=ax1, **dkw)
         distplot(pyruvate[data_type], label="Pyruvate", ax=ax1, **dkw)
         ax1.set_xlabel(label)
-        ax1.set_ylabel("Probability")
+        ax1.set_ylabel("PDF")
         ax1.legend()
         fig1.tight_layout()
         fig1.savefig("collapsed/{0}-raw.pdf".format(data_type))
@@ -71,7 +74,7 @@ def main():
         distplot(acetate[data_type] / acetate[data_type].mean(), label="Acetate", ax=ax2, **dkw)
         distplot(pyruvate[data_type] / pyruvate[data_type].mean(), label="Pyruvate", ax=ax2, **dkw)
         ax2.set_xlabel("Normalised {0}".format(label.lower()))
-        ax2.set_ylabel("Probability")
+        ax2.set_ylabel("PDF")
         ax2.legend()
         fig2.tight_layout()
         fig2.savefig("collapsed/{0}-scaled.pdf".format(data_type))
