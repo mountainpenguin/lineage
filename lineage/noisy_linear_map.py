@@ -235,7 +235,7 @@ def process_process_with_poles(process_queue, T, rif_add, pixel):
     return out_data
 
 
-def process_dir(with_poles, with_age, debug=False):
+def process_dir():
     try:
         L = track.Lineage()
     except:
@@ -248,11 +248,11 @@ def process_dir(with_poles, with_age, debug=False):
     # only follow cells after first division
     process_queue = []
     for cell_lineage in initial_cells:
-        if with_poles or with_age:
+        if settings["with_poles"] or settings["with_age"]:
             cell_lineage = track.SingleCellLineage(
                 cell_lineage.id,
                 L,
-                debug=debug
+                debug=settings["debug"]
             )
             if type(cell_lineage.children) is list:
                 process_queue.append(cell_lineage.children[0])
@@ -266,7 +266,7 @@ def process_dir(with_poles, with_age, debug=False):
                 process_queue.append(L.frames.cell(cell_lineage.children[1]))
 
     T, rif_add, pixel = misc.get_timings()
-    if with_poles or with_age:
+    if settings["with_poles"] or settings["with_age"]:
         result = process_process_with_poles(process_queue, T, rif_add, pixel)
     else:
         result = process_process(process_queue, L, T, rif_add, pixel)
@@ -686,22 +686,14 @@ def _freedman_diaconis_bins(a):
         return int(np.ceil((a.max() - a.min()) / h))
 
 
-def process_root(
-    dir_sources,
-    dirs=None,
-    with_poles=False,
-    with_age=False,
-    force=False,
-    binned=False,
-    debug=False
-):
+def process_root(dir_sources, dirs=None):
     if not dirs:
         dirs = "."
         # dirs = list(filter(lambda x: os.path.isdir(x), sorted(os.listdir())))
         dir_sources = dirs
 
     if (
-        (os.path.exists("data.pandas") and force) or
+        (os.path.exists("data.pandas") and settings["force"]) or
         not os.path.exists("data.pandas")
     ):
         columns = [
@@ -713,7 +705,7 @@ def process_root(
             "length_ratio", "area_ratio",
             "doubling_time", "growth_rate", "elong_rate",
         ]
-        if with_poles:
+        if settings["with_poles"]:
             columns.extend(["old_pole", "pole_age", "age_known"])
 
         data = pd.DataFrame(columns=columns)
@@ -728,7 +720,7 @@ def process_root(
                 os.path.exists("mt/alignment.mat") or
                 os.path.exists("lineages.npz")
             ):
-                out_data = process_dir(with_poles, with_age, debug)
+                out_data = process_dir()
                 if out_data is not None:
                     out_data["source"] = [source] * len(out_data)
                     out_data["sub_source"] = [
@@ -803,7 +795,7 @@ def process_root(
         "initial-growth"
     )
 
-    if with_age:
+    if settings["with_age"]:
         dcolumns = ["age", "gradient", "ci", "n"]
         generation_gradient = pd.DataFrame(columns=dcolumns)
         for x in range(int(data.pole_age.max())):
@@ -1035,7 +1027,7 @@ def process_root(
         fig.savefig("pole_age_boxplots.pdf", transparent=True)
         plt.close()
 
-    elif with_poles:
+    elif settings["with_poles"]:
         data_new = data[((data.pole_age == 1) & (data.age_known))]
         data_old = data[data.pole_age > 1]
         plot_joint(
@@ -1365,14 +1357,7 @@ def main():
     settings["binthreshold"] = args.binthreshold
     settings["debug"] = args.debug
     settings["regression"] = args.regression
-    process_root(
-        sources, dirlist,
-        with_poles=args.poles,
-        with_age=args.age,
-        force=args.force,
-        binned=args.binned,
-        debug=args.debug
-    )
+    process_root(sources, dirlist)
 
 
 if __name__ == "__main__":
