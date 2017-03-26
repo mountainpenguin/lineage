@@ -27,9 +27,9 @@ def distplot(data, label, ax, **kws):
 
 
 def main():
-    glycerol = pd.read_pickle("glycerol/data.pandas")
-    acetate = pd.read_pickle("acetate/data.pandas")
-    pyruvate = pd.read_pickle("pyruvate/data.pandas")
+    glycerol = pd.read_pickle("glycerol/data-tree.pandas")
+    acetate = pd.read_pickle("acetate/data-tree.pandas")
+    pyruvate = pd.read_pickle("pyruvate/data-tree.pandas")
 
     i = 1
     parameters = [
