@@ -29,6 +29,8 @@ import matplotlib.pyplot as plt
 import matplotlib.patches
 import seaborn as sns
 import warnings
+import textwrap
+import networkx as nx
 
 sns.set_style("white")
 sns.set_context("paper")
@@ -44,6 +46,69 @@ plt.rcParams["text.latex.preamble"] = [
 warnings.filterwarnings("ignore")
 
 settings = {}
+
+
+class CustomNode(object):
+    def __init__(self, lineage):
+        self.lineage_id = lineage.lineage_id
+        self.frames = [x.frame for x in lineage.cells]
+        self.times = [x.t for x in lineage.cells]
+        self.lengths = [x.length for x in lineage.cells]
+        self.initial_length = lineage.cells[0].length
+        self.final_length = lineage.cells[-1].length
+        self.initial_time = self.times[0]
+        self.final_time = self.times[-1]
+        self.source = os.path.basename(os.getcwd())
+        if not lineage.children:
+            self.loss = True
+            self.interdivision_time = None
+            self.elongation_rate = None
+            self.growth_rate = None
+        else:
+            self.loss = False
+            self.interdivision_time = (
+                lineage.cells[-1].t -
+                lineage.cells[0].t
+            ) / 60
+            self.elongation_rate = self._get_elongation_rate()
+            self.growth_rate = self._get_growth_rate()
+
+    def _get_elongation_rate(self):
+        # self.times, self.lengths
+        gradient = np.polyfit(self.times, self.lengths, 1)[0]
+        return gradient * 60  # um / hr
+
+    def _get_growth_rate(self):
+        # self.times, self.lengths
+        logL = np.log(self.lengths)
+        lamb, logL0 = np.polyfit(
+            np.array(self.times) - self.times[0],
+            logL,
+            1
+        )
+        return lamb * 60  # um / hr
+
+    def __repr__(self):
+        return "<{0}>".format(self.lineage_id)
+
+    def describe(self):
+        print(textwrap.dedent(
+            """
+                Lineage ID: {lineage_id}
+                Number of frames: {num_frames} ({first_frame} - {last_frame})
+                Lengths (um): {lengths}
+                Interdivision time (h): {interdivision_time}
+                Elongation rate (um/h): {elongation_rate}
+                Growth rate (h^-1): {growth_rate}
+                Lineage ends in {end_type}
+            """.format(
+                num_frames=len(self.lengths),
+                first_frame=self.frames[0],
+                last_frame=self.frames[-1],
+                end_type=self.loss and "loss" or "division",
+                **self.__dict__
+            )
+        ).strip())
 
 
 def process_old():
@@ -686,6 +751,169 @@ def _freedman_diaconis_bins(a):
         return int(np.ceil((a.max() - a.min()) / h))
 
 
+def get_custom_node(lin, nodes):
+    if lin.lineage_id in nodes:
+        return nodes[lin.lineage_id]
+    else:
+        n = CustomNode(lin)
+        nodes[lin.lineage_id] = n
+        return n
+
+
+def cell_filter(x):
+    if (
+        x.timings[x.cells[-1].frame - 1] < x.rif_cut and
+        len(x.cells) > 5 and
+        x.children
+    ):
+        return True
+    return False
+
+
+def add_children(tree, cell, nodes):
+    if cell.children:
+        n0 = get_custom_node(cell, nodes)
+        if cell_filter(cell.children[0]):
+            n1 = get_custom_node(cell.children[0], nodes)
+            tree.add_node(n1)
+            tree.add_edge(n0, n1)
+            add_children(tree, cell.children[0], nodes)
+
+        if cell_filter(cell.children[1]):
+            n2 = get_custom_node(cell.children[1], nodes)
+            tree.add_node(n2)
+            tree.add_edge(n0, n2)
+            add_children(tree, cell.children[1], nodes)
+
+
+def process_tree(dirs):
+    orig_dir = os.getcwd()
+    if not dirs:
+        dirs = ["."]
+
+    if os.path.exists("data-tree.pandas") and not settings["force"]:
+        data = pd.read_pickle("data-tree.pandas")
+    else:
+        graphs = []
+        for d in dirs:
+            os.chdir(d)
+            print("Processing {0}".format(d))
+            if not os.path.exists("mt/mt.mat"):
+                print("No mt file, skipping")
+                continue
+            timings, rif_add, px = misc.get_timings()
+            L = track.Lineage()
+            initial_cells = L.frames[0].cells
+            # only follow cells after first division
+            process_queue = []
+            for init_cell in initial_cells:
+                cell_lineage = track.SingleCellLineage(
+                    init_cell.id,
+                    L,
+                    debug=settings["debug"],
+                    px_conversion=px,
+                    timings=timings,
+                    rif_cut=rif_add
+                )
+                if type(cell_lineage.children) is list:
+                    process_queue.append(cell_lineage.children[0])
+                    process_queue.append(cell_lineage.children[1])
+
+            j = 1
+            nodes = {}
+            for cell_lineage in process_queue:
+                print("Handling cell lineage {0} ({1} of {2})".format(
+                    cell_lineage.lineage_id, j, len(process_queue)
+                ))
+                tree = nx.DiGraph()
+                tree.add_node(get_custom_node(cell_lineage, nodes))
+                add_children(tree, cell_lineage, nodes)
+                graphs.append(tree)
+                j += 1
+            os.chdir(orig_dir)
+
+        # update graphs
+        for graph in graphs:
+            roots = [
+                node for node, degree in graph.degree().items() if degree == 2
+            ]
+            for node in roots:
+                matchRootNode(node)
+            for node in graph:
+                matchDivision(node, graph.successors(node))
+
+        # get data from graphs
+        data = pd.DataFrame()
+        for graph in graphs:
+            for node in graph.nodes():
+                if node.growth_rate and node.interdivision_time > 0.5:
+                    row = pd.Series({
+                        "id": node.lineage_id,
+                        "initial_length": node.initial_length,
+                        "final_length": node.final_length,
+                        "added_length": node.final_length - node.initial_length,
+                        "doubling_time": node.interdivision_time,
+                        "growth_rate": node.growth_rate,
+                        "elong_rate": node.elongation_rate,
+                        "initial_time": node.initial_time,
+                        "final_time": node.final_time,
+                        "source": node.source,
+                    })
+                    data = data.append(row, ignore_index=True)
+        data.to_pickle("data-tree.pandas")
+
+    return data
+
+
+def get_growth_curve(times, lengths):
+    if len(times) < 2:
+        return
+    logL = np.log(lengths)
+    lamb, logL0 = np.polyfit(np.array(times) - times[0], logL, 1)
+    return lambda x: np.exp(logL0) * np.exp(lamb * (x - times[0]))
+
+def matchRootNode(node):
+    vol = get_growth_curve(node.times, node.lengths)
+    if vol:
+        node.initial_length = vol(node.times[0])
+
+def matchDivision(mother, children):
+    # written by Philipp
+    if len(children) < 2:
+        return None
+
+    volM = get_growth_curve(mother.times, mother.lengths)
+    vol1 = get_growth_curve(children[0].times, children[0].lengths)
+    vol2 = get_growth_curve(children[1].times, children[1].lengths)
+    if not (volM and vol1 and vol2):
+        return
+
+    res = scipy.optimize.minimize_scalar(
+        lambda x: abs(vol1(x) + vol2(x) - volM(x)),
+        bounds=(
+            mother.times[-1],
+            min(children[0].times[0], children[1].times[0])
+        ),
+        method="bounded"
+    )
+    tau = res.x
+
+    vT = vol1(tau) + vol2(tau)
+    children[0].initial_length = vol1(tau)
+    children[1].initial_length = vol2(tau)
+    mother.final_length = volM(tau)
+
+    mother.final_time = tau
+    children[0].initial_time = tau
+    children[1].initial_time = tau
+    mother.interdivision_time = (mother.final_time - mother.initial_time) / 60
+    children[0].interdivision_time = (
+        children[0].final_time - children[0].initial_time
+    ) / 60
+    children[1].interdivision_time = (
+        children[1].final_time - children[1].initial_time
+    ) / 60
+
 def process_root(dir_sources, dirs=None):
     if not dirs:
         dirs = "."
@@ -1318,6 +1546,13 @@ def main():
         """
     )
     parser.add_argument(
+        "-m", "--treemode", default=False, action="store_true",
+        help="""
+            use tree method for obtaining data (interpolates initial length,
+            final length, and interdivision time)
+        """
+    )
+    parser.add_argument(
         "process_list", metavar="process", type=str, nargs="*",
         help="""
             specify which process_list to handle.
@@ -1357,7 +1592,11 @@ def main():
     settings["binthreshold"] = args.binthreshold
     settings["debug"] = args.debug
     settings["regression"] = args.regression
-    data = process_root(sources, dirlist)
+    settings["treemode"] = args.treemode
+    if args.treemode:
+        data = process_tree(dirlist)
+    else:
+        data = process_root(sources, dirlist)
 
     print(
         "Got {0} cells".format(
