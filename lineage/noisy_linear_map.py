@@ -717,7 +717,7 @@ def process_root(dir_sources, dirs=None):
             source = dir_sources[i]
             print("Processing {0}".format(d))
             if (
-                os.path.exists("mt/alignment.mat") or
+                os.path.exists("mt/mt.mat") or
                 os.path.exists("lineages.npz")
             ):
                 out_data = process_dir()
@@ -738,11 +738,6 @@ def process_root(dir_sources, dirs=None):
             i += 1
             os.chdir(orig_dir)
 
-        print(
-            "Got {0} cells that divide twice during observation period".format(
-                len(data)
-            )
-        )
         if len(data) == 0:
             return
 
@@ -750,6 +745,10 @@ def process_root(dir_sources, dirs=None):
     else:
         data = pd.read_pickle("data.pandas")
 
+    return data
+
+
+def plot_data(data):
     xlab = "Initial cell length (\si{\micro\metre})"
     plot_joint(
         data.initial_length, data.final_length,
@@ -801,36 +800,37 @@ def process_root(dir_sources, dirs=None):
         for x in range(int(data.pole_age.max())):
             data_subset = data[(data.pole_age == (x + 1)) & (data.age_known)]
             try:
-                if x > 0 and len(data_subset) > 1:
-                    stats = get_stats(
-                        data_subset.initial_length,
-                        data_subset.final_length
-                    )
-                    gen_data = pd.Series({
-                        "age": x + 1,
-                        "gradient": stats[0][0],
-                        "ci": stats[0][1],
-                        "n": len(data_subset),
-                        "initial_length_mean": data_subset.initial_length.mean(),
-                        "initial_length_std": data_subset.initial_length.std(),
-                        "initial_length_ci": float(
-                            np.diff(scipy.stats.t.interval(
-                                0.95,
-                                len(data_subset.initial_length) - 1,
-                                loc=data_subset.initial_length.mean(),
-                                scale=data_subset.initial_length.sem()
-                            ))[0]
-                        ),
-                    })
-                    generation_gradient = generation_gradient.append(
-                        gen_data,
-                        ignore_index=True
-                    )
-                    plot_joint(
-                        data_subset.initial_length, data_subset.final_length,
-                        xlab, "Final cell length (\si{\micro\metre})",
-                        "noisy-linear-map-gen-{0}".format(x + 1)
-                    )
+                if x <= 0 or len(data_subset) <= 1:
+                    continue
+                stats = get_stats(
+                    data_subset.initial_length,
+                    data_subset.final_length
+                )
+                gen_data = pd.Series({
+                    "age": x + 1,
+                    "gradient": stats[0][0],
+                    "ci": stats[0][1],
+                    "n": len(data_subset),
+                    "initial_length_mean": data_subset.initial_length.mean(),
+                    "initial_length_std": data_subset.initial_length.std(),
+                    "initial_length_ci": float(
+                        np.diff(scipy.stats.t.interval(
+                            0.95,
+                            len(data_subset.initial_length) - 1,
+                            loc=data_subset.initial_length.mean(),
+                            scale=data_subset.initial_length.sem()
+                        ))[0]
+                    ),
+                })
+                generation_gradient = generation_gradient.append(
+                    gen_data,
+                    ignore_index=True
+                )
+                plot_joint(
+                    data_subset.initial_length, data_subset.final_length,
+                    xlab, "Final cell length (\si{\micro\metre})",
+                    "noisy-linear-map-gen-{0}".format(x + 1)
+                )
             except ValueError:
                 pass
 
@@ -1357,7 +1357,15 @@ def main():
     settings["binthreshold"] = args.binthreshold
     settings["debug"] = args.debug
     settings["regression"] = args.regression
-    process_root(sources, dirlist)
+    data = process_root(sources, dirlist)
+
+    print(
+        "Got {0} cells".format(
+            len(data)
+        )
+    )
+    plot_data(data)
+
 
 
 if __name__ == "__main__":
