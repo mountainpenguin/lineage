@@ -62,7 +62,7 @@ class Main(object):
             # ("final_length", "Final length", r"\si{\micro\metre}"),
             # ("added_length", "Added length", r"\si{\micro\metre}"),
             # ("elong_rate", "Elongation rate", r"\si{\micro\metre\per\hour}"),
-            ("growth_rate", "Growth rate", r"\si{\per\hour}"),
+            ("growth_rate", "Exponential elongation rate", r"\si{\per\hour}"),
             # ("doubling_time", "Interdivision time", r"\si{\hour}"),
             ("asymmetry", "Asymmetry", None),
         ]
