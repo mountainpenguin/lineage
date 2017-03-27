@@ -784,12 +784,14 @@ def add_children(tree, cell, nodes):
         n0 = get_custom_node(cell, nodes)
         if cell_filter(cell.children[0]):
             n1 = get_custom_node(cell.children[0], nodes)
+            n1.asymmetry = n1.initial_length / n0.final_length
             tree.add_node(n1)
             tree.add_edge(n0, n1)
             add_children(tree, cell.children[0], nodes)
 
         if cell_filter(cell.children[1]):
             n2 = get_custom_node(cell.children[1], nodes)
+            n2.asymmetry = n2.initial_length / n0.final_length
             tree.add_node(n2)
             tree.add_edge(n0, n2)
             add_children(tree, cell.children[1], nodes)
@@ -835,7 +837,9 @@ def process_tree(dirs):
                     cell_lineage.lineage_id, j, len(process_queue)
                 ))
                 tree = nx.DiGraph()
-                tree.add_node(get_custom_node(cell_lineage, nodes))
+                root_node = get_custom_node(cell_lineage, nodes)
+                root_node.asymmetry = np.NaN
+                tree.add_node(root_node)
                 add_children(tree, cell_lineage, nodes)
                 graphs.append(tree)
                 j += 1
@@ -872,6 +876,7 @@ def process_tree(dirs):
                         "age_known": node.age_known,
                         "pole_age": node.pole_age,
                         "old_pole": node.old_pole,
+                        "asymmetry": node.asymmetry,
                     })
                     data = data.append(row, ignore_index=True)
         data.to_pickle("data-tree.pandas")
@@ -927,6 +932,9 @@ def matchDivision(mother, children):
     children[1].interdivision_time = (
         children[1].final_time - children[1].initial_time
     ) / 60
+
+    children[0].asymmetry = children[0].initial_length / mother.final_length
+    children[1].asymmetry = children[1].initial_length / mother.final_length
 
 def process_root(dir_sources, dirs=None):
     if not dirs:
