@@ -999,10 +999,10 @@ def process_root(dir_sources, dirs=None):
 
 
 def plot_data(data):
-    xlab = "Initial cell length (\si{\micro\metre})"
+    xlab = "Birth length (\si{\micro\metre})"
     plot_joint(
         data.initial_length, data.final_length,
-        xlab, "Final cell length (\si{\micro\metre})"
+        xlab, "Division length (\si{\micro\metre})"
     )
     plot_error(None, data.initial_length, data.final_length)
 
@@ -1015,7 +1015,7 @@ def plot_data(data):
     )
     plot_joint(
         data.growth_rate, data.added_length,
-        "Exponential elongation rate (\si{\per\hour})",
+        "Exponential growth rate (\si{\per\hour})",
         "Added length (\si{\micro\metre})",
         "growth-added",
         ylim=(0, 10),
@@ -1040,7 +1040,7 @@ def plot_data(data):
 
     plot_joint(
         data.initial_length, data.growth_rate,
-        xlab, "Exponential elongation rate (\si{\per\hour})",
+        xlab, "Exponential growth rate (\si{\per\hour})",
         "initial-growth"
     )
 
@@ -1196,8 +1196,8 @@ def plot_data(data):
         ax.set_xlim([.5, generation_gradient.age.max() + 1.5])
         max_y = ax.get_ylim()[1]
         # ax.set_ylim([0, max_y])
-        ax.set_xlabel("Age of inherited pole (generations)")
-        ax.set_ylabel(r"Initial length (\si{\micro\metre})")
+        ax.set_xlabel("Pole age")
+        ax.set_ylabel(r"Birth length (\si{\micro\metre})")
         ax.set_xticklabels(xticklabels)
         fig.savefig(
             "noisy-linear-map-generation-initial-length.pdf",
@@ -1265,12 +1265,12 @@ def plot_data(data):
             xticklabels.append("$>1$")
             ax[i].set_xticklabels(xticklabels)
 
-        ax[0].set_ylabel("Initial length (\si{\micro\metre})")
-        ax[1].set_ylabel("Final length (\si{\micro\metre})")
+        ax[0].set_ylabel("Birth length (\si{\micro\metre})")
+        ax[1].set_ylabel("Division length (\si{\micro\metre})")
         ax[2].set_ylabel("Added length (\si{\micro\metre})")
         ax[3].set_ylabel("Interdivision time (\si{\hour})")
         ax[4].set_ylabel("Linear elongation rate (\si{\micro\metre\per\hour})")
-        ax[5].set_ylabel("Exponential elongation rate (\si{\per\hour})")
+        ax[5].set_ylabel("Exponential growth rate (\si{\per\hour})")
         fig.tight_layout()
         sns.despine()
 
@@ -1282,12 +1282,12 @@ def plot_data(data):
         data_old = data[data.pole_age > 1]
         plot_joint(
             data_new.initial_length, data_new.final_length,
-            xlab, "Final cell length (\si{\micro\metre})",
+            xlab, "Division length (\si{\micro\metre})",
             "noisy-linear-map-new-pole"
         )
         plot_joint(
             data_old.initial_length, data_old.final_length,
-            xlab, "Final cell length (\si{\micro\metre})",
+            xlab, "Division length (\si{\micro\metre})",
             "noisy-linear-map-old-pole"
         )
 
@@ -1376,12 +1376,12 @@ def plot_data(data):
             )
             ax[i].set_xlabel("Pole inherited")
             ax[i].xaxis.set_ticklabels(["New pole", "Old pole"])
-        ax[0].set_ylabel("Initial length (\si{\micro\metre})")
-        ax[1].set_ylabel("Final length (\si{\micro\metre})")
+        ax[0].set_ylabel("Birth length (\si{\micro\metre})")
+        ax[1].set_ylabel("Division length (\si{\micro\metre})")
         ax[2].set_ylabel("Added length (\si{\micro\metre})")
         ax[3].set_ylabel("Interdivision time (\si{\hour})")
         ax[4].set_ylabel("Linear elongation rate (\si{\micro\metre\per\hour})")
-        ax[5].set_ylabel("Exponential elongation rate (\si{\per\hour})")
+        ax[5].set_ylabel("Exponential growth rate (\si{\per\hour})")
         fig.tight_layout()
         fig.savefig("pole_boxplots.pdf", transparent=True)
         plt.close()
@@ -1500,12 +1500,12 @@ def plot_distplot_comparisons(
     ax[5].legend()
 
     # set labels
-    ax[0].set_xlabel("Initial length (\si{\micro\metre})")
-    ax[1].set_xlabel("Final length (\si{\micro\metre})")
+    ax[0].set_xlabel("Birth length (\si{\micro\metre})")
+    ax[1].set_xlabel("Division length (\si{\micro\metre})")
     ax[2].set_xlabel("Added length (\si{\micro\metre})")
     ax[3].set_xlabel("Interdivision time (\si{\hour})")
     ax[4].set_xlabel("Linear elongation rate (\si{\micro\metre\per\hour})")
-    ax[5].set_xlabel("Exponential elongation rate (\si{\per\hour})")
+    ax[5].set_xlabel("Exponential growth rate (\si{\per\hour})")
 
     fig.tight_layout()
     fig.savefig("{0}.pdf".format(filename), transparent=True)
