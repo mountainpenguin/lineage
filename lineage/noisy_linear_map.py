@@ -1081,6 +1081,16 @@ def plot_data(data):
                             scale=data_subset.initial_length.sem()
                         ))[0]
                     ),
+                    "growth_rate_mean": data_subset.growth_rate.mean(),
+                    "growth_rate_std": data_subset.growth_rate.std(),
+                    "growth_rate_ci": float(
+                        np.diff(scipy.stats.t.interval(
+                            0.95,
+                            len(data_subset.growth_rate) - 1,
+                            loc=data_subset.growth_rate.mean(),
+                            scale=data_subset.growth_rate.sem()
+                        ))[0]
+                    ),
                 })
                 generation_gradient = generation_gradient.append(
                     gen_data,
@@ -1088,21 +1098,26 @@ def plot_data(data):
                 )
                 plot_joint(
                     data_subset.initial_length, data_subset.final_length,
-                    xlab, "Final cell length (\si{\micro\metre})",
+                    xlab, "Division length (\si{\micro\metre})",
                     "noisy-linear-map-gen-{0}".format(x + 1)
                 )
             except ValueError:
                 pass
 
         generation_gradient.to_pickle("data/generation_gradient.pandas")
-        fig = plt.figure(figsize=(4, 4))
+        fig = plt.figure(figsize=(2.4, 2.4))
         ax = fig.add_subplot(1, 1, 1)
         sns.despine()
+        err_style = {
+            "fmt": "o",
+            "lw": 2,
+            "mew": 1
+        }
         ax.errorbar(
             generation_gradient.age,
             generation_gradient.gradient,
             yerr=generation_gradient.ci,
-            fmt="o",
+            **err_style
         )
 
         # also plot "new" pole cells (i.e. pole_age = 1) and all old pole cells
@@ -1115,7 +1130,7 @@ def plot_data(data):
             1,
             new_stats[0][0],
             new_stats[0][1],
-            fmt="o"
+            **err_style
         )
 
         old_pole_cells = data[(data.pole_age > 1)]
@@ -1127,16 +1142,17 @@ def plot_data(data):
             generation_gradient.age.max() + 1,
             old_stats[0][0],
             old_stats[0][1],
-            fmt="o"
+            **err_style
         )
 
         ax.set_xlim([.5, generation_gradient.age.max() + 1.5])
+        ax.set_xticks(range(1, int(generation_gradient.age.max()) + 2))
         ax.plot(ax.get_xlim(), [1, 1], linestyle="--", color="k")
         max_y = ax.get_ylim()[1]
         ax.set_ylim([0, max_y])
 
-        ax.set_xlabel("Age of inherited pole (generations)")
-        ax.set_ylabel("Slope of initial length against final length")
+        ax.set_xlabel("Pole age")
+        ax.set_ylabel("Slope")
 
         fig.canvas.draw()
 
@@ -1160,20 +1176,21 @@ def plot_data(data):
             xticklabels.append("$>1$")
         ax.set_xticklabels(xticklabels)
 
-        plt.savefig(
+        fig.tight_layout()
+        fig.savefig(
             "noisy-linear-map-generation-gradient.pdf",
             transparent=True
         )
 
         # plot pole age vs initial length
-        fig = plt.figure(figsize=(4, 4))
+        fig = plt.figure(figsize=(2.4, 2.4))
         ax = fig.add_subplot(1, 1, 1)
         sns.despine()
         ax.errorbar(
             generation_gradient.age,
             generation_gradient.initial_length_mean,
             yerr=generation_gradient.initial_length_ci,
-            fmt="o",
+            **err_style
         )
 
         ax.errorbar(
@@ -1187,7 +1204,7 @@ def plot_data(data):
                     scale=new_pole_cells.initial_length.sem()
                 ))[0]
             ),
-            fmt="o",
+            **err_style
         )
         ax.errorbar(
             generation_gradient.age.max() + 1,
@@ -1200,19 +1217,75 @@ def plot_data(data):
                     scale=old_pole_cells.initial_length.sem()
                 ))[0]
             ),
-            fmt="o",
+            **err_style
         )
 
         ax.set_xlim([.5, generation_gradient.age.max() + 1.5])
+        ax.set_xticks(range(1, int(generation_gradient.age.max() + 2)))
         max_y = ax.get_ylim()[1]
         # ax.set_ylim([0, max_y])
         ax.set_xlabel("Pole age")
         ax.set_ylabel(r"Birth length (\si{\micro\metre})")
         ax.set_xticklabels(xticklabels)
+
+        fig.tight_layout()
         fig.savefig(
             "noisy-linear-map-generation-initial-length.pdf",
             transparent=True
         )
+
+        fig = plt.figure(figsize=(2.4, 2.4))
+        ax = fig.add_subplot(1, 1, 1)
+        sns.despine()
+        ax.errorbar(
+            generation_gradient.age,
+            generation_gradient.growth_rate_mean,
+            yerr=generation_gradient.growth_rate_ci,
+            **err_style
+        )
+
+        ax.errorbar(
+            1,
+            new_pole_cells.growth_rate.mean(),
+            float(
+                np.diff(scipy.stats.t.interval(
+                    0.95,
+                    len(new_pole_cells.growth_rate) - 1,
+                    loc=new_pole_cells.growth_rate.mean(),
+                    scale=new_pole_cells.growth_rate.sem()
+                ))[0]
+            ),
+            **err_style
+        )
+        ax.errorbar(
+            generation_gradient.age.max() + 1,
+            old_pole_cells.growth_rate.mean(),
+            float(
+                np.diff(scipy.stats.t.interval(
+                    0.95,
+                    len(old_pole_cells.growth_rate) - 1,
+                    loc=old_pole_cells.growth_rate.mean(),
+                    scale=old_pole_cells.growth_rate.sem()
+                ))[0]
+            ),
+            **err_style
+        )
+
+        ax.set_xlim([.5, generation_gradient.age.max() + 1.5])
+        ax.set_xticks(range(1, int(generation_gradient.age.max() + 2)))
+        max_y = ax.get_ylim()[1]
+        # ax.set_ylim([0, max_y])
+        ax.set_xlabel("Pole age")
+        ax.set_ylabel(r"Exponential growth rate (\si{\per\hour})")
+        ax.set_xticklabels(xticklabels)
+
+        fig.tight_layout()
+        fig.savefig(
+            "noisy-linear-map-generation-growth-rate.pdf",
+            transparent=True
+        )
+
+
 
         # plot pole data swarms
         fig, ax = plt.subplots(3, 2, figsize=(8, 12))
