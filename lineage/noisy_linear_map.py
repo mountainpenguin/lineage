@@ -811,14 +811,14 @@ def process_tree(dirs):
                     rif_cut=rif_add
                 )
                 if type(cell_lineage.children) is list:
-#                    if type(cell_lineage.children[0].children) is list:
-#                        process_queue.append(cell_lineage.children[0].children[0])
-#                        process_queue.append(cell_lineage.children[0].children[1])
-#                    if type(cell_lineage.children[1].children) is list:
-#                        process_queue.append(cell_lineage.children[1].children[0])
-#                        process_queue.append(cell_lineage.children[1].children[1])
-                    process_queue.append(cell_lineage.children[0])
-                    process_queue.append(cell_lineage.children[1])
+                    if type(cell_lineage.children[0].children) is list:
+                        process_queue.append(cell_lineage.children[0].children[0])
+                        process_queue.append(cell_lineage.children[0].children[1])
+                    if type(cell_lineage.children[1].children) is list:
+                        process_queue.append(cell_lineage.children[1].children[0])
+                        process_queue.append(cell_lineage.children[1].children[1])
+#                    process_queue.append(cell_lineage.children[0])
+#                    process_queue.append(cell_lineage.children[1])
 
             j = 1
             nodes = {}
