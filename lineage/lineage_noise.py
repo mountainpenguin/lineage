@@ -66,10 +66,16 @@ class Main(object):
             # ("doubling_time", "Interdivision time", r"\si{\hour}"),
             ("asymmetry", "Asymmetry", None),
         ]
-        fig = plt.figure(figsize=(3.5, 2.4 * len(wanted_vars)))
-        rows, cols, ax_num = len(wanted_vars), 2, 1
+
+        if not os.path.exists("noise"):
+            os.mkdir("noise")
+
+#        fig = plt.figure(figsize=(3.5, 2.4 * len(wanted_vars)))
+#        rows, cols, ax_num = len(wanted_vars), 2, 1
         for var, label, unit in wanted_vars:
-            ax = fig.add_subplot(rows, cols, ax_num)
+#            ax = fig.add_subplot(rows, cols, ax_num)
+            fig = plt.figure(figsize=(3.34, 2.4))
+            ax = fig.add_subplot(121)
             sns.despine(ax=ax)
             self.plot_variable(var, ax)
             if unit:
@@ -77,31 +83,38 @@ class Main(object):
             else:
                 ylabel = label
             ax.set_ylabel(ylabel)
-            if ax_num == 1:
-                self.add_legend(ax)
-            elif ax_num == rows * cols - 1:
-                ax.set_xticklabels(self.datalabels, rotation=90)
-            ax_num += 1
+#            if ax_num == 1:
+#                self.add_legend(ax)
+#            elif ax_num == rows * cols - 1:
+#                ax.set_xticklabels(self.datalabels, rotation=90)
+#            ax_num += 1
+            self.add_legend(ax)
+            ax.set_xticklabels(self.datalabels, rotation=90)
 
-            ax = fig.add_subplot(rows, cols, ax_num)
+#            ax = fig.add_subplot(rows, cols, ax_num)
+            ax = fig.add_subplot(122)
             sns.despine(ax=ax)
             self.plot_variable(var, ax, cv=True)
             ax.set_ylabel(r"CV {0} (\si{{\percent}})".format(label.lower()))
-            if ax_num == 2:
-                self.add_legend(ax)
-            elif ax_num == rows * cols:
-                ax.set_xticklabels(self.datalabels, rotation=90)
-            ax_num += 1
+#            if ax_num == 2:
+#                self.add_legend(ax)
+#            elif ax_num == rows * cols:
+#                ax.set_xticklabels(self.datalabels, rotation=90)
+#            ax_num += 1
+            self.add_legend(ax)
+            ax.set_xticklabels(self.datalabels, rotation=90)
 
-        if not os.path.exists("noise"):
-            os.mkdir("noise")
+            fig.tight_layout()
+            fig.savefig(
+                "noise/{0}.pdf".format(var),
+                transparent=True
+            )
 
-        fig.tight_layout()
-        fig.savefig(
-            "noise/temp_noise.pdf",
-            bbox_inches="tight",
-            transparent=True
-        )
+#        fig.tight_layout()
+#        fig.savefig(
+#            "noise/temp_noise.pdf",
+#            transparent=True
+#        )
 
     def cv(self, x, axis=None):
         return 100 * x.std(axis=axis) / x.mean(axis=axis)
