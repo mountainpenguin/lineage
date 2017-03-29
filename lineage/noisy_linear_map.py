@@ -560,30 +560,8 @@ def plot_joint(
         fn, suffix, xlab, ylab
     ))
 
-    if fn in [
-        "noisy_linear_map",
-        "noisy-linear-map-new-pole",
-        "noisy-linear-map-old-pole"
-    ]:
-        xlim_set = [1, 9]
-        ylim_set = [2, 16]
-    elif fn in [
-        "initial-added",
-        "initial-added-new-pole",
-        "initial-added-old-pole"
-    ]:
-        xlim_set = [1, 9]
-        ylim_set = [1, 9]
-    else:
-        xlim_set, ylim_set = None, None
-
-    if xlim:
-        xlim_set = xlim
-    if ylim:
-        ylim_set = ylim
-
     # xlim_set, ylim_set = None, None
-    g = sns.JointGrid(xdata, ydata, xlim=xlim_set, ylim=ylim_set)
+    g = sns.JointGrid(xdata, ydata, xlim=xlim, ylim=ylim)
 
     marginal_args = [
         sns.distplot
@@ -821,7 +799,7 @@ def process_tree(dirs):
             timings, rif_add, px = misc.get_timings()
             L = track.Lineage()
             initial_cells = L.frames[0].cells
-            # only follow cells after first division
+            # only follow cells after second division
             process_queue = []
             for init_cell in initial_cells:
                 cell_lineage = track.SingleCellLineage(
@@ -833,6 +811,12 @@ def process_tree(dirs):
                     rif_cut=rif_add
                 )
                 if type(cell_lineage.children) is list:
+#                    if type(cell_lineage.children[0].children) is list:
+#                        process_queue.append(cell_lineage.children[0].children[0])
+#                        process_queue.append(cell_lineage.children[0].children[1])
+#                    if type(cell_lineage.children[1].children) is list:
+#                        process_queue.append(cell_lineage.children[1].children[0])
+#                        process_queue.append(cell_lineage.children[1].children[1])
                     process_queue.append(cell_lineage.children[0])
                     process_queue.append(cell_lineage.children[1])
 
