@@ -36,9 +36,9 @@ class Main(object):
         self.datasets = [self.glycerol, self.acetate, self.pyruvate]
         self.datalabels = ["Glycerol", "Acetate", "Pyruvate"]
         self.datacolour = [
-            (0.2980392156862745, 0.4470588235294118, 0.6901960784313725),
-            (0.3333333333333333, 0.6588235294117647, 0.40784313725490196),
-            (0.7686274509803922, 0.3058823529411765, 0.3215686274509804),
+            (202 / 256, 51 / 256, 0),
+            (49 / 256, 99 / 256, 206 / 256),
+            (255 / 256, 155 / 256, 0)
         ]
 
     def get_pole(self, x, isold):

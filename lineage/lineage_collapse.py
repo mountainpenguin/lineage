@@ -4,7 +4,11 @@ import pandas as pd
 import seaborn as sns
 sns.set_context("paper")
 sns.set_style("white")
-sns.set_palette("colorblind")
+sns.set_palette([
+    (202 / 256, 51 / 256, 0),
+    (49 / 256, 99 / 256, 206 / 256),
+    (255 / 256, 155 / 256, 0)
+])
 import matplotlib.pyplot as plt
 plt.rc("font", family="sans-serif")
 plt.rc("text", usetex=True)
