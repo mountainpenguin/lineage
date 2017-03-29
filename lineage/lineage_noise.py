@@ -58,13 +58,13 @@ class Main(object):
 
     def plot_data(self):
         wanted_vars = [
-            ("initial_length", "Initial length", r"\si{\micro\metre}"),
-            # ("final_length", "Final length", r"\si{\micro\metre}"),
+            ("initial_length", "Birth length", r"\si{\micro\metre}"),
+            # ("final_length", "Division length", r"\si{\micro\metre}"),
             # ("added_length", "Added length", r"\si{\micro\metre}"),
-            # ("elong_rate", "Elongation rate", r"\si{\micro\metre\per\hour}"),
-            ("growth_rate", "Exponential elongation rate", r"\si{\per\hour}"),
+            # ("elong_rate", "Linear elongation rate", r"\si{\micro\metre\per\hour}"),
+            ("growth_rate", "Exponential growth rate", r"\si{\per\hour}"),
             # ("doubling_time", "Interdivision time", r"\si{\hour}"),
-            ("asymmetry", "Asymmetry", None),
+            ("asymmetry", "Division asymmetry", None),
         ]
 
         if not os.path.exists("noise"):

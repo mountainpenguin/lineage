@@ -37,12 +37,12 @@ def main():
 
     i = 1
     parameters = [
-        ("initial_length", r"Initial length (\si{\micro\metre})"),
-        ("final_length", r"Final length (\si{\micro\metre})"),
+        ("initial_length", r"Birth length (\si{\micro\metre})"),
+        ("final_length", r"Division length (\si{\micro\metre})"),
         ("added_length", r"Added length (\si{\micro\metre})"),
         ("doubling_time", r"Interdivision time (\si{\hour})"),
         ("elong_rate", r"Linear elongation rate (\si{\micro\metre\per\hour})"),
-        ("growth_rate", r"Exponential elongation rate (\si{\per\hour})"),
+        ("growth_rate", r"Exponential growth rate (\si{\per\hour})"),
     ]
 
     dkw = {
