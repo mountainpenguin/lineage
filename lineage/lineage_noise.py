@@ -65,6 +65,7 @@ class Main(object):
             ("growth_rate", "Exponential growth rate", r"\si{\per\hour}"),
             # ("doubling_time", "Interdivision time", r"\si{\hour}"),
             ("asymmetry", "Division asymmetry", None),
+            ("slope", r"Slope, $a$", None),
         ]
 
         if not os.path.exists("noise"):
@@ -77,6 +78,9 @@ class Main(object):
             fig = plt.figure(figsize=(3.34, 2.4))
             ax = fig.add_subplot(121)
             sns.despine(ax=ax)
+            if var == "slope":
+                ax.plot([0.5, 3.5], [1, 1], "k--")
+
             self.plot_variable(var, ax)
             if unit:
                 ylabel = "{0} ({1})".format(label, unit)
@@ -119,15 +123,38 @@ class Main(object):
     def cv(self, x, axis=None):
         return 100 * x.std(axis=axis) / x.mean(axis=axis)
 
+    def slope(self, Lb, Ld):
+        twotail = 0.975
+        tstatistic = scipy.stats.t.ppf(twotail, df=(len(Lb) - 2))
+        A = np.vstack([Lb, np.ones(len(Lb))]).T
+        linalg = scipy.linalg.lstsq(A, Ld)
+        m, c = linalg[0]
+        sum_y_res = np.sum((Ld - Ld.mean()) ** 2)
+        Syx = np.sqrt(sum_y_res / (len(Lb) - 2))
+        sum_x_res = np.sum((Lb - Lb.mean()) ** 2)
+        Sb = Syx / np.sqrt(sum_x_res)
+        merror = tstatistic * Sb
+        return m, merror
+
     def plot_variable(self, var, ax, cv=False):
         i = 1
         print("=" * 54)
         print(var)
         for dataset in self.datasets:
+            if var != "slope":
+                dataset = dataset[~np.isnan(dataset[var])]
             newpole = self.get_pole(dataset, False)
             oldpole = self.get_pole(dataset, True)
-            dataset = dataset[(dataset.pole_age > 1) | (dataset.age_known)]
-            if cv:
+            # dataset = dataset[(dataset.pole_age > 1) | (dataset.age_known)]
+            if var == "slope" and cv:
+                cv_both, cv_ci_both = 1, 0.5
+                cv_new, cv_ci_new = 1, 0.5
+                cv_old, cv_ci_old = 1, 0.5
+            elif var == "slope" and not cv:
+                cv_both, cv_ci_both = self.slope(dataset.initial_length, dataset.final_length)
+                cv_new, cv_ci_new = self.slope(newpole.initial_length, newpole.final_length)
+                cv_old, cv_ci_old = self.slope(oldpole.initial_length, oldpole.final_length)
+            elif cv:
                 cv_both = self.cv(dataset[var])
                 cv_ci_both = self.bootstrap(
                     dataset[var], self.cv
@@ -151,56 +178,76 @@ class Main(object):
                 cv_old = np.mean(oldpole[var])
                 cv_ci_old = self.bootstrap(oldpole[var])
 
-            print("{4:8s} [{0}] Both: {1:.5f} <-> {2:.5f} <-> {3:.5f}".format(
-                cv and "cv" or "  ",
-                cv_ci_both[0], cv_both, cv_ci_both[1],
-                self.datalabels[i - 1],
-            ))
-            print("{4:8s} [{0}]  New: {1:.5f} <-> {2:.5f} <-> {3:.5f}".format(
-                cv and "cv" or "  ",
-                cv_ci_new[0], cv_new, cv_ci_new[1],
-                self.datalabels[i - 1],
-            ))
-            print("{4:8s} [{0}]  Old: {1:.5f} <-> {2:.5f} <-> {3:.5f}".format(
-                cv and "cv" or "  ",
-                cv_ci_old[0], cv_old, cv_ci_old[1],
-                self.datalabels[i - 1],
-            ))
+            if var != "slope":
+                print("{4:8s} [{0}] Both: {1:.5f} <-> {2:.5f} <-> {3:.5f}".format(
+                    cv and "cv" or "  ",
+                    cv_ci_both[0], cv_both, cv_ci_both[1],
+                    self.datalabels[i - 1],
+                ))
+                print("{4:8s} [{0}]  New: {1:.5f} <-> {2:.5f} <-> {3:.5f}".format(
+                    cv and "cv" or "  ",
+                    cv_ci_new[0], cv_new, cv_ci_new[1],
+                    self.datalabels[i - 1],
+                ))
+                print("{4:8s} [{0}]  Old: {1:.5f} <-> {2:.5f} <-> {3:.5f}".format(
+                    cv and "cv" or "  ",
+                    cv_ci_old[0], cv_old, cv_ci_old[1],
+                    self.datalabels[i - 1],
+                ))
 
-            jitter = 0.15
+            jitter = 0.3
             ax_args = [
                 i - jitter,
                 cv_new,
-                [[cv_new - cv_ci_new[0], cv_ci_new[1] - cv_new]],
                 # np.diff(cv_ci_new),
             ]
+            if type(cv_ci_new) is not tuple:
+                ax_args.append(cv_ci_new)
+            else:
+                ax_args.append(
+                    [[cv_new - cv_ci_new[0], cv_ci_new[1] - cv_new]]
+                )
+
             ax_kwargs = {
                 "color": self.datacolour[i - 1],
                 "fmt": "o",
                 "lw": 2,
                 "mew": 1,
             }
+
             ax.errorbar(*ax_args, **ax_kwargs)
 
-#            ax_args = [
-#                i,
-#                cv_both,
-#                [[cv_both - cv_ci_both[0], cv_ci_both[1] - cv_both]],
-#            ]
-#            ax_kwargs = {
-#                "color": self.datacolour[i - 1],
-#                "fmt": "x",
-#                "lw": 2,
-#                "mew": 1
-#            }
-#            ax.errorbar(*ax_args, **ax_kwargs)
+            ax_args = [
+                i,
+                cv_both,
+            ]
+            if type(cv_ci_both) is not tuple:
+                ax_args.append(cv_ci_both)
+            else:
+                ax_args.append(
+                    [[cv_both - cv_ci_both[0], cv_ci_both[1] - cv_both]]
+                )
+
+            ax_kwargs = {
+                "color": self.datacolour[i - 1],
+                "fmt": "s",
+                "lw": 2,
+                "mew": 1,
+            }
+            ax.errorbar(*ax_args, **ax_kwargs)
 
             ax_args = [
                 i + jitter,
                 cv_old,
-                [[cv_old - cv_ci_old[0], cv_ci_old[1] - cv_old]],
                 #np.diff(cv_ci_old)
             ]
+            if type(cv_ci_old) is not tuple:
+                ax_args.append(cv_ci_old)
+            else:
+                ax_args.append(
+                    [[cv_old - cv_ci_old[0], cv_ci_old[1] - cv_old]]
+                )
+
             ax_kwargs = {
                 "color": self.datacolour[i - 1],
                 "fmt": "o",
@@ -236,7 +283,15 @@ class Main(object):
             linestyle="none",
             label="Old",
         )
-        ax.legend(handles=[black_filled, black_unfilled])
+        black_square = plt.Line2D(
+            [], [],
+            color="black",
+            marker="s",
+            mew=1,
+            linestyle="none",
+            label="Both",
+        )
+        ax.legend(handles=[black_filled, black_square, black_unfilled])
 
 
 if __name__ == "__main__":
