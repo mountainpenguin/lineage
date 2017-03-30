@@ -1136,7 +1136,7 @@ def plot_data(data):
         ax.set_ylim([0, max_y])
 
         ax.set_xlabel("Pole age")
-        ax.set_ylabel("Slope")
+        ax.set_ylabel("Slope, $a$")
 
         fig.canvas.draw()
 
