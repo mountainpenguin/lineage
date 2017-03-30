@@ -142,19 +142,18 @@ class Main(object):
         return 100 * x.std(axis=axis) / x.mean(axis=axis)
 
     def slope(self, Lb, Ld, cv=False):
-        twotail = 0.975
-        tstatistic = scipy.stats.t.ppf(twotail, df=(len(Lb) - 2))
         A = np.vstack([Lb, np.ones(len(Lb))]).T
-        linalg = scipy.linalg.lstsq(A, Ld)
-        m, c = linalg[0]
-        sum_y_res = np.sum((Ld - Ld.mean()) ** 2)
-        Syx = np.sqrt(sum_y_res / (len(Lb) - 2))
-        sum_x_res = np.sum((Lb - Lb.mean()) ** 2)
-        Sb = Syx / np.sqrt(sum_x_res)
-        merror = tstatistic * Sb
+        results = sm.OLS(
+            Ld, A
+        ).fit()
+
+        m = results.params[0]
+        Sm = results.bse[0]
+        conf = np.array(results.conf_int())[0]
+        merror = float(np.diff(conf) / 2)
 
         if cv:
-            return 100 * merror / m
+            return 100 * Sm / m
         else:
             return m, merror
 

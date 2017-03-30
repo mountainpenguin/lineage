@@ -31,6 +31,7 @@ import seaborn as sns
 import warnings
 import textwrap
 import networkx as nx
+import statsmodels.api as sm
 
 sns.set_style("white")
 sns.set_context("paper")
@@ -368,30 +369,17 @@ def get_stats(xdata, ydata, fit="linear", ci=95):
 
     """
     if fit == "linear":
-        twotail = 1 - (1 - ci / 100) / 2
-        tstatistic = scipy.stats.t.ppf(twotail, df=(len(xdata) - 2))
-
         A = np.vstack([xdata, np.ones(len(xdata))]).T
-        # results = sm.OLS(
-        #     ydata, A
-        # ).fit()
-        # print(results.summary())
-        # input("...")
+        results = sm.OLS(
+            ydata, A
+        ).fit()
 
-        linalg = scipy.linalg.lstsq(A, ydata)
-        m, c = linalg[0]
-        sum_y_residuals = np.sum((ydata - ydata.mean()) ** 2)
-        Syx = np.sqrt(sum_y_residuals / (len(xdata) - 2))
-        sum_x_residuals = np.sum((xdata - xdata.mean()) ** 2)
-        Sb = Syx / np.sqrt(sum_x_residuals)
-        merror = tstatistic * Sb
-        print("a:", m, "SE:", Sb, "merror:", merror)
-
-        Sa = Syx * np.sqrt(
-            np.sum(xdata ** 2) / (len(xdata) * sum_x_residuals)
-        )
-        cerror = tstatistic * Sa
-
+        m, c = results.params
+        Sb, Sa = results.bse
+        conf = np.array(results.conf_int())
+        merror = float(np.diff(conf[0]) / 2)
+        cerror = float(np.diff(conf[1]) / 2)
+        print("m:", m, "c:", c, "mse:", Sb, "cse:", Sa, "merror:", merror, "cerror:", cerror, "n:", len(xdata))
         r, rp = scipy.stats.pearsonr(xdata, ydata)
 
         return [
