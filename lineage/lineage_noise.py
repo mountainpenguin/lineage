@@ -74,11 +74,11 @@ class Main(object):
     def plot_data(self):
         wanted_vars = [
             ("initial_length", "Birth length", r"\si{\micro\metre}"),
-            # ("final_length", "Division length", r"\si{\micro\metre}"),
-            # ("added_length", "Added length", r"\si{\micro\metre}"),
+            ("final_length", "Division length", r"\si{\micro\metre}"),
+            ("added_length", "Added length", r"\si{\micro\metre}"),
             # ("elong_rate", "Linear elongation rate", r"\si{\micro\metre\per\hour}"),
             ("growth_rate", "Exponential growth rate", r"\si{\per\hour}"),
-            # ("doubling_time", "Interdivision time", r"\si{\hour}"),
+            ("doubling_time", "Interdivision time", r"\si{\hour}"),
             ("asymmetry", "Division asymmetry", None),
             ("slope", r"Slope, $a$", None),
         ]
@@ -91,10 +91,12 @@ class Main(object):
         for var, label, unit in wanted_vars:
 #            ax = fig.add_subplot(rows, cols, ax_num)
             fig = plt.figure(figsize=(3.34, 2.4))
-            ax = fig.add_subplot(121)
-            sns.despine(ax=ax)
             if var == "slope":
+                ax = fig.add_subplot(111)
                 ax.plot([0.5, 3.5], [1, 1], "k--")
+            else:
+                ax = fig.add_subplot(121)
+            sns.despine(ax=ax)
 
             self.plot_variable(var, ax)
             if unit:
@@ -107,28 +109,22 @@ class Main(object):
 #            elif ax_num == rows * cols - 1:
 #                ax.set_xticklabels(self.datalabels, rotation=90)
 #            ax_num += 1
-            if var == "slope":
-                self.add_legend(
-                    ax,
-                    bbox_to_anchor=[0.6, 1],
-                    bbox_transform=ax.transAxes,
-                )
-            else:
-                self.add_legend(ax)
-            ax.set_xticklabels(self.datalabels, rotation=90)
-
-#            ax = fig.add_subplot(rows, cols, ax_num)
-            ax = fig.add_subplot(122)
-            sns.despine(ax=ax)
-            self.plot_variable(var, ax, cv=True)
-            ax.set_ylabel(r"CV {0} (\si{{\percent}})".format(label.lower()))
-#            if ax_num == 2:
-#                self.add_legend(ax)
-#            elif ax_num == rows * cols:
-#                ax.set_xticklabels(self.datalabels, rotation=90)
-#            ax_num += 1
             self.add_legend(ax)
             ax.set_xticklabels(self.datalabels, rotation=90)
+
+            if var != "slope":
+    #            ax = fig.add_subplot(rows, cols, ax_num)
+                ax = fig.add_subplot(122)
+                sns.despine(ax=ax)
+                self.plot_variable(var, ax, cv=True)
+                ax.set_ylabel(r"CV {0} (\si{{\percent}})".format(label.lower()))
+    #            if ax_num == 2:
+    #                self.add_legend(ax)
+    #            elif ax_num == rows * cols:
+    #                ax.set_xticklabels(self.datalabels, rotation=90)
+    #            ax_num += 1
+                self.add_legend(ax)
+                ax.set_xticklabels(self.datalabels, rotation=90)
 
             fig.tight_layout()
             fig.savefig(
