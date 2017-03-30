@@ -47,6 +47,20 @@ class Main(object):
         else:
             return x[(x.pole_age == 1) & (x.age_known)]
 
+    def bootstrap_slope(self, data, alpha=0.05, num_samples=100):
+        n = len(data)
+        sample_ids = np.random.choice(data.id, (num_samples, n))
+        stat = []
+        for sample_id in sample_ids:
+            sample = data[data.id.isin(sample_id)]
+            cv = 100 * self.slope(sample.initial_length, sample.final_length, cv=True)
+            stat.append(cv)
+        stat = np.sort(stat)
+        return (
+            stat[int((alpha / 2.0) * num_samples)],
+            stat[int((1 - alpha / 2.0) * num_samples)]
+        )
+
     def bootstrap(self, data, statistic=np.mean, alpha=0.05, num_samples=100):
         n = len(data)
         samples = np.random.choice(data, (num_samples, n))
@@ -92,7 +106,14 @@ class Main(object):
 #            elif ax_num == rows * cols - 1:
 #                ax.set_xticklabels(self.datalabels, rotation=90)
 #            ax_num += 1
-            self.add_legend(ax)
+            if var == "slope":
+                self.add_legend(
+                    ax,
+                    bbox_to_anchor=[0.6, 1],
+                    bbox_transform=ax.transAxes,
+                )
+            else:
+                self.add_legend(ax)
             ax.set_xticklabels(self.datalabels, rotation=90)
 
 #            ax = fig.add_subplot(rows, cols, ax_num)
@@ -123,7 +144,7 @@ class Main(object):
     def cv(self, x, axis=None):
         return 100 * x.std(axis=axis) / x.mean(axis=axis)
 
-    def slope(self, Lb, Ld):
+    def slope(self, Lb, Ld, cv=False):
         twotail = 0.975
         tstatistic = scipy.stats.t.ppf(twotail, df=(len(Lb) - 2))
         A = np.vstack([Lb, np.ones(len(Lb))]).T
@@ -134,7 +155,11 @@ class Main(object):
         sum_x_res = np.sum((Lb - Lb.mean()) ** 2)
         Sb = Syx / np.sqrt(sum_x_res)
         merror = tstatistic * Sb
-        return m, merror
+        std_dev = Sb * np.sqrt(len(Lb))
+        if cv:
+            return std_dev / m
+        else:
+            return m, merror
 
     def plot_variable(self, var, ax, cv=False):
         i = 1
@@ -147,13 +172,26 @@ class Main(object):
             oldpole = self.get_pole(dataset, True)
             # dataset = dataset[(dataset.pole_age > 1) | (dataset.age_known)]
             if var == "slope" and cv:
-                cv_both, cv_ci_both = 1, 0.5
-                cv_new, cv_ci_new = 1, 0.5
-                cv_old, cv_ci_old = 1, 0.5
+                cv_both = self.slope(dataset.initial_length, dataset.final_length, cv=True)
+                cv_ci_both = self.bootstrap_slope(dataset)
+                cv_new = self.slope(newpole.initial_length, newpole.final_length, cv=True)
+                cv_ci_new = self.bootstrap_slope(newpole)
+                cv_old = self.slope(oldpole.initial_length, oldpole.final_length, cv=True)
+                cv_ci_old = self.bootstrap_slope(oldpole)
+                cv_ci_both, cv_ci_new, cv_ci_old = 0, 0, 0
             elif var == "slope" and not cv:
                 cv_both, cv_ci_both = self.slope(dataset.initial_length, dataset.final_length)
+                print("{2:8s} [  ; n={3:03d}] Both: {0:.5f} +/i {1:.5f}".format(
+                    cv_both, cv_ci_both, self.datalabels[i - 1], len(dataset)
+                ))
                 cv_new, cv_ci_new = self.slope(newpole.initial_length, newpole.final_length)
+                print("{2:8s} [  ; n={3:03d}] New: {0:.5f} +/i {1:.5f}".format(
+                    cv_new, cv_ci_new, self.datalabels[i - 1], len(newpole)
+                ))
                 cv_old, cv_ci_old = self.slope(oldpole.initial_length, oldpole.final_length)
+                print("{2:8s} [  ; n={3:03d}] Old: {0:.5f} +/i {1:.5f}".format(
+                    cv_old, cv_ci_old, self.datalabels[i - 1], len(oldpole)
+                ))
             elif cv:
                 cv_both = self.cv(dataset[var])
                 cv_ci_both = self.bootstrap(
@@ -179,27 +217,29 @@ class Main(object):
                 cv_ci_old = self.bootstrap(oldpole[var])
 
             if var != "slope":
-                print("{4:8s} [{0}] Both: {1:.5f} <-> {2:.5f} <-> {3:.5f}".format(
+                print("{4:8s} [{0}; n={5:03d}] Both: {1:.5f} <-> {2:.5f} <-> {3:.5f}".format(
                     cv and "cv" or "  ",
                     cv_ci_both[0], cv_both, cv_ci_both[1],
                     self.datalabels[i - 1],
+                    len(dataset[var]),
                 ))
-                print("{4:8s} [{0}]  New: {1:.5f} <-> {2:.5f} <-> {3:.5f}".format(
+                print("{4:8s} [{0}; n={5:03d}]  New: {1:.5f} <-> {2:.5f} <-> {3:.5f}".format(
                     cv and "cv" or "  ",
                     cv_ci_new[0], cv_new, cv_ci_new[1],
                     self.datalabels[i - 1],
+                    len(newpole[var]),
                 ))
-                print("{4:8s} [{0}]  Old: {1:.5f} <-> {2:.5f} <-> {3:.5f}".format(
+                print("{4:8s} [{0}; n={5:03d}]  Old: {1:.5f} <-> {2:.5f} <-> {3:.5f}".format(
                     cv and "cv" or "  ",
                     cv_ci_old[0], cv_old, cv_ci_old[1],
                     self.datalabels[i - 1],
+                    len(oldpole[var]),
                 ))
 
             jitter = 0.3
             ax_args = [
                 i - jitter,
                 cv_new,
-                # np.diff(cv_ci_new),
             ]
             if type(cv_ci_new) is not tuple:
                 ax_args.append(cv_ci_new)
@@ -239,7 +279,6 @@ class Main(object):
             ax_args = [
                 i + jitter,
                 cv_old,
-                #np.diff(cv_ci_old)
             ]
             if type(cv_ci_old) is not tuple:
                 ax_args.append(cv_ci_old)
@@ -261,11 +300,9 @@ class Main(object):
             i += 1
 
         ax.set_xticks([1, 2, 3])
-#        ax.set_xticklabels([x[1] for x in self.datasets], rotation=90)
-        ax.set_xticklabels([])
         ax.set_xlim([0.5, 3.5])
 
-    def add_legend(self, ax):
+    def add_legend(self, ax, **legend_kws):
         black_filled = plt.Line2D(
             [], [],
             color="black",
@@ -291,15 +328,11 @@ class Main(object):
             linestyle="none",
             label="Both",
         )
-        ax.legend(handles=[black_filled, black_square, black_unfilled])
+        ax.legend(
+            handles=[black_filled, black_square, black_unfilled],
+            **legend_kws
+        )
 
 
 if __name__ == "__main__":
     M = Main()
-
-
-
-
-
-
-
