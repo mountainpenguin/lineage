@@ -9,6 +9,7 @@ import numpy as np
 import scipy.stats
 import seaborn as sns
 import matplotlib.pyplot as plt
+import statsmodels.api as sm
 
 sns.set_style("white")
 sns.set_context("paper")
@@ -53,7 +54,7 @@ class Main(object):
         stat = []
         for sample_id in sample_ids:
             sample = data[data.id.isin(sample_id)]
-            cv = 100 * self.slope(sample.initial_length, sample.final_length, cv=True)
+            cv = self.slope(sample.initial_length, sample.final_length, cv=True)
             stat.append(cv)
         stat = np.sort(stat)
         return (
@@ -155,9 +156,9 @@ class Main(object):
         sum_x_res = np.sum((Lb - Lb.mean()) ** 2)
         Sb = Syx / np.sqrt(sum_x_res)
         merror = tstatistic * Sb
-        std_dev = Sb * np.sqrt(len(Lb))
+
         if cv:
-            return std_dev / m
+            return 100 * merror / m
         else:
             return m, merror
 
@@ -178,7 +179,6 @@ class Main(object):
                 cv_ci_new = self.bootstrap_slope(newpole)
                 cv_old = self.slope(oldpole.initial_length, oldpole.final_length, cv=True)
                 cv_ci_old = self.bootstrap_slope(oldpole)
-                cv_ci_both, cv_ci_new, cv_ci_old = 0, 0, 0
             elif var == "slope" and not cv:
                 cv_both, cv_ci_both = self.slope(dataset.initial_length, dataset.final_length)
                 print("{2:8s} [  ; n={3:03d}] Both: {0:.5f} +/i {1:.5f}".format(
