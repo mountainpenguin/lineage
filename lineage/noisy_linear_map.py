@@ -4,12 +4,12 @@
 """ Model cell growth using a noisy linear map
 
     final_size = (a * initial_size) + b + noise
-    L_F(n) = aL_I(n) + b + \eta
+    L_d(n) = aL_b(n) + b + \eta
 
     where:
         n = generation number
-        L_F(n) = cell size before division for generation n
-        L_I(n) = cell size at birth for generation n
+        L_d(n) = cell size before division for generation n
+        L_b(n) = cell size at birth for generation n
         a = gradient of regression line
         b = intercept of regression line
         eta = noise
@@ -462,8 +462,8 @@ r = {r}, r$^2$ = {rsq}
 n = {n}"""
     if fn == "noisy_linear_map" or "noisy-linear-map" in fn:
         annotation += r"""
-$\langle L_I \rangle$ = {im}
-$\langle L_F \rangle$ = {fm}"""
+$\langle L_b \rangle$ = {im}
+$\langle L_d \rangle$ = {fm}"""
         x_ci = float(np.diff(scipy.stats.t.interval(
             0.95,
             len(xdata) - 1,
@@ -477,13 +477,13 @@ $\langle L_F \rangle$ = {fm}"""
             scale=ydata.sem()
         ))[0])
         print(
-            "<L_I>=", xdata.mean(),
+            "<L_b>=", xdata.mean(),
             "sd=", xdata.std(),
             "sem=", xdata.sem(),
             "ci=", x_ci
         )
         print(
-            "<L_F>=", ydata.mean(),
+            "<L_d>=", ydata.mean(),
             "sd=", ydata.std(),
             "sem=", ydata.sem(),
             "ci=", y_ci
