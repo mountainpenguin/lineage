@@ -545,11 +545,18 @@ def plot_joint(
                 (upper_lim)
             ][ydata.name]
             if len(yvals) >= settings["binthreshold"]:
+                q1, q3 = yvals.quantile([0.25, 0.75])
+                q_lower = yvals.mean() - q1
+                q_upper = q3 - yvals.mean()
                 binned_data = binned_data.append({
                     "x_centre": bin_min + (bin_width / 2),
                     "y_mean": yvals.mean(),
                     "y_std": yvals.std(),
                     "y_err": yvals.std() / np.sqrt(len(yvals)),
+                    "q_25": q1,
+                    "q_75": q3,
+                    "q_lower": q_lower,
+                    "q_upper": q_upper,
                     "n": len(yvals)
                 }, ignore_index=True)
         # suffix = "{0}-binned".format(suffix)
@@ -597,7 +604,7 @@ def plot_joint(
     if settings["binned"]:
         scatter_kws["alpha"] = 0.3
         g.ax_joint.errorbar(
-            binned_data.x_centre, binned_data.y_mean, binned_data.y_err,
+            binned_data.x_centre, binned_data.y_mean, yerr=np.array(binned_data[["q_lower", "q_upper"]]).T,
             marker="o",
             ms=10,
             mec="0.1",
