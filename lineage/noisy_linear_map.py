@@ -455,51 +455,63 @@ def draw_annotation(g, xdata, ydata, fn):
     ((stats_m, stats_merror),
      (stats_c, stats_cerror),
      (stats_r, stats_rp)) = get_stats(xdata, ydata)
-    annotation = r"""
-a = {m} $\pm$ {me}
-b = {c} $\pm$ {ce}
-r = {r}, r$^2$ = {rsq}
-n = {n}"""
-    if fn == "noisy_linear_map" or "noisy-linear-map" in fn:
-        annotation += r"""
-$\langle L_I \rangle$ = {im}
-$\langle L_F \rangle$ = {fm}"""
-        x_ci = float(np.diff(scipy.stats.t.interval(
-            0.95,
-            len(xdata) - 1,
-            loc=xdata.mean(),
-            scale=xdata.sem()
-        ))[0])
-        y_ci = float(np.diff(scipy.stats.t.interval(
-            0.95,
-            len(ydata) - 1,
-            loc=ydata.mean(),
-            scale=ydata.sem()
-        ))[0])
-        print(
-            "<L_I>=", xdata.mean(),
-            "sd=", xdata.std(),
-            "sem=", xdata.sem(),
-            "ci=", x_ci
-        )
-        print(
-            "<L_F>=", ydata.mean(),
-            "sd=", ydata.std(),
-            "sem=", ydata.sem(),
-            "ci=", y_ci
-        )
-    annotation = annotation.format(
-        m=fmt_dec(stats_m, 5),
+#    annotation = r"""
+#a = {m} $\pm$ {me}
+#b = {c} $\pm$ {ce}
+#r = {r}, r$^2$ = {rsq}
+#n = {n}"""
+#    if fn == "noisy_linear_map" or "noisy-linear-map" in fn:
+#        annotation += r"""
+#$\langle L_I \rangle$ = {im}
+#$\langle L_F \rangle$ = {fm}"""
+#        x_ci = float(np.diff(scipy.stats.t.interval(
+#            0.95,
+#            len(xdata) - 1,
+#            loc=xdata.mean(),
+#            scale=xdata.sem()
+#        ))[0])
+#        y_ci = float(np.diff(scipy.stats.t.interval(
+#            0.95,
+#            len(ydata) - 1,
+#            loc=ydata.mean(),
+#            scale=ydata.sem()
+#        ))[0])
+#        print(
+#            "<L_I>=", xdata.mean(),
+#            "sd=", xdata.std(),
+#            "sem=", xdata.sem(),
+#            "ci=", x_ci
+#        )
+#        print(
+#            "<L_F>=", ydata.mean(),
+#            "sd=", ydata.std(),
+#            "sem=", ydata.sem(),
+#            "ci=", y_ci
+#        )
+#    annotation = annotation.format(
+#        m=fmt_dec(stats_m, 5),
+#        me=fmt_dec(stats_merror, 3),
+#        c=fmt_dec(stats_c, 5),
+#        ce=fmt_dec(stats_cerror, 3),
+#        r=fmt_dec(stats_r, 3),
+#        rsq=fmt_dec(stats_r ** 2, 3),
+#        n=len(xdata),
+#        im=fmt_dec(xdata.mean(), 4),
+#        fm=fmt_dec(ydata.mean(), 4),
+#    )
+#    annotation += "\n"
+
+    annotation = """
+slope     = {m} $\\pm$ {me}
+intercept = {c} $\\pm$ {ce}
+n         = {n}
+    """.format(
+        m=fmt_dec(stats_m, 3),
         me=fmt_dec(stats_merror, 3),
-        c=fmt_dec(stats_c, 5),
+        c=fmt_dec(stats_c, 3),
         ce=fmt_dec(stats_cerror, 3),
-        r=fmt_dec(stats_r, 3),
-        rsq=fmt_dec(stats_r ** 2, 3),
         n=len(xdata),
-        im=fmt_dec(xdata.mean(), 4),
-        fm=fmt_dec(ydata.mean(), 4),
     )
-    annotation += "\n"
     g.annotate(
         lambda x, y: (x, y),
         template="\n".join(annotation.split("\n")[1:-1]),
@@ -622,8 +634,10 @@ def plot_joint(
     )
 
     draw_annotation(g, xdata, ydata, fn)
-    g.set_axis_labels(xlab, ylab, fontsize=12)
+    g.set_axis_labels(xlab, ylab, fontsize=16)
+    g.ax_joint.tick_params(axis="both", which="major", labelsize=13)
 
+    plt.tight_layout()
     plt.savefig("{0}{1}.pdf".format(fn, suffix), transparent=True)
     plt.close()
 
