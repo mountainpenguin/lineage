@@ -4,12 +4,12 @@
 """ Model cell growth using a noisy linear map
 
     final_size = (a * initial_size) + b + noise
-    L_F(n) = aL_I(n) + b + \eta
+    L_d(n) = aL_b(n) + b + \eta
 
     where:
         n = generation number
-        L_F(n) = cell size before division for generation n
-        L_I(n) = cell size at birth for generation n
+        L_d(n) = cell size before division for generation n
+        L_b(n) = cell size at birth for generation n
         a = gradient of regression line
         b = intercept of regression line
         eta = noise
