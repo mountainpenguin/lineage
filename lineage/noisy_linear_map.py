@@ -515,12 +515,15 @@ def draw_annotation(g, xdata, ydata, fn):
     annotation = """
 slope     = {m} $\\pm$ {me}
 intercept = {c} $\\pm$ {ce}
+r = {r}, r$^2$ = {rsq}
 n         = {n}
     """.format(
         m=fmt_dec(stats_m, 3),
         me=fmt_dec(stats_merror, 3),
         c=fmt_dec(stats_c, 3),
         ce=fmt_dec(stats_cerror, 3),
+        r=fmt_dec(stats_r, 3),
+        rsq=fmt_dec(stats_r ** 2, 3),
         n=len(xdata),
     )
     g.annotate(
