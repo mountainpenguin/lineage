@@ -360,7 +360,7 @@ def process_dir():
     return result
 
 
-def get_stats(xdata, ydata, fit="linear", ci=95):
+def get_stats(xdata, ydata, fit="linear", ci=95, bootstrap=False):
     """ Return data statistics
 
     Input arguments:
@@ -390,9 +390,30 @@ def get_stats(xdata, ydata, fit="linear", ci=95):
         conf = np.array(results.conf_int())
         merror = float(np.diff(conf[0]) / 2)
         cerror = float(np.diff(conf[1]) / 2)
-        print("m:", m, "c:", c, "mse:", Sb, "cse:", Sa, "merror:", merror, "cerror:", cerror, "n:", len(xdata))
         r, rp = scipy.stats.pearsonr(xdata, ydata)
 
+        if bootstrap:
+            # determine merror by bootstrapping too
+            data = np.array(list(zip(xdata, ydata)))
+            idxs = list(range(len(xdata)))
+
+            sample_idxs = np.random.choice(idxs, (100, len(data)))
+            stat = []
+            for sample_idx in sample_idxs:
+                sample = np.vstack([data[x] for x in sample_idx])
+                sample_A = np.vstack([sample[:, 0], np.ones(len(sample))]).T
+                sample_res = sm.OLS(
+                    sample[:, 1], sample_A
+                ).fit()
+                stat.append(sample_res.params[0])
+            stat = np.sort(stat)
+            alpha = 1 - (ci / 100.0)
+            merror = (
+                stat[int((alpha / 2) * 100)],
+                stat[int((1 - alpha / 2) * 100)]
+            )
+
+        print("m:", m, "c:", c, "mse:", Sb, "cse:", Sa, "merror:", merror, "cerror:", cerror, "n:", len(xdata))
         return [
             (m, merror),
             (c, cerror),
