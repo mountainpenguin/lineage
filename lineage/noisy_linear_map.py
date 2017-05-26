@@ -121,6 +121,17 @@ class CustomNode(object):
         ).strip())
 
 
+def bootstrap(data, statistic=np.mean, alpha=0.05, num_samples=100):
+    """ Copied from lineage_noise.py """
+    n = len(data)
+    samples = np.random.choice(data, (num_samples, n))
+    stat = np.sort(statistic(samples, 1))
+    return (
+        stat[int((alpha / 2.0) * num_samples)],
+        stat[int((1 - alpha / 2.0) * num_samples)]
+    )
+
+
 def process_old():
     # lineage_file = np.load("lineages.npz")
     # lineage_data = lineage_file["lineages"]
@@ -548,6 +559,10 @@ def plot_joint(
                 q1, q3 = yvals.quantile([0.25, 0.75])
                 q_lower = yvals.mean() - q1
                 q_upper = q3 - yvals.mean()
+
+                # bootstrap for 95% confidence interval
+                y_95 = bootstrap(yvals)
+
                 binned_data = binned_data.append({
                     "x_centre": bin_min + (bin_width / 2),
                     "y_mean": yvals.mean(),
@@ -557,6 +572,8 @@ def plot_joint(
                     "q_75": q3,
                     "q_lower": q_lower,
                     "q_upper": q_upper,
+                    "y_95_lower": yvals.mean() - y_95[0],
+                    "y_95_upper": y_95[1] - yvals.mean(),
                     "n": len(yvals)
                 }, ignore_index=True)
         # suffix = "{0}-binned".format(suffix)
@@ -604,7 +621,7 @@ def plot_joint(
     if settings["binned"]:
         scatter_kws["alpha"] = 0.3
         g.ax_joint.errorbar(
-            binned_data.x_centre, binned_data.y_mean, yerr=np.array(binned_data[["q_lower", "q_upper"]]).T,
+            binned_data.x_centre, binned_data.y_mean, yerr=np.array(binned_data[["y_95_lower", "y_95_upper"]]).T,
             marker="o",
             ms=10,
             mec="0.1",
@@ -1613,9 +1630,9 @@ def main():
         """
     )
     parser.add_argument(
-        "-t", "--binthreshold", default=0, type=int,
+        "-t", "--binthreshold", default=5, type=int,
         help="""
-            add threshold number of values per bin for plotting, defaults to 0
+            add threshold number of values per bin for plotting, defaults to 5
         """
     )
     parser.add_argument(
